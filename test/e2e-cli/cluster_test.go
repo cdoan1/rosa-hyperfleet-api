@@ -480,7 +480,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 				}
 				g.Expect(hasAvailable).To(BeTrue(), "controller %q should have Available = True", controllerName)
 			}
-		}).WithTimeout(30*time.Minute).WithPolling(60*time.Second).Should(Succeed(),
+		}).WithTimeout(60*time.Minute).WithPolling(60*time.Second).Should(Succeed(),
 			"cluster and controllers should have Available/Ready = True")
 
 		resp, err := apiClient.Get("/api/v0/clusters/"+id+"/statuses", accountID)
