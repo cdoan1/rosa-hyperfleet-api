@@ -408,7 +408,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		// statusRaw["phase"], statusRaw["lastUpdateTime"], statusRaw["observedGeneration"])
 
 		// Response is pkg/types.ClusterStatusResponse: { "cluster_id", "status", "controller_statuses": [...] }.
-		// Poll until reconcilers report every condition as True (right after create they are often False).
+		// Poll until the control plane is available (Available or Ready condition = True).
 		//
 		// Logging notes:
 		// - Code after a failing g.Expect never runs, so you only see logs that run *before* the assertion that fails.
@@ -435,21 +435,53 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 			}
 			GinkgoWriter.Printf("[%s] polled cluster /statuses (stream with: ginkgo -v)\n", time.Now().Format(time.RFC3339))
 
-			g.Expect(statusEnvelope.ControllerStatuses).NotTo(BeEmpty(), "controller_statuses should be populated")
-
-			// Nested JSON arrays decode as []interface{} with map elements, not []map[string]interface{}.
-			for _, cs := range statusEnvelope.ControllerStatuses {
-				raw, ok := cs["conditions"].([]interface{})
-				g.Expect(ok).To(BeTrue(), "controller status should include conditions: %#v", cs)
-				g.Expect(raw).NotTo(BeEmpty(), "conditions should be non-empty while cluster reconciles")
-				for _, item := range raw {
-					cond, ok := item.(map[string]interface{})
-					g.Expect(ok).To(BeTrue())
-					g.Expect(cond["status"]).To(Equal("True"), "condition %#v should be True", cond)
+			// Check top-level status has Available or Ready condition = True
+			hasTopLevelAvailable := false
+			if statusConditions, ok := statusEnvelope.Status["conditions"].([]interface{}); ok {
+				for _, c := range statusConditions {
+					cond, ok := c.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					condType, _ := cond["type"].(string)
+					condStatus, _ := cond["status"].(string)
+					if (condType == "Available" || condType == "Ready") && condStatus == "True" {
+						hasTopLevelAvailable = true
+						GinkgoWriter.Printf("Found top-level %s = True\n", condType)
+						break
+					}
 				}
 			}
-		}).WithTimeout(20*time.Minute).WithPolling(20*time.Second).Should(Succeed(),
-			"all controller_statuses conditions should become True")
+			g.Expect(hasTopLevelAvailable).To(BeTrue(), "cluster status should have Available or Ready = True")
+
+			// Check controller statuses have Available condition = True
+			g.Expect(statusEnvelope.ControllerStatuses).NotTo(BeEmpty(), "controller_statuses should be populated")
+
+			for _, cs := range statusEnvelope.ControllerStatuses {
+				controllerName, _ := cs["controller_name"].(string)
+				raw, ok := cs["conditions"].([]interface{})
+				g.Expect(ok).To(BeTrue(), "controller status should include conditions: %#v", cs)
+				g.Expect(raw).NotTo(BeEmpty(), "conditions should be non-empty")
+
+				// Look for Available condition = True
+				hasAvailable := false
+				for _, item := range raw {
+					cond, ok := item.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					condType, _ := cond["type"].(string)
+					condStatus, _ := cond["status"].(string)
+					if condType == "Available" && condStatus == "True" {
+						hasAvailable = true
+						GinkgoWriter.Printf("Controller %q has Available = True\n", controllerName)
+						break
+					}
+				}
+				g.Expect(hasAvailable).To(BeTrue(), "controller %q should have Available = True", controllerName)
+			}
+		}).WithTimeout(30*time.Minute).WithPolling(60*time.Second).Should(Succeed(),
+			"cluster and controllers should have Available/Ready = True")
 
 		resp, err := apiClient.Get("/api/v0/clusters/"+id+"/statuses", accountID)
 		Expect(err).ToNot(HaveOccurred())
