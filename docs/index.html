@@ -33,7 +33,7 @@
     "info": {
       "title": "ROSA Regional Platform API",
       "description": "Platform API for ROSA HCP regional cluster management",
-      "version": "0.0.1",
+      "version": "2.0.0",
       "license": {
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0"
@@ -41,12 +41,12 @@
     },
     "servers": [
       {
-        "url": "/api/v0",
-        "description": "API v0"
+        "url": "/api/v2",
+        "description": "API v2"
       }
     ],
     "paths": {
-      "/management_clusters": {
+      "/api/v2/management_clusters": {
         "post": {
           "summary": "Create a new management cluster",
           "description": "Creates a new management cluster by registering a consumer in Maestro.\nRequires privileged access (admin AWS account).\n",
@@ -171,7 +171,7 @@
           }
         }
       },
-      "/management_clusters/{id}": {
+      "/api/v2/management_clusters/{id}": {
         "get": {
           "summary": "Get a management cluster by ID",
           "description": "Returns a specific management cluster by its ID.\nRequires privileged access (admin AWS account).\n",
@@ -234,7 +234,7 @@
           }
         }
       },
-      "/resource_bundles": {
+      "/api/v2/resource_bundles": {
         "get": {
           "summary": "List all resource bundles",
           "description": "Returns a paginated list of resource bundles.\nSupports filtering via search query and custom field selection.\n",
@@ -340,103 +340,11 @@
           }
         }
       },
-      "/work": {
-        "post": {
-          "summary": "Create manifestwork for a cluster",
-          "description": "Creates manifestwork for the specified cluster identified by cluster_id.\nThis endpoint creates the necessary work manifest for the target cluster.\n",
-          "operationId": "createWork",
-          "tags": [
-            "Work"
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorkRequest"
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Manifestwork created successfully",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Work"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Bad request - invalid cluster_id or payload",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            },
-            "401": {
-              "description": "Invalid authentication token",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            },
-            "403": {
-              "description": "Forbidden - user lacks required permissions",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            },
-            "404": {
-              "description": "Cluster not found",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            },
-            "500": {
-              "description": "Internal server error",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            },
-            "502": {
-              "description": "Bad Gateway - Maestro error",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "/clusters": {
+      "/api/v2/clusters": {
         "get": {
-          "summary": "List user's clusters",
-          "description": "Retrieve clusters owned by the authenticated user",
-          "operationId": "listUserClusters",
+          "summary": "List clusters",
+          "description": "List all managed clusters for the authenticated AWS account",
+          "operationId": "listClusters",
           "tags": [
             "Clusters"
           ],
@@ -449,8 +357,7 @@
                 "minimum": 1,
                 "maximum": 100,
                 "default": 50
-              },
-              "description": "Maximum number of clusters to return"
+              }
             },
             {
               "name": "offset",
@@ -459,27 +366,12 @@
                 "type": "integer",
                 "minimum": 0,
                 "default": 0
-              },
-              "description": "Number of clusters to skip (pagination)"
-            },
-            {
-              "name": "status",
-              "in": "query",
-              "schema": {
-                "type": "string",
-                "enum": [
-                  "Pending",
-                  "Progressing",
-                  "Ready",
-                  "Failed"
-                ]
-              },
-              "description": "Filter by cluster status"
+              }
             }
           ],
           "responses": {
             "200": {
-              "description": "List of user's clusters",
+              "description": "List of clusters",
               "content": {
                 "application/json": {
                   "schema": {
@@ -487,9 +379,6 @@
                   }
                 }
               }
-            },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
             },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
@@ -501,8 +390,8 @@
         },
         "post": {
           "summary": "Create cluster",
-          "description": "Create a new cluster for the authenticated user",
-          "operationId": "createUserCluster",
+          "description": "Create a new managed cluster with HyperShift HostedCluster spec",
+          "operationId": "createCluster",
           "tags": [
             "Clusters"
           ],
@@ -511,7 +400,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterCreateRequest"
+                  "$ref": "#/components/schemas/ClusterRequest"
                 }
               }
             }
@@ -533,16 +422,13 @@
             "401": {
               "$ref": "#/components/responses/Unauthorized"
             },
-            "409": {
-              "$ref": "#/components/responses/Conflict"
-            },
             "500": {
               "$ref": "#/components/responses/InternalError"
             }
           }
         }
       },
-      "/clusters/{id}": {
+      "/api/v2/clusters/{id}": {
         "parameters": [
           {
             "name": "id",
@@ -555,9 +441,9 @@
           }
         ],
         "get": {
-          "summary": "Get cluster details",
-          "description": "Retrieve cluster details (user must own the cluster)",
-          "operationId": "getUserCluster",
+          "summary": "Get cluster",
+          "description": "Get managed cluster details",
+          "operationId": "getCluster",
           "tags": [
             "Clusters"
           ],
@@ -572,14 +458,8 @@
                 }
               }
             },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
-            },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -589,10 +469,10 @@
             }
           }
         },
-        "put": {
+        "patch": {
           "summary": "Update cluster",
-          "description": "Update cluster (user must own the cluster)",
-          "operationId": "updateUserCluster",
+          "description": "Partially update managed cluster spec",
+          "operationId": "patchCluster",
           "tags": [
             "Clusters"
           ],
@@ -601,14 +481,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterUpdateRequest"
+                  "$ref": "#/components/schemas/ClusterPatch"
                 }
               }
             }
           },
           "responses": {
             "200": {
-              "description": "Cluster updated successfully",
+              "description": "Cluster updated",
               "content": {
                 "application/json": {
                   "schema": {
@@ -623,9 +503,6 @@
             "401": {
               "$ref": "#/components/responses/Unauthorized"
             },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
-            },
             "404": {
               "$ref": "#/components/responses/NotFound"
             },
@@ -636,49 +513,20 @@
         },
         "delete": {
           "summary": "Delete cluster",
-          "description": "Delete cluster (user must own the cluster)",
-          "operationId": "deleteUserCluster",
+          "description": "Delete managed cluster",
+          "operationId": "deleteCluster",
           "tags": [
             "Clusters"
           ],
-          "parameters": [
-            {
-              "name": "force",
-              "in": "query",
-              "schema": {
-                "type": "boolean",
-                "default": false
-              },
-              "description": "Force delete even if cluster has active resources"
-            }
-          ],
           "responses": {
             "202": {
-              "description": "Cluster deletion initiated",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "message": {
-                        "type": "string"
-                      },
-                      "cluster_id": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                }
-              }
+              "description": "Cluster deletion initiated"
             },
             "400": {
               "$ref": "#/components/responses/BadRequest"
             },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -689,7 +537,7 @@
           }
         }
       },
-      "/clusters/{id}/status": {
+      "/api/v2/clusters/{id}/status": {
         "parameters": [
           {
             "name": "id",
@@ -697,14 +545,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "description": "Cluster ID"
+            }
           }
         ],
         "get": {
           "summary": "Get cluster status",
-          "description": "Retrieve cluster status (user must own the cluster)",
-          "operationId": "getUserClusterStatus",
+          "description": "Get cluster status including conditions",
+          "operationId": "getClusterStatus",
           "tags": [
             "Clusters"
           ],
@@ -714,19 +561,13 @@
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/ClusterStatusResponse"
+                    "$ref": "#/components/schemas/ClusterStatus"
                   }
                 }
               }
             },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
-            },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -737,44 +578,23 @@
           }
         }
       },
-      "/nodepools": {
+      "/api/v2/clusters/{clusterId}/nodepools": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "get": {
           "summary": "List nodepools",
-          "description": "List nodepools for authenticated user (optionally filtered by cluster)",
-          "operationId": "listUserNodePools",
+          "description": "List all nodepools for a cluster",
+          "operationId": "listNodePools",
           "tags": [
             "NodePools"
-          ],
-          "parameters": [
-            {
-              "name": "clusterId",
-              "in": "query",
-              "schema": {
-                "type": "string"
-              },
-              "description": "Filter by cluster ID (optional)"
-            },
-            {
-              "name": "limit",
-              "in": "query",
-              "schema": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 100,
-                "default": 50
-              },
-              "description": "Maximum number of nodepools to return"
-            },
-            {
-              "name": "offset",
-              "in": "query",
-              "schema": {
-                "type": "integer",
-                "minimum": 0,
-                "default": 0
-              },
-              "description": "Number of nodepools to skip (pagination)"
-            }
           ],
           "responses": {
             "200": {
@@ -787,11 +607,11 @@
                 }
               }
             },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
-            },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
             },
             "500": {
               "$ref": "#/components/responses/InternalError"
@@ -800,8 +620,8 @@
         },
         "post": {
           "summary": "Create nodepool",
-          "description": "Create a new nodepool for the authenticated user",
-          "operationId": "createUserNodePool",
+          "description": "Create a new nodepool for the cluster",
+          "operationId": "createNodePool",
           "tags": [
             "NodePools"
           ],
@@ -810,14 +630,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NodePoolCreateRequest"
+                  "$ref": "#/components/schemas/NodePoolRequest"
                 }
               }
             }
           },
           "responses": {
             "201": {
-              "description": "NodePool created successfully",
+              "description": "NodePool created",
               "content": {
                 "application/json": {
                   "schema": {
@@ -835,31 +655,35 @@
             "404": {
               "$ref": "#/components/responses/NotFound"
             },
-            "409": {
-              "$ref": "#/components/responses/Conflict"
-            },
             "500": {
               "$ref": "#/components/responses/InternalError"
             }
           }
         }
       },
-      "/nodepools/{id}": {
+      "/api/v2/clusters/{clusterId}/nodepools/{id}": {
         "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "description": "NodePool ID"
+            }
           }
         ],
         "get": {
-          "summary": "Get nodepool details",
-          "description": "Retrieve nodepool details (user must own the cluster)",
-          "operationId": "getUserNodePool",
+          "summary": "Get nodepool",
+          "description": "Get nodepool details",
+          "operationId": "getNodePool",
           "tags": [
             "NodePools"
           ],
@@ -874,14 +698,8 @@
                 }
               }
             },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
-            },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -891,10 +709,10 @@
             }
           }
         },
-        "put": {
+        "patch": {
           "summary": "Update nodepool",
-          "description": "Update nodepool (user must own the cluster)",
-          "operationId": "updateUserNodePool",
+          "description": "Partially update nodepool spec",
+          "operationId": "patchNodePool",
           "tags": [
             "NodePools"
           ],
@@ -903,14 +721,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NodePoolUpdateRequest"
+                  "$ref": "#/components/schemas/NodePoolPatch"
                 }
               }
             }
           },
           "responses": {
             "200": {
-              "description": "NodePool updated successfully",
+              "description": "NodePool updated",
               "content": {
                 "application/json": {
                   "schema": {
@@ -925,9 +743,6 @@
             "401": {
               "$ref": "#/components/responses/Unauthorized"
             },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
-            },
             "404": {
               "$ref": "#/components/responses/NotFound"
             },
@@ -938,38 +753,17 @@
         },
         "delete": {
           "summary": "Delete nodepool",
-          "description": "Delete nodepool (user must own the cluster)",
-          "operationId": "deleteUserNodePool",
+          "description": "Delete nodepool",
+          "operationId": "deleteNodePool",
           "tags": [
             "NodePools"
           ],
           "responses": {
             "202": {
-              "description": "NodePool deletion initiated",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "message": {
-                        "type": "string"
-                      },
-                      "nodepool_id": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
+              "description": "NodePool deletion initiated"
             },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -980,22 +774,29 @@
           }
         }
       },
-      "/nodepools/{id}/status": {
+      "/api/v2/clusters/{clusterId}/nodepools/{id}/status": {
         "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "description": "NodePool ID"
+            }
           }
         ],
         "get": {
           "summary": "Get nodepool status",
-          "description": "Retrieve nodepool status (user must own the cluster)",
-          "operationId": "getUserNodePoolStatus",
+          "description": "Get nodepool status including conditions",
+          "operationId": "getNodePoolStatus",
           "tags": [
             "NodePools"
           ],
@@ -1005,19 +806,13 @@
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/NodePoolStatusResponse"
+                    "$ref": "#/components/schemas/NodePoolStatus"
                   }
                 }
               }
             },
-            "400": {
-              "$ref": "#/components/responses/BadRequest"
-            },
             "401": {
               "$ref": "#/components/responses/Unauthorized"
-            },
-            "403": {
-              "$ref": "#/components/responses/Forbidden"
             },
             "404": {
               "$ref": "#/components/responses/NotFound"
@@ -1028,82 +823,699 @@
           }
         }
       },
-      "/live": {
-        "get": {
-          "summary": "Liveness probe",
-          "description": "Returns 200 if the service is alive",
-          "operationId": "liveness",
-          "tags": [
-            "Health"
-          ],
-          "responses": {
-            "200": {
-              "description": "Service is alive",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/HealthStatus"
-                  }
-                }
-              }
+      "/api/v2/clusters/{clusterId}/identity_providers": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
-        }
-      },
-      "/ready": {
+        ],
         "get": {
-          "summary": "Readiness probe",
-          "description": "Returns 200 if the service is ready to accept traffic",
-          "operationId": "readiness",
+          "summary": "List identity providers",
+          "description": "List all identity providers for a cluster",
+          "operationId": "listIdentityProviders",
           "tags": [
-            "Health"
+            "IdentityProviders"
           ],
           "responses": {
             "200": {
-              "description": "Service is ready",
+              "description": "List of identity providers",
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/HealthStatus"
+                    "$ref": "#/components/schemas/IdentityProviderList"
                   }
                 }
               }
             },
-            "503": {
-              "description": "Service is not ready",
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "post": {
+          "summary": "Create identity provider",
+          "description": "Create a new identity provider for the cluster",
+          "operationId": "createIdentityProvider",
+          "tags": [
+            "IdentityProviders"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProviderRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Identity provider created",
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/HealthStatus"
+                    "$ref": "#/components/schemas/IdentityProvider"
                   }
                 }
               }
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
             }
           }
         }
       },
-      "/accounts/{accountId}/enable": {
-        "post": {
-          "summary": "Enable account for authorization",
-          "description": "Enables an AWS account for Cedar/AVP-based authorization.\nCreates a policy store in Amazon Verified Permissions.\nRequires privileged access.\n",
-          "operationId": "enableAccount",
+      "/api/v2/clusters/{clusterId}/identity_providers/{id}": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "Get identity provider",
+          "description": "Get identity provider details",
+          "operationId": "getIdentityProvider",
           "tags": [
-            "Authorization"
+            "IdentityProviders"
+          ],
+          "responses": {
+            "200": {
+              "description": "Identity provider details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/IdentityProvider"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete identity provider",
+          "description": "Delete identity provider",
+          "operationId": "deleteIdentityProvider",
+          "tags": [
+            "IdentityProviders"
+          ],
+          "responses": {
+            "204": {
+              "description": "Identity provider deleted"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/clusters/{clusterId}/upgrade_policies": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "List cluster upgrade policies",
+          "description": "List all control plane upgrade policies for a cluster",
+          "operationId": "listClusterUpgradePolicies",
+          "tags": [
+            "UpgradePolicies"
+          ],
+          "responses": {
+            "200": {
+              "description": "List of upgrade policies",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UpgradePolicyList"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "post": {
+          "summary": "Create cluster upgrade policy",
+          "description": "Create a new control plane upgrade policy",
+          "operationId": "createClusterUpgradePolicy",
+          "tags": [
+            "UpgradePolicies"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradePolicyRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Upgrade policy created",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UpgradePolicy"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/clusters/{clusterId}/upgrade_policies/{id}": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "Get upgrade policy",
+          "description": "Get upgrade policy details",
+          "operationId": "getClusterUpgradePolicy",
+          "tags": [
+            "UpgradePolicies"
+          ],
+          "responses": {
+            "200": {
+              "description": "Upgrade policy details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UpgradePolicy"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete upgrade policy",
+          "description": "Delete upgrade policy",
+          "operationId": "deleteClusterUpgradePolicy",
+          "tags": [
+            "UpgradePolicies"
+          ],
+          "responses": {
+            "204": {
+              "description": "Upgrade policy deleted"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/clusters/{clusterId}/ingresses": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "List ingresses",
+          "description": "List all ingress controllers for a cluster",
+          "operationId": "listIngresses",
+          "tags": [
+            "Ingresses"
+          ],
+          "responses": {
+            "200": {
+              "description": "List of ingresses",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/IngressList"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "post": {
+          "summary": "Create ingress",
+          "description": "Create a new ingress controller",
+          "operationId": "createIngress",
+          "tags": [
+            "Ingresses"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Ingress created",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Ingress"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/clusters/{clusterId}/ingresses/{id}": {
+        "parameters": [
+          {
+            "name": "clusterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "Get ingress",
+          "description": "Get ingress details",
+          "operationId": "getIngress",
+          "tags": [
+            "Ingresses"
+          ],
+          "responses": {
+            "200": {
+              "description": "Ingress details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Ingress"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "patch": {
+          "summary": "Update ingress",
+          "description": "Partially update ingress spec",
+          "operationId": "patchIngress",
+          "tags": [
+            "Ingresses"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressPatch"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Ingress updated",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Ingress"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete ingress",
+          "description": "Delete ingress controller",
+          "operationId": "deleteIngress",
+          "tags": [
+            "Ingresses"
+          ],
+          "responses": {
+            "204": {
+              "description": "Ingress deleted"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/versions": {
+        "get": {
+          "summary": "List available versions",
+          "description": "List all available OpenShift versions",
+          "operationId": "listVersions",
+          "tags": [
+            "Versions"
           ],
           "parameters": [
             {
-              "name": "accountId",
-              "in": "path",
-              "required": true,
-              "description": "AWS account ID to enable",
+              "name": "channel_group",
+              "in": "query",
               "schema": {
                 "type": "string",
-                "pattern": "^\\d{12}$"
+                "enum": [
+                  "stable",
+                  "fast",
+                  "candidate"
+                ]
+              }
+            },
+            {
+              "name": "hosted_control_plane_enabled",
+              "in": "query",
+              "schema": {
+                "type": "boolean"
               }
             }
           ],
+          "responses": {
+            "200": {
+              "description": "List of versions",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/VersionList"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/versions/{id}": {
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "Get version",
+          "description": "Get version details",
+          "operationId": "getVersion",
+          "tags": [
+            "Versions"
+          ],
+          "responses": {
+            "200": {
+              "description": "Version details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Version"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/machine_types": {
+        "get": {
+          "summary": "List machine types",
+          "description": "List all available AWS instance types",
+          "operationId": "listMachineTypes",
+          "tags": [
+            "MachineTypes"
+          ],
+          "parameters": [
+            {
+              "name": "category",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "arch",
+              "in": "query",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "amd64",
+                  "arm64"
+                ]
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of machine types",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/MachineTypeList"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/machine_types/{id}": {
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "summary": "Get machine type",
+          "description": "Get machine type details",
+          "operationId": "getMachineType",
+          "tags": [
+            "MachineTypes"
+          ],
+          "responses": {
+            "200": {
+              "description": "Machine type details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/MachineType"
+                  }
+                }
+              }
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        }
+      },
+      "/api/v2/accounts": {
+        "post": {
+          "summary": "Enable an account",
+          "description": "Enables an AWS account for Cedar/AVP-based authorization.\nCreates a policy store in Amazon Verified Permissions.\nRequires privileged access.\n",
+          "operationId": "createAccount",
+          "tags": [
+            "Authorization"
+          ],
           "requestBody": {
-            "required": false,
+            "required": true,
             "content": {
               "application/json": {
                 "schema": {
@@ -1164,31 +1576,77 @@
               }
             }
           }
+        },
+        "get": {
+          "summary": "List accounts",
+          "description": "Returns a list of all enabled accounts.\nRequires privileged access.\n",
+          "operationId": "listAccounts",
+          "tags": [
+            "Authorization"
+          ],
+          "responses": {
+            "200": {
+              "description": "List of accounts",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AccountList"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Forbidden - caller is not privileged",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
         }
       },
-      "/accounts/{accountId}/disable": {
-        "post": {
-          "summary": "Disable account authorization",
-          "description": "Disables an AWS account from authorization.\nDeletes the policy store and all associated policies, groups, and attachments.\nRequires privileged access.\n",
-          "operationId": "disableAccount",
+      "/api/v2/accounts/{id}": {
+        "get": {
+          "summary": "Get an account",
+          "description": "Returns details of a specific enabled account.\nRequires privileged access.\n",
+          "operationId": "getAccount",
           "tags": [
             "Authorization"
           ],
           "parameters": [
             {
-              "name": "accountId",
+              "name": "id",
               "in": "path",
               "required": true,
-              "description": "AWS account ID to disable",
+              "description": "AWS account ID",
               "schema": {
-                "type": "string",
-                "pattern": "^\\d{12}$"
+                "type": "string"
               }
             }
           ],
           "responses": {
-            "204": {
-              "description": "Account disabled successfully"
+            "200": {
+              "description": "Account details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                }
+              }
             },
             "403": {
               "description": "Forbidden - caller is not privileged",
@@ -1221,9 +1679,115 @@
               }
             }
           }
+        },
+        "delete": {
+          "summary": "Disable an account",
+          "description": "Disables an AWS account from authorization.\nDeletes the policy store and all associated policies, groups, and attachments.\nRequires privileged access.\n",
+          "operationId": "deleteAccount",
+          "tags": [
+            "Authorization"
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "AWS account ID",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Account disabled successfully"
+            },
+            "403": {
+              "description": "Forbidden - caller is not privileged",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
         }
       },
-      "/authz/policies": {
+      "/api/v2/authz/check": {
+        "post": {
+          "summary": "Check authorization",
+          "description": "Evaluates an authorization request against the account's policies\nand returns an ALLOW or DENY decision. Requires a provisioned account.\n",
+          "operationId": "checkAuthorization",
+          "tags": [
+            "Authorization"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckAuthorizationRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Authorization decision",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CheckAuthorizationResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request - missing required fields",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Forbidden - account not provisioned",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v2/authz/policies": {
         "post": {
           "summary": "Create a policy",
           "description": "Creates a new policy template. Policies define permissions using an IAM-like\nformat with statements containing effects, actions, resources, and conditions.\nPolicies must be attached to users or groups to take effect.\n",
@@ -1346,7 +1910,7 @@
           }
         }
       },
-      "/authz/policies/{id}": {
+      "/api/v2/authz/policies/{id}": {
         "get": {
           "summary": "Get a policy",
           "description": "Returns a specific policy by ID.",
@@ -1547,7 +2111,7 @@
           }
         }
       },
-      "/authz/groups": {
+      "/api/v2/authz/groups": {
         "post": {
           "summary": "Create a group",
           "description": "Creates a new group that can contain multiple users.",
@@ -1680,7 +2244,7 @@
           }
         }
       },
-      "/authz/groups/{id}": {
+      "/api/v2/authz/groups/{id}": {
         "get": {
           "summary": "Get a group",
           "description": "Returns a specific group by ID.",
@@ -1799,7 +2363,7 @@
           }
         }
       },
-      "/authz/groups/{id}/members": {
+      "/api/v2/authz/groups/{id}/members": {
         "get": {
           "summary": "List group members",
           "description": "Returns a list of all members in a group.",
@@ -1964,7 +2528,7 @@
           }
         }
       },
-      "/authz/attachments": {
+      "/api/v2/authz/attachments": {
         "post": {
           "summary": "Create an attachment",
           "description": "Attaches a policy to a user or group. The policy will be translated\nto Cedar format and created in Amazon Verified Permissions.\n",
@@ -2136,7 +2700,7 @@
           }
         }
       },
-      "/authz/attachments/{id}": {
+      "/api/v2/authz/attachments/{id}": {
         "delete": {
           "summary": "Delete an attachment",
           "description": "Detaches a policy from a user or group. The Cedar policy in\nAmazon Verified Permissions will be deleted.\n",
@@ -2193,7 +2757,7 @@
           }
         }
       },
-      "/authz/admins": {
+      "/api/v2/authz/admins": {
         "post": {
           "summary": "Add an admin",
           "description": "Adds a principal as an admin for the account. Admins bypass\nCedar policy evaluation and have full access.\n",
@@ -2326,7 +2890,7 @@
           }
         }
       },
-      "/authz/admins/{arn}": {
+      "/api/v2/authz/admins/{arn}": {
         "delete": {
           "summary": "Remove an admin",
           "description": "Removes a principal from the admin list.",
@@ -2381,10 +2945,1293 @@
             }
           }
         }
+      },
+      "/api/v2/live": {
+        "get": {
+          "summary": "Liveness probe",
+          "description": "Returns 200 if the service is alive",
+          "operationId": "liveness",
+          "tags": [
+            "Health"
+          ],
+          "responses": {
+            "200": {
+              "description": "Service is alive",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HealthStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v2/ready": {
+        "get": {
+          "summary": "Readiness probe",
+          "description": "Returns 200 if the service is ready to accept traffic",
+          "operationId": "readiness",
+          "tags": [
+            "Health"
+          ],
+          "responses": {
+            "200": {
+              "description": "Service is ready",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HealthStatus"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Service is not ready",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HealthStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "components": {
       "schemas": {
+        "Cluster": {
+          "type": "object",
+          "description": "A managed ROSA HCP cluster with envelope pattern",
+          "required": [
+            "kind",
+            "apiVersion",
+            "id",
+            "name",
+            "created_by",
+            "generation",
+            "resource_version",
+            "spec",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Cluster"
+              ],
+              "description": "Resource kind"
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ],
+              "description": "API version"
+            },
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the cluster"
+            },
+            "name": {
+              "type": "string",
+              "description": "Cluster name"
+            },
+            "created_by": {
+              "type": "string",
+              "description": "Email of the user who created this cluster"
+            },
+            "generation": {
+              "type": "integer",
+              "format": "int64",
+              "description": "Generation number for optimistic concurrency control"
+            },
+            "resource_version": {
+              "type": "string",
+              "description": "Resource version for optimistic concurrency control"
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ResourceMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/ClusterSpec"
+            },
+            "status": {
+              "$ref": "#/components/schemas/ClusterStatus"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Creation timestamp"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Last update timestamp"
+            }
+          }
+        },
+        "ClusterRequest": {
+          "type": "object",
+          "required": [
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+                  "minLength": 3,
+                  "maxLength": 53,
+                  "description": "Cluster name"
+                },
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/ClusterSpec"
+            }
+          }
+        },
+        "ClusterPatch": {
+          "type": "object",
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "spec": {
+              "type": "object",
+              "description": "Partial cluster spec updates",
+              "additionalProperties": true
+            }
+          }
+        },
+        "ClusterSpec": {
+          "type": "object",
+          "description": "Cluster specification with envelope fields and HostedCluster passthrough",
+          "properties": {
+            "delete_protection": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "expiration_timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Auto-delete after this time"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Arbitrary key-value metadata"
+            },
+            "permission_boundary": {
+              "type": "string",
+              "description": "IAM permission boundary ARN"
+            },
+            "role_policy_bindings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RolePolicyBinding"
+              }
+            },
+            "log_forwarders": {
+              "type": "array",
+              "description": "Day-1 log forwarding configuration",
+              "items": {
+                "$ref": "#/components/schemas/LogForwarderSpec"
+              }
+            },
+            "backup_config": {
+              "$ref": "#/components/schemas/BackupConfigSpec"
+            },
+            "hosted_cluster": {
+              "type": "object",
+              "description": "HyperShift HostedCluster spec (platform applies defaulting)",
+              "additionalProperties": true
+            }
+          }
+        },
+        "ClusterList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items",
+            "total"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ClusterList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Cluster"
+              }
+            },
+            "total": {
+              "type": "integer"
+            },
+            "limit": {
+              "type": "integer"
+            },
+            "offset": {
+              "type": "integer"
+            }
+          }
+        },
+        "RolePolicyBinding": {
+          "type": "object",
+          "required": [
+            "name",
+            "role_arn",
+            "type",
+            "policies"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "role_arn": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "account",
+                "operator"
+              ]
+            },
+            "policies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "arn",
+                  "type"
+                ],
+                "properties": {
+                  "arn": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "managed",
+                      "inline",
+                      "customer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "LogForwarderSpec": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "cloudwatch",
+                "s3"
+              ]
+            },
+            "cloudwatch": {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "group_name": {
+                  "type": "string"
+                },
+                "role_arn": {
+                  "type": "string"
+                },
+                "log_types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "audit",
+                      "infrastructure",
+                      "application"
+                    ]
+                  }
+                }
+              }
+            },
+            "s3": {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "bucket_name": {
+                  "type": "string"
+                },
+                "role_arn": {
+                  "type": "string"
+                },
+                "prefix": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "BackupConfigSpec": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "schedule": {
+              "type": "string",
+              "description": "Cron expression",
+              "example": "0 */6 * * *"
+            }
+          }
+        },
+        "ClusterStatus": {
+          "type": "object",
+          "properties": {
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Condition"
+              }
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "Pending",
+                "Progressing",
+                "Ready",
+                "Failed"
+              ]
+            },
+            "message": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        },
+        "NodePool": {
+          "type": "object",
+          "description": "A nodepool for a managed cluster",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "NodePool"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ResourceMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/NodePoolSpec"
+            },
+            "status": {
+              "$ref": "#/components/schemas/NodePoolStatus"
+            }
+          }
+        },
+        "NodePoolRequest": {
+          "type": "object",
+          "required": [
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+                  "minLength": 3,
+                  "maxLength": 15
+                },
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/NodePoolSpec"
+            }
+          }
+        },
+        "NodePoolPatch": {
+          "type": "object",
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "spec": {
+              "type": "object",
+              "description": "Partial nodepool spec updates",
+              "additionalProperties": true
+            }
+          }
+        },
+        "NodePoolSpec": {
+          "type": "object",
+          "description": "NodePool specification (platform applies defaulting)",
+          "properties": {
+            "node_pool": {
+              "type": "object",
+              "description": "HyperShift NodePool spec",
+              "additionalProperties": true
+            }
+          }
+        },
+        "NodePoolStatus": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer"
+            },
+            "version": {
+              "type": "string"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Condition"
+              }
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "Pending",
+                "Scaling",
+                "Ready",
+                "Upgrading",
+                "Error"
+              ]
+            }
+          }
+        },
+        "NodePoolList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "NodePoolList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/NodePool"
+              }
+            },
+            "total": {
+              "type": "integer"
+            }
+          }
+        },
+        "IdentityProvider": {
+          "type": "object",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "IdentityProvider"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ResourceMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/IdentityProviderSpec"
+            }
+          }
+        },
+        "IdentityProviderRequest": {
+          "type": "object",
+          "required": [
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/IdentityProviderSpec"
+            }
+          }
+        },
+        "IdentityProviderSpec": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "github",
+                "gitlab",
+                "google",
+                "htpasswd",
+                "ldap",
+                "openid"
+              ]
+            },
+            "mapping_method": {
+              "type": "string",
+              "enum": [
+                "claim",
+                "lookup",
+                "add"
+              ],
+              "default": "claim"
+            },
+            "github": {
+              "type": "object",
+              "properties": {
+                "client_id": {
+                  "type": "string"
+                },
+                "client_secret": {
+                  "type": "string"
+                },
+                "organizations": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "teams": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "hostname": {
+                  "type": "string"
+                }
+              }
+            },
+            "gitlab": {
+              "type": "object",
+              "properties": {
+                "client_id": {
+                  "type": "string"
+                },
+                "client_secret": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            },
+            "google": {
+              "type": "object",
+              "properties": {
+                "client_id": {
+                  "type": "string"
+                },
+                "client_secret": {
+                  "type": "string"
+                },
+                "hosted_domain": {
+                  "type": "string"
+                }
+              }
+            },
+            "ldap": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "bind_dn": {
+                  "type": "string"
+                },
+                "bind_password": {
+                  "type": "string"
+                }
+              }
+            },
+            "openid": {
+              "type": "object",
+              "properties": {
+                "client_id": {
+                  "type": "string"
+                },
+                "client_secret": {
+                  "type": "string"
+                },
+                "issuer": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "IdentityProviderList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "IdentityProviderList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/IdentityProvider"
+              }
+            }
+          }
+        },
+        "UpgradePolicy": {
+          "type": "object",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "UpgradePolicy"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ResourceMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/UpgradePolicySpec"
+            },
+            "status": {
+              "$ref": "#/components/schemas/UpgradePolicyStatus"
+            }
+          }
+        },
+        "UpgradePolicyRequest": {
+          "type": "object",
+          "required": [
+            "spec"
+          ],
+          "properties": {
+            "spec": {
+              "$ref": "#/components/schemas/UpgradePolicySpec"
+            }
+          }
+        },
+        "UpgradePolicySpec": {
+          "type": "object",
+          "required": [
+            "version"
+          ],
+          "properties": {
+            "version": {
+              "type": "string",
+              "description": "Target version"
+            },
+            "schedule_type": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "automatic"
+              ],
+              "default": "manual"
+            },
+            "schedule": {
+              "type": "string",
+              "description": "Cron expression (required if automatic)"
+            },
+            "enable_minor_version_upgrades": {
+              "type": "boolean",
+              "default": false
+            },
+            "channel": {
+              "type": "string",
+              "description": "Update channel"
+            }
+          }
+        },
+        "UpgradePolicyStatus": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "scheduled",
+                "started",
+                "completed",
+                "failed",
+                "cancelled"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Condition"
+              }
+            }
+          }
+        },
+        "UpgradePolicyList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "UpgradePolicyList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UpgradePolicy"
+              }
+            }
+          }
+        },
+        "Ingress": {
+          "type": "object",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Ingress"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ResourceMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/IngressSpec"
+            }
+          }
+        },
+        "IngressRequest": {
+          "type": "object",
+          "required": [
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/IngressSpec"
+            }
+          }
+        },
+        "IngressPatch": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "object",
+              "description": "Partial ingress spec updates",
+              "additionalProperties": true
+            }
+          }
+        },
+        "IngressSpec": {
+          "type": "object",
+          "properties": {
+            "listening": {
+              "type": "string",
+              "enum": [
+                "internal",
+                "external"
+              ],
+              "default": "external"
+            },
+            "load_balancer_type": {
+              "type": "string",
+              "enum": [
+                "NLB",
+                "Classic"
+              ],
+              "default": "NLB"
+            },
+            "wildcard_policy": {
+              "type": "string",
+              "enum": [
+                "WildcardsAllowed",
+                "WildcardsDisallowed"
+              ],
+              "default": "WildcardsDisallowed"
+            },
+            "namespace_ownership_policy": {
+              "type": "string",
+              "enum": [
+                "Strict",
+                "InterNamespaceAllowed"
+              ],
+              "default": "Strict"
+            },
+            "route_selectors": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "excluded_namespaces": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "IngressList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "IngressList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Ingress"
+              }
+            }
+          }
+        },
+        "Version": {
+          "type": "object",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Version"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/VersionSpec"
+            }
+          }
+        },
+        "VersionSpec": {
+          "type": "object",
+          "properties": {
+            "raw_id": {
+              "type": "string"
+            },
+            "channel_group": {
+              "type": "string",
+              "enum": [
+                "stable",
+                "fast",
+                "candidate"
+              ]
+            },
+            "rosa_enabled": {
+              "type": "boolean"
+            },
+            "hosted_control_plane_enabled": {
+              "type": "boolean"
+            },
+            "end_of_life_timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "available_upgrades": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "VersionList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "VersionList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          }
+        },
+        "MachineType": {
+          "type": "object",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "MachineType"
+              ]
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            },
+            "metadata": {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              }
+            },
+            "spec": {
+              "$ref": "#/components/schemas/MachineTypeSpec"
+            }
+          }
+        },
+        "MachineTypeSpec": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "cpu": {
+              "type": "object",
+              "properties": {
+                "cores": {
+                  "type": "integer"
+                }
+              }
+            },
+            "memory": {
+              "type": "object",
+              "properties": {
+                "size_mib": {
+                  "type": "integer"
+                }
+              }
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "general_purpose",
+                "compute_optimized",
+                "memory_optimized",
+                "storage_optimized",
+                "accelerated_computing"
+              ]
+            },
+            "size": {
+              "type": "string"
+            },
+            "gpu": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer"
+                }
+              }
+            },
+            "arch": {
+              "type": "string",
+              "enum": [
+                "amd64",
+                "arm64"
+              ]
+            }
+          }
+        },
+        "MachineTypeList": {
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "MachineTypeList"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/MachineType"
+              }
+            }
+          }
+        },
+        "ResourceMetadata": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Platform-assigned ID"
+            },
+            "name": {
+              "type": "string",
+              "description": "Resource name"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "creation_timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "deletion_timestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "Condition": {
+          "type": "object",
+          "required": [
+            "type",
+            "status"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                true,
+                false,
+                "Unknown"
+              ]
+            },
+            "last_transition_time": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        },
+        "Error": {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "details": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "HealthStatus": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "degraded",
+                "unavailable"
+              ]
+            }
+          }
+        },
         "ManagementClusterRequest": {
           "type": "object",
           "description": "Request body for creating a management cluster",
@@ -2603,128 +4450,17 @@
             }
           }
         },
-        "WorkRequest": {
-          "type": "object",
-          "description": "Request body for creating manifestwork",
-          "required": [
-            "cluster_id",
-            "data"
-          ],
-          "properties": {
-            "cluster_id": {
-              "type": "string",
-              "description": "Unique identifier of the target cluster"
-            },
-            "data": {
-              "type": "object",
-              "description": "Payload data to be passed to Maestro gRPC for creating the manifestwork.\nThis should contain the ManifestWork specification including manifests.\n",
-              "additionalProperties": true
-            }
-          }
-        },
-        "Work": {
-          "type": "object",
-          "description": "A manifestwork resource created for a cluster",
-          "required": [
-            "id",
-            "kind",
-            "href",
-            "cluster_id",
-            "name"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "description": "Unique identifier for the manifestwork"
-            },
-            "kind": {
-              "type": "string",
-              "description": "Resource kind",
-              "example": "ManifestWork"
-            },
-            "href": {
-              "type": "string",
-              "description": "API href reference"
-            },
-            "cluster_id": {
-              "type": "string",
-              "description": "Cluster ID this work is associated with"
-            },
-            "name": {
-              "type": "string",
-              "description": "Name of the manifestwork resource",
-              "example": "rosa-work-cluster-123"
-            },
-            "created_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Creation timestamp"
-            },
-            "updated_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Last update timestamp"
-            },
-            "status": {
-              "type": "object",
-              "description": "Status of the manifestwork"
-            }
-          }
-        },
-        "Error": {
-          "type": "object",
-          "description": "Error response",
-          "required": [
-            "code",
-            "reason"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "description": "Error ID"
-            },
-            "kind": {
-              "type": "string",
-              "description": "Resource kind",
-              "example": "Error"
-            },
-            "href": {
-              "type": "string",
-              "description": "API href reference"
-            },
-            "code": {
-              "type": "string",
-              "description": "Error code"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Human-readable error message"
-            },
-            "operation_id": {
-              "type": "string",
-              "description": "Request operation ID for tracing"
-            }
-          }
-        },
-        "HealthStatus": {
-          "type": "object",
-          "description": "Health check response",
-          "properties": {
-            "status": {
-              "type": "string",
-              "enum": [
-                "ok",
-                "degraded",
-                "unavailable"
-              ],
-              "description": "Health status"
-            }
-          }
-        },
         "EnableAccountRequest": {
           "type": "object",
           "description": "Request body for enabling an account",
+          "required": [
+            "accountId"
+          ],
           "properties": {
+            "accountId": {
+              "type": "string",
+              "description": "AWS account ID to enable"
+            },
             "privileged": {
               "type": "boolean",
               "description": "If true, account bypasses all authorization checks",
@@ -2765,6 +4501,92 @@
             }
           }
         },
+        "AccountList": {
+          "type": "object",
+          "description": "List of accounts",
+          "required": [
+            "kind",
+            "items",
+            "total"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "example": "AccountList"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Account"
+              }
+            },
+            "total": {
+              "type": "integer",
+              "description": "Total number of accounts"
+            }
+          }
+        },
+        "CheckAuthorizationRequest": {
+          "type": "object",
+          "description": "Request body for checking authorization",
+          "required": [
+            "principal",
+            "action",
+            "resource"
+          ],
+          "properties": {
+            "principal": {
+              "type": "string",
+              "description": "Principal ARN making the request"
+            },
+            "action": {
+              "type": "string",
+              "description": "Action being performed (e.g., rosa:CreateCluster)"
+            },
+            "resource": {
+              "type": "string",
+              "description": "Resource ARN (e.g., arn:aws:rosa:us-west-2:123456789012:cluster/*)"
+            },
+            "context": {
+              "type": "object",
+              "description": "Additional context for the authorization decision",
+              "additionalProperties": true
+            },
+            "resourceTags": {
+              "type": "object",
+              "description": "Tags on the resource",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "CheckAuthorizationResponse": {
+          "type": "object",
+          "description": "Authorization decision response",
+          "required": [
+            "kind",
+            "decision"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "example": "AuthorizationDecision"
+            },
+            "decision": {
+              "type": "string",
+              "description": "Authorization decision",
+              "enum": [
+                "ALLOW",
+                "DENY"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for the decision"
+            }
+          }
+        },
         "CreatePolicyRequest": {
           "type": "object",
           "description": "Request body for creating a policy",
@@ -2785,7 +4607,7 @@
               "maxLength": 1024
             },
             "policy": {
-              "$ref": "#/components/schemas/V0Policy"
+              "$ref": "#/components/schemas/V2Policy"
             }
           }
         },
@@ -2805,32 +4627,7 @@
               "maxLength": 1024
             },
             "policy": {
-              "$ref": "#/components/schemas/V0Policy"
-            }
-          }
-        },
-        "V0Policy": {
-          "type": "object",
-          "description": "IAM-like policy in v0 format",
-          "required": [
-            "version",
-            "statements"
-          ],
-          "properties": {
-            "version": {
-              "type": "string",
-              "description": "Policy format version",
-              "enum": [
-                "v0"
-              ]
-            },
-            "statements": {
-              "type": "array",
-              "description": "List of policy statements",
-              "minItems": 1,
-              "items": {
-                "$ref": "#/components/schemas/PolicyStatement"
-              }
+              "$ref": "#/components/schemas/V2Policy"
             }
           }
         },
@@ -2936,7 +4733,7 @@
               "description": "Policy description"
             },
             "policy": {
-              "$ref": "#/components/schemas/V0Policy"
+              "$ref": "#/components/schemas/V2Policy"
             },
             "createdAt": {
               "type": "string",
@@ -3333,517 +5130,6 @@
               }
             }
           }
-        },
-        "Cluster": {
-          "type": "object",
-          "description": "A user cluster resource",
-          "required": [
-            "id",
-            "name",
-            "target_project_id",
-            "created_by",
-            "generation",
-            "resource_version",
-            "spec",
-            "created_at",
-            "updated_at"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "description": "Unique identifier for the cluster"
-            },
-            "name": {
-              "type": "string",
-              "description": "Cluster name"
-            },
-            "target_project_id": {
-              "type": "string",
-              "description": "Target project ID"
-            },
-            "created_by": {
-              "type": "string",
-              "description": "Email of the user who created this cluster"
-            },
-            "generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Generation number for optimistic concurrency control"
-            },
-            "resource_version": {
-              "type": "string",
-              "description": "Resource version for optimistic concurrency control"
-            },
-            "spec": {
-              "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
-            },
-            "status": {
-              "$ref": "#/components/schemas/ClusterStatusInfo"
-            },
-            "created_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Creation timestamp"
-            },
-            "updated_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Last update timestamp"
-            }
-          }
-        },
-        "ClusterCreateRequest": {
-          "type": "object",
-          "description": "Request body for creating a cluster",
-          "required": [
-            "name",
-            "spec"
-          ],
-          "properties": {
-            "name": {
-              "type": "string",
-              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-              "minLength": 3,
-              "maxLength": 63,
-              "description": "DNS-compatible cluster name"
-            },
-            "target_project_id": {
-              "type": "string",
-              "description": "Target project ID"
-            },
-            "spec": {
-              "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
-            }
-          }
-        },
-        "ClusterUpdateRequest": {
-          "type": "object",
-          "description": "Request body for updating a cluster",
-          "required": [
-            "spec"
-          ],
-          "properties": {
-            "spec": {
-              "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
-            }
-          }
-        },
-        "ClusterStatusInfo": {
-          "type": "object",
-          "description": "Kubernetes-like aggregated status for clusters",
-          "properties": {
-            "observedGeneration": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Last generation processed by controllers"
-            },
-            "conditions": {
-              "type": "array",
-              "description": "Status conditions",
-              "items": {
-                "$ref": "#/components/schemas/Condition"
-              }
-            },
-            "phase": {
-              "type": "string",
-              "enum": [
-                "Pending",
-                "Progressing",
-                "Ready",
-                "Failed"
-              ],
-              "description": "High-level cluster phase"
-            },
-            "message": {
-              "type": "string",
-              "description": "Human-readable status message"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Machine-readable reason code"
-            },
-            "lastUpdateTime": {
-              "type": "string",
-              "format": "date-time",
-              "description": "When status was last calculated"
-            }
-          }
-        },
-        "Condition": {
-          "type": "object",
-          "description": "Status condition",
-          "properties": {
-            "type": {
-              "type": "string",
-              "description": "Condition type"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                true,
-                false,
-                "Unknown"
-              ],
-              "description": "Condition status"
-            },
-            "lastTransitionTime": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Last time the condition transitioned"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Machine-readable reason code"
-            },
-            "message": {
-              "type": "string",
-              "description": "Human-readable message"
-            }
-          }
-        },
-        "ClusterControllerStatus": {
-          "type": "object",
-          "description": "Controller-specific status for a cluster",
-          "properties": {
-            "cluster_id": {
-              "type": "string",
-              "description": "Cluster ID"
-            },
-            "controller_name": {
-              "type": "string",
-              "description": "Name of the controller"
-            },
-            "observed_generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Last generation observed by this controller"
-            },
-            "conditions": {
-              "type": "array",
-              "description": "Controller-specific conditions",
-              "items": {
-                "$ref": "#/components/schemas/Condition"
-              }
-            },
-            "metadata": {
-              "type": "object",
-              "description": "Controller-specific metadata",
-              "additionalProperties": true
-            },
-            "last_updated": {
-              "type": "string",
-              "format": "date-time",
-              "description": "When this controller last updated"
-            }
-          }
-        },
-        "ClusterStatusResponse": {
-          "type": "object",
-          "description": "Response for cluster status endpoint",
-          "properties": {
-            "cluster_id": {
-              "type": "string",
-              "description": "Cluster ID"
-            },
-            "status": {
-              "$ref": "#/components/schemas/ClusterStatusInfo"
-            },
-            "controller_statuses": {
-              "type": "array",
-              "description": "Individual controller status reports",
-              "items": {
-                "$ref": "#/components/schemas/ClusterControllerStatus"
-              }
-            }
-          }
-        },
-        "ClusterList": {
-          "type": "object",
-          "description": "Paginated list of clusters",
-          "required": [
-            "clusters",
-            "total",
-            "limit",
-            "offset"
-          ],
-          "properties": {
-            "clusters": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/Cluster"
-              }
-            },
-            "total": {
-              "type": "integer",
-              "description": "Total number of clusters"
-            },
-            "limit": {
-              "type": "integer",
-              "description": "Number of items per page"
-            },
-            "offset": {
-              "type": "integer",
-              "description": "Number of items skipped"
-            }
-          }
-        },
-        "NodePool": {
-          "type": "object",
-          "description": "A nodepool resource",
-          "required": [
-            "id",
-            "cluster_id",
-            "name",
-            "created_by",
-            "generation",
-            "resource_version",
-            "spec",
-            "created_at",
-            "updated_at"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "description": "Unique identifier for the nodepool"
-            },
-            "cluster_id": {
-              "type": "string",
-              "description": "Parent cluster ID"
-            },
-            "name": {
-              "type": "string",
-              "description": "NodePool name"
-            },
-            "created_by": {
-              "type": "string",
-              "description": "Email of the user who created this nodepool"
-            },
-            "generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Generation number for optimistic concurrency control"
-            },
-            "resource_version": {
-              "type": "string",
-              "description": "Resource version for optimistic concurrency control"
-            },
-            "spec": {
-              "$ref": "#/components/schemas/NodePoolSpec"
-            },
-            "status": {
-              "$ref": "#/components/schemas/NodePoolStatusInfo"
-            },
-            "created_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Creation timestamp"
-            },
-            "updated_at": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Last update timestamp"
-            }
-          }
-        },
-        "NodePoolCreateRequest": {
-          "type": "object",
-          "description": "Request body for creating a nodepool",
-          "required": [
-            "cluster_id",
-            "name",
-            "spec"
-          ],
-          "properties": {
-            "cluster_id": {
-              "type": "string",
-              "description": "Parent cluster ID"
-            },
-            "name": {
-              "type": "string",
-              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-              "minLength": 3,
-              "maxLength": 63,
-              "description": "DNS-compatible nodepool name"
-            },
-            "spec": {
-              "$ref": "#/components/schemas/NodePoolSpec"
-            }
-          }
-        },
-        "NodePoolUpdateRequest": {
-          "type": "object",
-          "description": "Request body for updating a nodepool",
-          "required": [
-            "spec"
-          ],
-          "properties": {
-            "spec": {
-              "$ref": "#/components/schemas/NodePoolSpec"
-            }
-          }
-        },
-        "NodePoolSpec": {
-          "type": "object",
-          "description": "NodePool specification defining desired state",
-          "properties": {
-            "replicas": {
-              "type": "integer",
-              "format": "int32",
-              "description": "Number of worker nodes in the pool"
-            },
-            "management": {
-              "type": "object",
-              "description": "Node pool management configuration",
-              "additionalProperties": true
-            },
-            "platform": {
-              "type": "object",
-              "description": "Platform-specific configuration",
-              "additionalProperties": true
-            },
-            "release": {
-              "type": "object",
-              "description": "Release/version configuration",
-              "additionalProperties": true
-            },
-            "nodeDrainTimeout": {
-              "type": "string",
-              "description": "Timeout for draining nodes"
-            }
-          }
-        },
-        "NodePoolStatusInfo": {
-          "type": "object",
-          "description": "Kubernetes-like aggregated status for nodepools",
-          "properties": {
-            "observedGeneration": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Last generation processed by controllers"
-            },
-            "conditions": {
-              "type": "array",
-              "description": "Status conditions",
-              "items": {
-                "$ref": "#/components/schemas/Condition"
-              }
-            },
-            "phase": {
-              "type": "string",
-              "enum": [
-                "Pending",
-                "Progressing",
-                "Ready",
-                "Failed"
-              ],
-              "description": "High-level nodepool phase"
-            },
-            "message": {
-              "type": "string",
-              "description": "Human-readable status message"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Machine-readable reason code"
-            },
-            "lastUpdateTime": {
-              "type": "string",
-              "format": "date-time",
-              "description": "When status was last calculated"
-            }
-          }
-        },
-        "NodePoolControllerStatus": {
-          "type": "object",
-          "description": "Controller-specific status for a nodepool",
-          "properties": {
-            "nodepool_id": {
-              "type": "string",
-              "description": "NodePool ID"
-            },
-            "controller_name": {
-              "type": "string",
-              "description": "Name of the controller"
-            },
-            "observed_generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Last generation observed by this controller"
-            },
-            "conditions": {
-              "type": "array",
-              "description": "Controller-specific conditions",
-              "items": {
-                "$ref": "#/components/schemas/Condition"
-              }
-            },
-            "metadata": {
-              "type": "object",
-              "description": "Controller-specific metadata",
-              "additionalProperties": true
-            },
-            "last_updated": {
-              "type": "string",
-              "format": "date-time",
-              "description": "When this controller last updated"
-            }
-          }
-        },
-        "NodePoolStatusResponse": {
-          "type": "object",
-          "description": "Response for nodepool status endpoint",
-          "properties": {
-            "nodepool_id": {
-              "type": "string",
-              "description": "NodePool ID"
-            },
-            "status": {
-              "$ref": "#/components/schemas/NodePoolStatusInfo"
-            },
-            "controller_statuses": {
-              "type": "array",
-              "description": "Individual controller status reports",
-              "items": {
-                "$ref": "#/components/schemas/NodePoolControllerStatus"
-              }
-            }
-          }
-        },
-        "NodePoolList": {
-          "type": "object",
-          "description": "Paginated list of nodepools",
-          "required": [
-            "nodepools",
-            "total",
-            "limit",
-            "offset"
-          ],
-          "properties": {
-            "nodepools": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/NodePool"
-              }
-            },
-            "total": {
-              "type": "integer",
-              "description": "Total number of nodepools"
-            },
-            "limit": {
-              "type": "integer",
-              "description": "Number of items per page"
-            },
-            "offset": {
-              "type": "integer",
-              "description": "Number of items skipped"
-            }
-          }
         }
       },
       "responses": {
@@ -3867,28 +5153,8 @@
             }
           }
         },
-        "Forbidden": {
-          "description": "Forbidden",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Error"
-              }
-            }
-          }
-        },
         "NotFound": {
           "description": "Not found",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Error"
-              }
-            }
-          }
-        },
-        "Conflict": {
-          "description": "Conflict",
           "content": {
             "application/json": {
               "schema": {
