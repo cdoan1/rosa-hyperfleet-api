@@ -51,6 +51,13 @@ func customerEnv() []string {
 	}
 }
 
+func maybeAddNoWait(args []string) []string {
+	if os.Getenv("NO_WAIT") != "" {
+		return append(args, "--no-wait")
+	}
+	return args
+}
+
 var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	var (
 		baseURL           string
@@ -159,7 +166,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		// wait for the command to complete, it will take a few minutes.
 		GinkgoWriter.Printf("Creating new cluster-vpc: %s\n", clusterName)
 		// GinkgoWriter.Printf("Command: %s %s %s %s %s\n", ROSACTL_BIN, "cluster-vpc", "create", clusterName, "--region", region, "--availability-zones", "us-east-1a")
-		cmd := exec.Command(ROSACTL_BIN, "cluster-vpc", "create", clusterName, "--region", region, "--availability-zones", "us-east-1a")
+		args := maybeAddNoWait([]string{"cluster-vpc", "create", clusterName, "--region", region, "--availability-zones", "us-east-1a"})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -186,7 +194,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	// create a new cluster-iam
 	It("should be able to create the cluster-iam", Label("iam-create", "setup"), func() {
 		GinkgoWriter.Printf("Creating new cluster-iam: %s\n", clusterName)
-		cmd := exec.Command(ROSACTL_BIN, "cluster-iam", "create", clusterName, "--region", region)
+		args := maybeAddNoWait([]string{"cluster-iam", "create", clusterName, "--region", region})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -233,7 +242,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 
 	It("should be able to create the hcp cluster", Label("hcp-create", "create"), func() {
 		GinkgoWriter.Printf("Creating new HCP cluster: %s\n", clusterName)
-		cmd := exec.Command(ROSACTL_BIN, "cluster", "create", clusterName, "--region", region, "--output", "json")
+		args := maybeAddNoWait([]string{"cluster", "create", clusterName, "--region", region, "--output", "json"})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -308,7 +318,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 			cloudUrl = os.Getenv("HCP_ROSA_ISSUER_URL")
 		}
 		GinkgoWriter.Printf("HCP cluster cloud url: %s\n", cloudUrl)
-		cmd := exec.Command(ROSACTL_BIN, "cluster-oidc", "create", clusterName, "--region", region, "--oidc-issuer-url", cloudUrl)
+		args := maybeAddNoWait([]string{"cluster-oidc", "create", clusterName, "--region", region, "--oidc-issuer-url", cloudUrl})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -512,7 +523,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 
 	It("should be able to delete the cluster-oidc", Label("oidc-delete", "cleanup"), func() {
 		GinkgoWriter.Printf("Deleting the cluster-oidc: %s\n", clusterName)
-		cmd := exec.Command(ROSACTL_BIN, "cluster-oidc", "delete", clusterName, "--region", region)
+		args := maybeAddNoWait([]string{"cluster-oidc", "delete", clusterName, "--region", region})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -544,7 +556,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 				return
 			}
 
-			cmd = exec.Command(ROSACTL_BIN, "cluster-vpc", "delete", clusterName, "--region", region)
+			args := maybeAddNoWait([]string{"cluster-vpc", "delete", clusterName, "--region", region})
+			cmd = exec.Command(ROSACTL_BIN, args...)
 			cmd.Env = append(os.Environ(), customerEnv()...)
 			// rosactl may block with its own internal wait
 			output, err = cmd.CombinedOutput()
@@ -564,7 +577,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	// it should be able to delete the cluster-iam
 	It("should be able to delete the cluster-iam", Label("iam-delete", "cleanup"), func() {
 		GinkgoWriter.Printf("Deleting the cluster-iam: %s\n", clusterName)
-		cmd := exec.Command(ROSACTL_BIN, "cluster-iam", "delete", clusterName, "--region", region)
+		args := maybeAddNoWait([]string{"cluster-iam", "delete", clusterName, "--region", region})
+		cmd := exec.Command(ROSACTL_BIN, args...)
 		cmd.Env = append(os.Environ(), customerEnv()...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
