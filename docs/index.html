@@ -501,7 +501,7 @@
         },
         "post": {
           "summary": "Create cluster",
-          "description": "Create a new cluster for the authenticated user",
+          "description": "Create a new cluster for the authenticated user.\n\nThe API automatically enriches the cluster spec with:\n- cloudUrl: Auto-populated from the management cluster's cloudfront_url label\n- placement: Auto-populated from the management cluster's name (if not provided by client)\n\nPossible error codes:\n- CLUSTERS-MGMT-CREATE-001: Invalid request body\n- CLUSTERS-MGMT-CREATE-002: Missing required fields (name or spec)\n- CLUSTERS-MGMT-CREATE-003: Failed to create cluster in hyperfleet\n- CLUSTERS-MGMT-CREATE-004: Failed to retrieve CloudFront URL\n- CLUSTERS-MGMT-CREATE-005: No management clusters found\n- CLUSTERS-MGMT-CREATE-006: CloudFront URL not configured\n- CLUSTERS-MGMT-CREATE-007: Management cluster name not available for placement\n",
           "operationId": "createUserCluster",
           "tags": [
             "Clusters"
@@ -589,10 +589,56 @@
             }
           }
         },
-        "put": {
+        "patch": {
           "summary": "Update cluster",
-          "description": "Update cluster (user must own the cluster)",
+          "description": "Partially update cluster (user must own the cluster)",
+          "operationId": "patchUserCluster",
+          "tags": [
+            "Clusters"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterUpdateRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Cluster updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Cluster"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "401": {
+              "$ref": "#/components/responses/Unauthorized"
+            },
+            "403": {
+              "$ref": "#/components/responses/Forbidden"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
+            "500": {
+              "$ref": "#/components/responses/InternalError"
+            }
+          }
+        },
+        "put": {
+          "summary": "Update cluster (deprecated)",
+          "description": "Update cluster (user must own the cluster). Deprecated - use PATCH instead for partial updates.",
           "operationId": "updateUserCluster",
+          "deprecated": true,
           "tags": [
             "Clusters"
           ],
@@ -689,7 +735,7 @@
           }
         }
       },
-      "/clusters/{id}/status": {
+      "/clusters/{id}/statuses": {
         "parameters": [
           {
             "name": "id",
@@ -702,8 +748,8 @@
           }
         ],
         "get": {
-          "summary": "Get cluster status",
-          "description": "Retrieve cluster status (user must own the cluster)",
+          "summary": "Get cluster statuses",
+          "description": "Retrieve cluster status and controller statuses (user must own the cluster)",
           "operationId": "getUserClusterStatus",
           "tags": [
             "Clusters"
@@ -737,23 +783,26 @@
           }
         }
       },
-      "/nodepools": {
+      "/clusters/{cluster_id}/nodepools": {
+        "parameters": [
+          {
+            "name": "cluster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Parent cluster ID"
+          }
+        ],
         "get": {
-          "summary": "List nodepools",
-          "description": "List nodepools for authenticated user (optionally filtered by cluster)",
-          "operationId": "listUserNodePools",
+          "summary": "List nodepools for a cluster",
+          "description": "Retrieve all nodepools for the specified cluster (user must own the cluster)",
+          "operationId": "listNodePools",
           "tags": [
             "NodePools"
           ],
           "parameters": [
-            {
-              "name": "clusterId",
-              "in": "query",
-              "schema": {
-                "type": "string"
-              },
-              "description": "Filter by cluster ID (optional)"
-            },
             {
               "name": "limit",
               "in": "query",
@@ -793,15 +842,21 @@
             "401": {
               "$ref": "#/components/responses/Unauthorized"
             },
+            "403": {
+              "$ref": "#/components/responses/Forbidden"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            },
             "500": {
               "$ref": "#/components/responses/InternalError"
             }
           }
         },
         "post": {
-          "summary": "Create nodepool",
-          "description": "Create a new nodepool for the authenticated user",
-          "operationId": "createUserNodePool",
+          "summary": "Create a nodepool",
+          "description": "Create a new nodepool for the specified cluster.\n\nNodePools are created AFTER a cluster exists and are NOT created automatically.\n",
+          "operationId": "createNodePool",
           "tags": [
             "NodePools"
           ],
@@ -832,6 +887,9 @@
             "401": {
               "$ref": "#/components/responses/Unauthorized"
             },
+            "403": {
+              "$ref": "#/components/responses/Forbidden"
+            },
             "404": {
               "$ref": "#/components/responses/NotFound"
             },
@@ -844,10 +902,19 @@
           }
         }
       },
-      "/nodepools/{id}": {
+      "/clusters/{cluster_id}/nodepools/{nodepool_id}": {
         "parameters": [
           {
-            "name": "id",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Parent cluster ID"
+          },
+          {
+            "name": "nodepool_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -859,7 +926,7 @@
         "get": {
           "summary": "Get nodepool details",
           "description": "Retrieve nodepool details (user must own the cluster)",
-          "operationId": "getUserNodePool",
+          "operationId": "getNodePool",
           "tags": [
             "NodePools"
           ],
@@ -891,10 +958,10 @@
             }
           }
         },
-        "put": {
+        "patch": {
           "summary": "Update nodepool",
-          "description": "Update nodepool (user must own the cluster)",
-          "operationId": "updateUserNodePool",
+          "description": "Partially update nodepool (user must own the cluster)",
+          "operationId": "patchNodePool",
           "tags": [
             "NodePools"
           ],
@@ -939,7 +1006,7 @@
         "delete": {
           "summary": "Delete nodepool",
           "description": "Delete nodepool (user must own the cluster)",
-          "operationId": "deleteUserNodePool",
+          "operationId": "deleteNodePool",
           "tags": [
             "NodePools"
           ],
@@ -980,10 +1047,19 @@
           }
         }
       },
-      "/nodepools/{id}/status": {
+      "/clusters/{cluster_id}/nodepools/{nodepool_id}/status": {
         "parameters": [
           {
-            "name": "id",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Parent cluster ID"
+          },
+          {
+            "name": "nodepool_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -995,7 +1071,7 @@
         "get": {
           "summary": "Get nodepool status",
           "description": "Retrieve nodepool status (user must own the cluster)",
-          "operationId": "getUserNodePoolStatus",
+          "operationId": "getNodePoolStatus",
           "tags": [
             "NodePools"
           ],
@@ -1082,28 +1158,16 @@
           }
         }
       },
-      "/accounts/{accountId}/enable": {
+      "/accounts": {
         "post": {
-          "summary": "Enable account for authorization",
+          "summary": "Enable an account",
           "description": "Enables an AWS account for Cedar/AVP-based authorization.\nCreates a policy store in Amazon Verified Permissions.\nRequires privileged access.\n",
-          "operationId": "enableAccount",
+          "operationId": "createAccount",
           "tags": [
             "Authorization"
           ],
-          "parameters": [
-            {
-              "name": "accountId",
-              "in": "path",
-              "required": true,
-              "description": "AWS account ID to enable",
-              "schema": {
-                "type": "string",
-                "pattern": "^\\d{12}$"
-              }
-            }
-          ],
           "requestBody": {
-            "required": false,
+            "required": true,
             "content": {
               "application/json": {
                 "schema": {
@@ -1164,25 +1228,125 @@
               }
             }
           }
+        },
+        "get": {
+          "summary": "List accounts",
+          "description": "Returns a list of all enabled accounts.\nRequires privileged access.\n",
+          "operationId": "listAccounts",
+          "tags": [
+            "Authorization"
+          ],
+          "responses": {
+            "200": {
+              "description": "List of accounts",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AccountList"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Forbidden - caller is not privileged",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
         }
       },
-      "/accounts/{accountId}/disable": {
-        "post": {
-          "summary": "Disable account authorization",
-          "description": "Disables an AWS account from authorization.\nDeletes the policy store and all associated policies, groups, and attachments.\nRequires privileged access.\n",
-          "operationId": "disableAccount",
+      "/accounts/{id}": {
+        "get": {
+          "summary": "Get an account",
+          "description": "Returns details of a specific enabled account.\nRequires privileged access.\n",
+          "operationId": "getAccount",
           "tags": [
             "Authorization"
           ],
           "parameters": [
             {
-              "name": "accountId",
+              "name": "id",
               "in": "path",
               "required": true,
-              "description": "AWS account ID to disable",
+              "description": "AWS account ID",
               "schema": {
-                "type": "string",
-                "pattern": "^\\d{12}$"
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Account details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Forbidden - caller is not privileged",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Account not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Disable an account",
+          "description": "Disables an AWS account from authorization.\nDeletes the policy store and all associated policies, groups, and attachments.\nRequires privileged access.\n",
+          "operationId": "deleteAccount",
+          "tags": [
+            "Authorization"
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "AWS account ID",
+              "schema": {
+                "type": "string"
               }
             }
           ],
@@ -1200,8 +1364,60 @@
                 }
               }
             },
-            "404": {
-              "description": "Account not found",
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/authz/check": {
+        "post": {
+          "summary": "Check authorization",
+          "description": "Evaluates an authorization request against the account's policies\nand returns an ALLOW or DENY decision. Requires a provisioned account.\n",
+          "operationId": "checkAuthorization",
+          "tags": [
+            "Authorization"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckAuthorizationRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Authorization decision",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CheckAuthorizationResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request - missing required fields",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Forbidden - account not provisioned",
               "content": {
                 "application/json": {
                   "schema": {
@@ -2724,7 +2940,14 @@
         "EnableAccountRequest": {
           "type": "object",
           "description": "Request body for enabling an account",
+          "required": [
+            "accountId"
+          ],
           "properties": {
+            "accountId": {
+              "type": "string",
+              "description": "AWS account ID to enable"
+            },
             "privileged": {
               "type": "boolean",
               "description": "If true, account bypasses all authorization checks",
@@ -2762,6 +2985,92 @@
             "createdBy": {
               "type": "string",
               "description": "ARN of who enabled the account"
+            }
+          }
+        },
+        "AccountList": {
+          "type": "object",
+          "description": "List of accounts",
+          "required": [
+            "kind",
+            "items",
+            "total"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "example": "AccountList"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Account"
+              }
+            },
+            "total": {
+              "type": "integer",
+              "description": "Total number of accounts"
+            }
+          }
+        },
+        "CheckAuthorizationRequest": {
+          "type": "object",
+          "description": "Request body for checking authorization",
+          "required": [
+            "principal",
+            "action",
+            "resource"
+          ],
+          "properties": {
+            "principal": {
+              "type": "string",
+              "description": "Principal ARN making the request"
+            },
+            "action": {
+              "type": "string",
+              "description": "Action being performed (e.g., rosa:CreateCluster)"
+            },
+            "resource": {
+              "type": "string",
+              "description": "Resource ARN (e.g., arn:aws:rosa:us-west-2:123456789012:cluster/*)"
+            },
+            "context": {
+              "type": "object",
+              "description": "Additional context for the authorization decision",
+              "additionalProperties": true
+            },
+            "resourceTags": {
+              "type": "object",
+              "description": "Tags on the resource",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "CheckAuthorizationResponse": {
+          "type": "object",
+          "description": "Authorization decision response",
+          "required": [
+            "kind",
+            "decision"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "example": "AuthorizationDecision"
+            },
+            "decision": {
+              "type": "string",
+              "description": "Authorization decision",
+              "enum": [
+                "ALLOW",
+                "DENY"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason for the decision"
             }
           }
         },
@@ -3336,107 +3645,721 @@
         },
         "Cluster": {
           "type": "object",
-          "description": "A user cluster resource",
+          "description": "A Cluster resource - the primary resource containing an envelope around a\nHyperShift HostedCluster spec. Follows Kubernetes-like structure with kind,\nmetadata, spec (envelope + hosted_cluster passthrough), and status.\n\nThe platform applies comprehensive defaulting to unspecified fields.\n",
+          "required": [
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Cluster"
+              ],
+              "description": "Resource kind",
+              "example": "Cluster"
+            },
+            "apiVersion": {
+              "type": "string",
+              "enum": [
+                "v0"
+              ],
+              "description": "API version",
+              "example": "v0"
+            },
+            "metadata": {
+              "$ref": "#/components/schemas/ClusterMetadata"
+            },
+            "spec": {
+              "$ref": "#/components/schemas/ClusterSpec"
+            },
+            "status": {
+              "$ref": "#/components/schemas/ClusterStatusInfo"
+            }
+          }
+        },
+        "ClusterMetadata": {
+          "type": "object",
+          "description": "Cluster metadata",
           "required": [
             "id",
-            "name",
-            "target_project_id",
-            "created_by",
-            "generation",
-            "resource_version",
-            "spec",
-            "created_at",
-            "updated_at"
+            "name"
           ],
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique identifier for the cluster"
+              "format": "uuid",
+              "description": "Platform-assigned unique identifier",
+              "readOnly": true
             },
             "name": {
               "type": "string",
-              "description": "Cluster name"
+              "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+              "minLength": 3,
+              "maxLength": 53,
+              "description": "Cluster name (3-53 chars, lowercase alphanum + hyphens)"
             },
-            "target_project_id": {
-              "type": "string",
-              "description": "Target project ID"
-            },
-            "created_by": {
-              "type": "string",
-              "description": "Email of the user who created this cluster"
-            },
-            "generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Generation number for optimistic concurrency control"
-            },
-            "resource_version": {
-              "type": "string",
-              "description": "Resource version for optimistic concurrency control"
-            },
-            "spec": {
+            "labels": {
               "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
+              "description": "Key-value metadata labels",
+              "additionalProperties": {
+                "type": "string"
+              }
             },
-            "status": {
-              "$ref": "#/components/schemas/ClusterStatusInfo"
-            },
-            "created_at": {
+            "creation_timestamp": {
               "type": "string",
               "format": "date-time",
-              "description": "Creation timestamp"
+              "description": "Creation timestamp (RFC3339)",
+              "readOnly": true
             },
-            "updated_at": {
+            "deletion_timestamp": {
               "type": "string",
               "format": "date-time",
-              "description": "Last update timestamp"
+              "description": "Deletion timestamp (set when delete requested)",
+              "readOnly": true
+            }
+          }
+        },
+        "ClusterSpec": {
+          "type": "object",
+          "description": "Cluster specification containing envelope fields (platform-managed, not passed\nto HyperShift) and hosted_cluster passthrough (HyperShift HostedCluster spec).\n\nThe platform applies defaulting to unspecified fields. On GET, returns fully-defaulted spec.\n",
+          "properties": {
+            "delete_protection": {
+              "$ref": "#/components/schemas/DeleteProtection"
+            },
+            "expiration_timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Auto-delete cluster after this time (RFC3339)"
+            },
+            "properties": {
+              "type": "object",
+              "description": "Arbitrary key-value metadata",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "permission_boundary": {
+              "type": "string",
+              "description": "IAM permission boundary ARN (not in HyperShift, applied during role setup)"
+            },
+            "role_policy_bindings": {
+              "type": "array",
+              "description": "Arbitrary IAM policy bindings (not in HyperShift)",
+              "items": {
+                "$ref": "#/components/schemas/RolePolicyBinding"
+              }
+            },
+            "log_forwarders": {
+              "type": "array",
+              "description": "Day-1 log forwarding configuration (also available as day-2 sub-resource)",
+              "items": {
+                "$ref": "#/components/schemas/LogForwarderSpec"
+              }
+            },
+            "backup_config": {
+              "$ref": "#/components/schemas/BackupConfig"
+            },
+            "hosted_cluster": {
+              "$ref": "#/components/schemas/HostedClusterSpec"
+            }
+          }
+        },
+        "DeleteProtection": {
+          "type": "object",
+          "description": "Delete protection configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether delete protection is enabled"
+            }
+          }
+        },
+        "RolePolicyBinding": {
+          "type": "object",
+          "description": "IAM policy binding for operator roles",
+          "required": [
+            "name",
+            "role_arn",
+            "type",
+            "policies"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Binding name"
+            },
+            "role_arn": {
+              "type": "string",
+              "description": "IAM role ARN"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "account",
+                "operator"
+              ],
+              "description": "Binding type"
+            },
+            "policies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PolicyReference"
+              }
+            }
+          }
+        },
+        "PolicyReference": {
+          "type": "object",
+          "required": [
+            "arn",
+            "type"
+          ],
+          "properties": {
+            "arn": {
+              "type": "string",
+              "description": "Policy ARN"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "managed",
+                "inline",
+                "customer"
+              ],
+              "description": "Policy type"
+            }
+          }
+        },
+        "BackupConfig": {
+          "type": "object",
+          "description": "Cluster backup configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether backup is enabled"
+            },
+            "schedule": {
+              "type": "string",
+              "description": "Cron expression for backup schedule",
+              "example": "0 */6 * * *"
+            }
+          }
+        },
+        "LogForwarderSpec": {
+          "type": "object",
+          "description": "Log forwarding configuration",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "cloudwatch",
+                "s3"
+              ],
+              "description": "Log forwarder type"
+            },
+            "cloudwatch": {
+              "$ref": "#/components/schemas/CloudWatchConfig"
+            },
+            "s3": {
+              "$ref": "#/components/schemas/S3Config"
+            }
+          }
+        },
+        "CloudWatchConfig": {
+          "type": "object",
+          "required": [
+            "region",
+            "group_name",
+            "role_arn",
+            "log_types"
+          ],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region"
+            },
+            "group_name": {
+              "type": "string",
+              "description": "CloudWatch log group name"
+            },
+            "role_arn": {
+              "type": "string",
+              "description": "IAM role ARN for CloudWatch access"
+            },
+            "log_types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "audit",
+                  "infrastructure",
+                  "application"
+                ]
+              },
+              "description": "Types of logs to forward"
+            }
+          }
+        },
+        "S3Config": {
+          "type": "object",
+          "required": [
+            "region",
+            "bucket_name",
+            "role_arn"
+          ],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region"
+            },
+            "bucket_name": {
+              "type": "string",
+              "description": "S3 bucket name"
+            },
+            "role_arn": {
+              "type": "string",
+              "description": "IAM role ARN for S3 access"
+            },
+            "prefix": {
+              "type": "string",
+              "description": "S3 key prefix for logs"
+            }
+          }
+        },
+        "HostedClusterSpec": {
+          "type": "object",
+          "description": "HyperShift HostedCluster specification (passthrough).\n\nThe platform applies defaulting to unspecified fields. Customers submit only\nthe fields they want to set/override. On GET, returns fully-defaulted spec.\n\nDefaults include: VPC provisioning, IAM role creation, OIDC provider setup,\nnetwork CIDRs, KMS encryption, and more. See specification document for full list.\n",
+          "required": [
+            "release",
+            "platform"
+          ],
+          "properties": {
+            "release": {
+              "$ref": "#/components/schemas/ReleaseSpec"
+            },
+            "platform": {
+              "$ref": "#/components/schemas/PlatformSpec"
+            },
+            "issuer_url": {
+              "type": "string",
+              "description": "OIDC issuer URL (BYO or platform-provisioned)",
+              "example": "https://my-oidc.s3.amazonaws.com"
+            },
+            "networking": {
+              "$ref": "#/components/schemas/NetworkingSpec"
+            },
+            "etcd": {
+              "$ref": "#/components/schemas/EtcdSpec"
+            },
+            "secret_encryption": {
+              "$ref": "#/components/schemas/SecretEncryptionSpec"
+            },
+            "fips": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable FIPS mode (immutable after creation)"
+            },
+            "controller_availability_policy": {
+              "type": "string",
+              "enum": [
+                "HighlyAvailable",
+                "SingleReplica"
+              ],
+              "default": "HighlyAvailable"
+            },
+            "infrastructure_availability_policy": {
+              "type": "string",
+              "enum": [
+                "HighlyAvailable",
+                "SingleReplica"
+              ],
+              "default": "SingleReplica"
+            },
+            "olm_catalog_placement": {
+              "type": "string",
+              "enum": [
+                "management",
+                "guest"
+              ],
+              "default": "management"
+            },
+            "dns": {
+              "$ref": "#/components/schemas/DNSSpec"
+            },
+            "configuration": {
+              "$ref": "#/components/schemas/ClusterConfigurationSpec"
+            },
+            "ssh_key": {
+              "type": "string",
+              "description": "SSH public key for node access"
+            }
+          }
+        },
+        "ReleaseSpec": {
+          "type": "object",
+          "required": [
+            "image"
+          ],
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "OCP release image",
+              "example": "quay.io/openshift-release-dev/ocp-release:4.17.0-multi"
+            }
+          }
+        },
+        "PlatformSpec": {
+          "type": "object",
+          "required": [
+            "aws"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "AWS"
+              ],
+              "default": "AWS"
+            },
+            "aws": {
+              "$ref": "#/components/schemas/AWSPlatformSpec"
+            }
+          }
+        },
+        "AWSPlatformSpec": {
+          "type": "object",
+          "required": [
+            "region"
+          ],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region (required)",
+              "example": "us-east-1"
+            },
+            "endpoint_access": {
+              "type": "string",
+              "enum": [
+                "Private",
+                "PublicAndPrivate"
+              ],
+              "default": "Private",
+              "description": "Cluster API endpoint access mode"
+            },
+            "cloud_provider_config": {
+              "$ref": "#/components/schemas/AWSCloudProviderConfig"
+            },
+            "roles_ref": {
+              "$ref": "#/components/schemas/AWSRolesRef"
+            },
+            "resource_tags": {
+              "type": "array",
+              "description": "Custom AWS resource tags",
+              "items": {
+                "$ref": "#/components/schemas/AWSResourceTag"
+              }
+            },
+            "additional_allowed_principals": {
+              "type": "array",
+              "description": "Additional AWS principals for PrivateLink access",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "AWSCloudProviderConfig": {
+          "type": "object",
+          "description": "AWS VPC and subnet configuration (BYO or platform-provisioned)",
+          "properties": {
+            "vpc": {
+              "type": "string",
+              "description": "VPC ID (platform creates if omitted)"
+            },
+            "subnet": {
+              "type": "object",
+              "description": "Subnet configuration",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Subnet ID"
+                }
+              }
+            }
+          }
+        },
+        "AWSRolesRef": {
+          "type": "object",
+          "description": "AWS IAM roles for HyperShift operators (7 IRSA roles, platform-created if omitted)",
+          "properties": {
+            "ingress_arn": {
+              "type": "string"
+            },
+            "image_registry_arn": {
+              "type": "string"
+            },
+            "storage_arn": {
+              "type": "string"
+            },
+            "network_arn": {
+              "type": "string"
+            },
+            "kube_cloud_controller_arn": {
+              "type": "string"
+            },
+            "node_pool_management_arn": {
+              "type": "string"
+            },
+            "control_plane_operator_arn": {
+              "type": "string"
+            }
+          }
+        },
+        "AWSResourceTag": {
+          "type": "object",
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        "NetworkingSpec": {
+          "type": "object",
+          "description": "Cluster networking configuration",
+          "properties": {
+            "machine_network": {
+              "type": "array",
+              "description": "Machine network CIDR blocks",
+              "items": {
+                "$ref": "#/components/schemas/NetworkCIDR"
+              },
+              "default": [
+                {
+                  "cidr": "10.0.0.0/16"
+                }
+              ]
+            },
+            "cluster_network": {
+              "type": "array",
+              "description": "Pod network CIDR blocks",
+              "items": {
+                "$ref": "#/components/schemas/NetworkCIDR"
+              },
+              "default": [
+                {
+                  "cidr": "10.132.0.0/14"
+                }
+              ]
+            },
+            "service_network": {
+              "type": "array",
+              "description": "Service network CIDR blocks",
+              "items": {
+                "$ref": "#/components/schemas/NetworkCIDR"
+              },
+              "default": [
+                {
+                  "cidr": "172.31.0.0/16"
+                }
+              ]
+            },
+            "network_type": {
+              "type": "string",
+              "enum": [
+                "OVNKubernetes",
+                "OpenShiftSDN"
+              ],
+              "default": "OVNKubernetes"
+            }
+          }
+        },
+        "NetworkCIDR": {
+          "type": "object",
+          "required": [
+            "cidr"
+          ],
+          "properties": {
+            "cidr": {
+              "type": "string",
+              "example": "10.0.0.0/16"
+            }
+          }
+        },
+        "EtcdSpec": {
+          "type": "object",
+          "properties": {
+            "management_type": {
+              "type": "string",
+              "enum": [
+                "Managed",
+                "Unmanaged"
+              ],
+              "default": "Managed"
+            },
+            "managed": {
+              "type": "object",
+              "properties": {
+                "storage": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "PersistentVolume"
+                      ],
+                      "default": "PersistentVolume"
+                    },
+                    "persistent_volume": {
+                      "type": "object",
+                      "properties": {
+                        "size": {
+                          "type": "string",
+                          "default": "8Gi"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "SecretEncryptionSpec": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "kms",
+                "aescbc"
+              ]
+            },
+            "kms": {
+              "$ref": "#/components/schemas/KMSSpec"
+            }
+          }
+        },
+        "KMSSpec": {
+          "type": "object",
+          "properties": {
+            "aws": {
+              "type": "object",
+              "properties": {
+                "active_key": {
+                  "type": "object",
+                  "required": [
+                    "arn"
+                  ],
+                  "properties": {
+                    "arn": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "DNSSpec": {
+          "type": "object",
+          "properties": {
+            "base_domain": {
+              "type": "string",
+              "description": "Base domain (platform-assigned)"
+            }
+          }
+        },
+        "ClusterConfigurationSpec": {
+          "type": "object",
+          "description": "Additional cluster configuration",
+          "properties": {
+            "proxy": {
+              "$ref": "#/components/schemas/ProxySpec"
+            }
+          }
+        },
+        "ProxySpec": {
+          "type": "object",
+          "properties": {
+            "http_proxy": {
+              "type": "string",
+              "example": "http://proxy.example.com:3128"
+            },
+            "https_proxy": {
+              "type": "string",
+              "example": "http://proxy.example.com:3128"
+            },
+            "no_proxy": {
+              "type": "string",
+              "example": ".cluster.local,.svc,10.0.0.0/8"
             }
           }
         },
         "ClusterCreateRequest": {
           "type": "object",
-          "description": "Request body for creating a cluster",
+          "description": "Request body for creating a Cluster.\n\nMinimal Example - Only required fields:\n```yaml\nmetadata:\n  name: my-cluster\nspec:\n  hosted_cluster:\n    release:\n      image: quay.io/openshift-release-dev/ocp-release:4.17.0-multi\n    platform:\n      aws:\n        region: us-east-1\n```\n\nThe platform automatically provisions VPC, IAM roles, OIDC, networking, and more.\n",
           "required": [
-            "name",
+            "metadata",
             "spec"
           ],
           "properties": {
-            "name": {
-              "type": "string",
-              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-              "minLength": 3,
-              "maxLength": 63,
-              "description": "DNS-compatible cluster name"
-            },
-            "target_project_id": {
-              "type": "string",
-              "description": "Target project ID"
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                  "minLength": 3,
+                  "maxLength": 53,
+                  "description": "Cluster name (3-53 chars, lowercase alphanum + hyphens)"
+                },
+                "labels": {
+                  "type": "object",
+                  "description": "Key-value metadata labels",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
             },
             "spec": {
-              "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/ClusterSpec"
             }
           }
         },
         "ClusterUpdateRequest": {
           "type": "object",
-          "description": "Request body for updating a cluster",
+          "description": "Request body for updating a cluster.\nOnly spec fields can be updated; metadata is immutable.\n",
           "required": [
             "spec"
           ],
           "properties": {
             "spec": {
-              "type": "object",
-              "description": "Cluster specification",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/ClusterSpec"
             }
           }
         },
         "ClusterStatusInfo": {
           "type": "object",
-          "description": "Kubernetes-like aggregated status for clusters",
+          "description": "Kubernetes-like aggregated status for clusters.\nPhase progression: Pending → Progressing → Ready/Failed.\n",
           "properties": {
             "observedGeneration": {
               "type": "integer",
@@ -3445,7 +4368,7 @@
             },
             "conditions": {
               "type": "array",
-              "description": "Status conditions",
+              "description": "Status conditions (Kubernetes-style)",
               "items": {
                 "$ref": "#/components/schemas/Condition"
               }
@@ -3477,11 +4400,16 @@
         },
         "Condition": {
           "type": "object",
-          "description": "Status condition",
+          "description": "Kubernetes-style status condition",
+          "required": [
+            "type",
+            "status"
+          ],
           "properties": {
             "type": {
               "type": "string",
-              "description": "Condition type"
+              "description": "Condition type (e.g., Ready, Available, Progressing)",
+              "example": "Ready"
             },
             "status": {
               "type": "string",
@@ -3495,15 +4423,17 @@
             "lastTransitionTime": {
               "type": "string",
               "format": "date-time",
-              "description": "Last time the condition transitioned"
+              "description": "Last time the condition transitioned from one status to another"
             },
             "reason": {
               "type": "string",
-              "description": "Machine-readable reason code"
+              "description": "Machine-readable, PascalCase reason for the condition's last transition",
+              "example": "ClusterProvisioningSucceeded"
             },
             "message": {
               "type": "string",
-              "description": "Human-readable message"
+              "description": "Human-readable message explaining the condition's status",
+              "example": "All cluster components are healthy"
             }
           }
         },
@@ -3534,6 +4464,11 @@
             "metadata": {
               "type": "object",
               "description": "Controller-specific metadata",
+              "additionalProperties": true
+            },
+            "data": {
+              "type": "object",
+              "description": "Controller-specific data",
               "additionalProperties": true
             },
             "last_updated": {
@@ -3567,13 +4502,13 @@
           "type": "object",
           "description": "Paginated list of clusters",
           "required": [
-            "clusters",
+            "items",
             "total",
             "limit",
             "offset"
           ],
           "properties": {
-            "clusters": {
+            "items": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Cluster"
@@ -3595,81 +4530,424 @@
         },
         "NodePool": {
           "type": "object",
-          "description": "A nodepool resource",
+          "description": "A NodePool resource - sub-resource of Cluster containing an envelope around a\nHyperShift NodePool spec. Follows Kubernetes-like structure.\n\nNodePools are created AFTER the cluster exists and have a separate lifecycle.\n",
           "required": [
-            "id",
-            "cluster_id",
-            "name",
-            "created_by",
-            "generation",
-            "resource_version",
-            "spec",
-            "created_at",
-            "updated_at"
+            "kind",
+            "apiVersion",
+            "metadata",
+            "spec"
           ],
           "properties": {
-            "id": {
+            "kind": {
               "type": "string",
-              "description": "Unique identifier for the nodepool"
+              "enum": [
+                "NodePool"
+              ],
+              "description": "Resource kind",
+              "example": "NodePool"
             },
-            "cluster_id": {
+            "apiVersion": {
               "type": "string",
-              "description": "Parent cluster ID"
+              "enum": [
+                "v0"
+              ],
+              "description": "API version",
+              "example": "v0"
             },
-            "name": {
-              "type": "string",
-              "description": "NodePool name"
-            },
-            "created_by": {
-              "type": "string",
-              "description": "Email of the user who created this nodepool"
-            },
-            "generation": {
-              "type": "integer",
-              "format": "int64",
-              "description": "Generation number for optimistic concurrency control"
-            },
-            "resource_version": {
-              "type": "string",
-              "description": "Resource version for optimistic concurrency control"
+            "metadata": {
+              "$ref": "#/components/schemas/NodePoolMetadata"
             },
             "spec": {
               "$ref": "#/components/schemas/NodePoolSpec"
             },
             "status": {
               "$ref": "#/components/schemas/NodePoolStatusInfo"
+            }
+          }
+        },
+        "NodePoolMetadata": {
+          "type": "object",
+          "description": "NodePool metadata",
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Platform-assigned unique identifier",
+              "readOnly": true
             },
-            "created_at": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+              "minLength": 3,
+              "maxLength": 15,
+              "description": "NodePool name (3-15 chars)"
+            },
+            "labels": {
+              "type": "object",
+              "description": "Key-value metadata labels",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "creation_timestamp": {
               "type": "string",
               "format": "date-time",
-              "description": "Creation timestamp"
+              "description": "Creation timestamp (RFC3339)",
+              "readOnly": true
+            }
+          }
+        },
+        "NodePoolSpec": {
+          "type": "object",
+          "description": "NodePool specification containing node_pool passthrough (HyperShift NodePool spec).\n\nThe platform applies defaulting to unspecified fields. Customers submit only the\nfields they want to set. On GET, returns fully-defaulted spec.\n",
+          "properties": {
+            "node_pool": {
+              "$ref": "#/components/schemas/HyperShiftNodePoolSpec"
+            }
+          }
+        },
+        "HyperShiftNodePoolSpec": {
+          "type": "object",
+          "description": "HyperShift NodePool specification (passthrough).\n\nDefaults: m5.xlarge instance, 2 replicas, 300GB gp3 encrypted volume, RollingUpdate,\nauto-repair enabled, amd64 arch. See specification document for full defaults.\n",
+          "properties": {
+            "release": {
+              "type": "object",
+              "description": "NodePool release/version (inherits from cluster if omitted)",
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "description": "OCP release image"
+                }
+              }
             },
-            "updated_at": {
+            "platform": {
+              "$ref": "#/components/schemas/NodePoolPlatformSpec"
+            },
+            "replicas": {
+              "type": "integer",
+              "format": "int32",
+              "default": 2,
+              "description": "Number of nodes (XOR with auto_scaling)"
+            },
+            "auto_scaling": {
+              "$ref": "#/components/schemas/NodePoolAutoScaling"
+            },
+            "management": {
+              "$ref": "#/components/schemas/NodePoolManagement"
+            },
+            "node_labels": {
+              "type": "object",
+              "description": "Kubernetes labels applied to nodes",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "taints": {
+              "type": "array",
+              "description": "Node taints",
+              "items": {
+                "$ref": "#/components/schemas/NodeTaint"
+              }
+            },
+            "node_drain_timeout": {
               "type": "string",
-              "format": "date-time",
-              "description": "Last update timestamp"
+              "default": "15m",
+              "description": "Timeout for draining nodes during upgrades"
+            },
+            "node_volume_detach_timeout": {
+              "type": "string",
+              "default": "5m",
+              "description": "Timeout for detaching volumes during node termination"
+            },
+            "arch": {
+              "type": "string",
+              "enum": [
+                "amd64",
+                "arm64"
+              ],
+              "default": "amd64",
+              "description": "CPU architecture (immutable after creation)"
+            },
+            "tuning_config": {
+              "type": "array",
+              "description": "References to TuningConfig resources",
+              "items": {
+                "type": "string"
+              }
+            },
+            "config": {
+              "type": "array",
+              "description": "MachineConfig references",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "NodePoolPlatformSpec": {
+          "type": "object",
+          "description": "NodePool platform configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "AWS"
+              ],
+              "default": "AWS"
+            },
+            "aws": {
+              "$ref": "#/components/schemas/NodePoolAWSPlatform"
+            }
+          }
+        },
+        "NodePoolAWSPlatform": {
+          "type": "object",
+          "description": "AWS-specific NodePool configuration",
+          "properties": {
+            "instance_type": {
+              "type": "string",
+              "default": "m5.xlarge",
+              "description": "EC2 instance type",
+              "example": "m5.2xlarge"
+            },
+            "subnet": {
+              "type": "object",
+              "description": "Subnet configuration (defaults from cluster VPC)",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              }
+            },
+            "instance_profile": {
+              "type": "string",
+              "description": "IAM instance profile (platform-provisioned if omitted)"
+            },
+            "ami": {
+              "type": "string",
+              "description": "Custom AMI ID (from release payload if omitted)"
+            },
+            "image_type": {
+              "type": "string",
+              "enum": [
+                "Linux",
+                "Windows"
+              ],
+              "default": "Linux"
+            },
+            "security_groups": {
+              "type": "array",
+              "description": "Additional security group IDs",
+              "items": {
+                "type": "string"
+              }
+            },
+            "root_volume": {
+              "$ref": "#/components/schemas/NodePoolRootVolume"
+            },
+            "resource_tags": {
+              "type": "array",
+              "description": "Per-node AWS resource tags",
+              "items": {
+                "$ref": "#/components/schemas/AWSResourceTag"
+              }
+            },
+            "placement": {
+              "$ref": "#/components/schemas/NodePoolPlacement"
+            }
+          }
+        },
+        "NodePoolRootVolume": {
+          "type": "object",
+          "description": "Root EBS volume configuration",
+          "properties": {
+            "size": {
+              "type": "integer",
+              "default": 300,
+              "description": "Volume size in GiB"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "gp3",
+                "gp2",
+                "io1",
+                "io2"
+              ],
+              "default": "gp3"
+            },
+            "iops": {
+              "type": "integer",
+              "description": "Provisioned IOPS (for io1/io2)"
+            },
+            "encrypted": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "NodePoolPlacement": {
+          "type": "object",
+          "description": "EC2 placement configuration",
+          "properties": {
+            "tenancy": {
+              "type": "string",
+              "enum": [
+                "default",
+                "dedicated",
+                "host"
+              ],
+              "default": "default"
+            }
+          }
+        },
+        "NodePoolAutoScaling": {
+          "type": "object",
+          "description": "NodePool autoscaling configuration (XOR with replicas)",
+          "required": [
+            "min",
+            "max"
+          ],
+          "properties": {
+            "min": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0,
+              "description": "Minimum number of nodes (can be 0 for scale-to-zero)"
+            },
+            "max": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "description": "Maximum number of nodes"
+            }
+          }
+        },
+        "NodePoolManagement": {
+          "type": "object",
+          "description": "NodePool management and upgrade configuration",
+          "properties": {
+            "upgrade_type": {
+              "type": "string",
+              "enum": [
+                "Replace",
+                "InPlace"
+              ],
+              "default": "Replace",
+              "description": "Upgrade strategy (immutable after creation)"
+            },
+            "replace": {
+              "$ref": "#/components/schemas/NodePoolReplaceStrategy"
+            },
+            "auto_repair": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable automatic node repair"
+            }
+          }
+        },
+        "NodePoolReplaceStrategy": {
+          "type": "object",
+          "description": "Replace upgrade strategy configuration",
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "RollingUpdate"
+              ],
+              "default": "RollingUpdate"
+            },
+            "rolling_update": {
+              "type": "object",
+              "properties": {
+                "max_surge": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "default": 1,
+                  "description": "Maximum additional nodes during upgrade"
+                },
+                "max_unavailable": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "default": 0,
+                  "description": "Maximum unavailable nodes during upgrade"
+                }
+              }
+            }
+          }
+        },
+        "NodeTaint": {
+          "type": "object",
+          "description": "Kubernetes node taint",
+          "required": [
+            "key",
+            "effect"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "description": "Taint key"
+            },
+            "value": {
+              "type": "string",
+              "description": "Taint value"
+            },
+            "effect": {
+              "type": "string",
+              "enum": [
+                "NoSchedule",
+                "PreferNoSchedule",
+                "NoExecute"
+              ],
+              "description": "Taint effect"
             }
           }
         },
         "NodePoolCreateRequest": {
           "type": "object",
-          "description": "Request body for creating a nodepool",
+          "description": "Request body for creating a NodePool.\n\nMinimal Example:\n```yaml\nmetadata:\n  name: workers\nspec:\n  node_pool:\n    platform:\n      aws:\n        instance_type: m5.2xlarge\n```\n",
           "required": [
-            "cluster_id",
-            "name",
+            "metadata",
             "spec"
           ],
           "properties": {
-            "cluster_id": {
-              "type": "string",
-              "description": "Parent cluster ID"
-            },
-            "name": {
-              "type": "string",
-              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-              "minLength": 3,
-              "maxLength": 63,
-              "description": "DNS-compatible nodepool name"
+            "metadata": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                  "minLength": 3,
+                  "maxLength": 15,
+                  "description": "NodePool name (3-15 chars)"
+                },
+                "labels": {
+                  "type": "object",
+                  "description": "Key-value metadata labels",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
             },
             "spec": {
               "$ref": "#/components/schemas/NodePoolSpec"
@@ -3678,7 +4956,7 @@
         },
         "NodePoolUpdateRequest": {
           "type": "object",
-          "description": "Request body for updating a nodepool",
+          "description": "Request body for updating a NodePool.\nOnly spec fields can be updated; metadata is immutable.\n",
           "required": [
             "spec"
           ],
@@ -3688,40 +4966,20 @@
             }
           }
         },
-        "NodePoolSpec": {
+        "NodePoolStatusInfo": {
           "type": "object",
-          "description": "NodePool specification defining desired state",
+          "description": "Kubernetes-like aggregated status for nodepools.\nPhase progression: Pending → Scaling → Ready/Upgrading/Failed.\n",
           "properties": {
             "replicas": {
               "type": "integer",
               "format": "int32",
-              "description": "Number of worker nodes in the pool"
+              "description": "Current number of replicas"
             },
-            "management": {
-              "type": "object",
-              "description": "Node pool management configuration",
-              "additionalProperties": true
-            },
-            "platform": {
-              "type": "object",
-              "description": "Platform-specific configuration",
-              "additionalProperties": true
-            },
-            "release": {
-              "type": "object",
-              "description": "Release/version configuration",
-              "additionalProperties": true
-            },
-            "nodeDrainTimeout": {
+            "version": {
               "type": "string",
-              "description": "Timeout for draining nodes"
-            }
-          }
-        },
-        "NodePoolStatusInfo": {
-          "type": "object",
-          "description": "Kubernetes-like aggregated status for nodepools",
-          "properties": {
+              "description": "Current OCP version running on nodes",
+              "example": "4.17.0"
+            },
             "observedGeneration": {
               "type": "integer",
               "format": "int64",
@@ -3729,7 +4987,7 @@
             },
             "conditions": {
               "type": "array",
-              "description": "Status conditions",
+              "description": "Status conditions (Kubernetes-style)",
               "items": {
                 "$ref": "#/components/schemas/Condition"
               }
@@ -3738,8 +4996,9 @@
               "type": "string",
               "enum": [
                 "Pending",
-                "Progressing",
+                "Scaling",
                 "Ready",
+                "Upgrading",
                 "Failed"
               ],
               "description": "High-level nodepool phase"
@@ -3788,6 +5047,11 @@
               "description": "Controller-specific metadata",
               "additionalProperties": true
             },
+            "data": {
+              "type": "object",
+              "description": "Controller-specific data",
+              "additionalProperties": true
+            },
             "last_updated": {
               "type": "string",
               "format": "date-time",
@@ -3819,13 +5083,13 @@
           "type": "object",
           "description": "Paginated list of nodepools",
           "required": [
-            "nodepools",
+            "items",
             "total",
             "limit",
             "offset"
           ],
           "properties": {
-            "nodepools": {
+            "items": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/NodePool"

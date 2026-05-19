@@ -518,19 +518,22 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # NodePool Management Endpoints
-  /nodepools:
+  /clusters/{cluster_id}/nodepools:
+    parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Parent cluster ID
+
     get:
-      summary: List nodepools
-      description: List nodepools for authenticated user (optionally filtered by cluster)
-      operationId: listUserNodePools
+      summary: List nodepools for a cluster
+      description: Retrieve all nodepools for the specified cluster (user must own the cluster)
+      operationId: listNodePools
       tags:
         - NodePools
       parameters:
-        - name: clusterId
-          in: query
-          schema:
-            type: string
-          description: Filter by cluster ID (optional)
         - name: limit
           in: query
           schema:
@@ -557,13 +560,20 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
     post:
-      summary: Create nodepool
-      description: Create a new nodepool for the authenticated user
-      operationId: createUserNodePool
+      summary: Create a nodepool
+      description: |
+        Create a new nodepool for the specified cluster.
+
+        NodePools are created AFTER a cluster exists and are NOT created automatically.
+      operationId: createNodePool
       tags:
         - NodePools
       requestBody:
@@ -583,6 +593,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -590,9 +602,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /nodepools/{id}:
+  /clusters/{cluster_id}/nodepools/{nodepool_id}:
     parameters:
-      - name: id
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Parent cluster ID
+      - name: nodepool_id
         in: path
         required: true
         schema:
@@ -602,7 +620,7 @@ paths:
     get:
       summary: Get nodepool details
       description: Retrieve nodepool details (user must own the cluster)
-      operationId: getUserNodePool
+      operationId: getNodePool
       tags:
         - NodePools
       responses:
@@ -623,10 +641,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-    put:
+    patch:
       summary: Update nodepool
-      description: Update nodepool (user must own the cluster)
-      operationId: updateUserNodePool
+      description: Partially update nodepool (user must own the cluster)
+      operationId: patchNodePool
       tags:
         - NodePools
       requestBody:
@@ -656,7 +674,7 @@ paths:
     delete:
       summary: Delete nodepool
       description: Delete nodepool (user must own the cluster)
-      operationId: deleteUserNodePool
+      operationId: deleteNodePool
       tags:
         - NodePools
       responses:
@@ -682,9 +700,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /nodepools/{id}/status:
+  /clusters/{cluster_id}/nodepools/{nodepool_id}/status:
     parameters:
-      - name: id
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Parent cluster ID
+      - name: nodepool_id
         in: path
         required: true
         schema:
@@ -694,7 +718,7 @@ paths:
     get:
       summary: Get nodepool status
       description: Retrieve nodepool status (user must own the cluster)
-      operationId: getUserNodePoolStatus
+      operationId: getNodePoolStatus
       tags:
         - NodePools
       responses:
@@ -2497,117 +2521,547 @@ components:
     # Cluster Schemas
     Cluster:
       type: object
-      description: A user cluster resource
+      description: |
+        A Cluster resource - the primary resource containing an envelope around a
+        HyperShift HostedCluster spec. Follows Kubernetes-like structure with kind,
+        metadata, spec (envelope + hosted_cluster passthrough), and status.
+
+        The platform applies comprehensive defaulting to unspecified fields.
+      required:
+        - kind
+        - apiVersion
+        - metadata
+        - spec
+      properties:
+        kind:
+          type: string
+          enum: [Cluster]
+          description: Resource kind
+          example: Cluster
+        apiVersion:
+          type: string
+          enum: [v0]
+          description: API version
+          example: v0
+        metadata:
+          $ref: '#/components/schemas/ClusterMetadata'
+        spec:
+          $ref: '#/components/schemas/ClusterSpec'
+        status:
+          $ref: '#/components/schemas/ClusterStatusInfo'
+
+    ClusterMetadata:
+      type: object
+      description: Cluster metadata
       required:
         - id
         - name
-        - target_project_id
-        - created_by
-        - generation
-        - resource_version
-        - spec
-        - created_at
-        - updated_at
       properties:
         id:
           type: string
-          description: Unique identifier for the cluster
+          format: uuid
+          description: Platform-assigned unique identifier
+          readOnly: true
         name:
           type: string
-          description: Cluster name
-        target_project_id:
-          type: string
-          description: Target project ID
-        created_by:
-          type: string
-          description: Email of the user who created this cluster
-        generation:
-          type: integer
-          format: int64
-          description: Generation number for optimistic concurrency control
-        resource_version:
-          type: string
-          description: Resource version for optimistic concurrency control
-        spec:
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          minLength: 3
+          maxLength: 53
+          description: Cluster name (3-53 chars, lowercase alphanum + hyphens)
+        labels:
           type: object
-          description: |
-            Cluster specification. When a cluster is created, the response includes
-            auto-populated fields like cloudUrl and placement.
+          description: Key-value metadata labels
+          additionalProperties:
+            type: string
+        creation_timestamp:
+          type: string
+          format: date-time
+          description: Creation timestamp (RFC3339)
+          readOnly: true
+        deletion_timestamp:
+          type: string
+          format: date-time
+          description: Deletion timestamp (set when delete requested)
+          readOnly: true
+
+    ClusterSpec:
+      type: object
+      description: |
+        Cluster specification containing envelope fields (platform-managed, not passed
+        to HyperShift) and hosted_cluster passthrough (HyperShift HostedCluster spec).
+
+        The platform applies defaulting to unspecified fields. On GET, returns fully-defaulted spec.
+      properties:
+        # === ENVELOPE FIELDS ===
+        delete_protection:
+          $ref: '#/components/schemas/DeleteProtection'
+        expiration_timestamp:
+          type: string
+          format: date-time
+          description: Auto-delete cluster after this time (RFC3339)
+        properties:
+          type: object
+          description: Arbitrary key-value metadata
+          additionalProperties:
+            type: string
+        permission_boundary:
+          type: string
+          description: IAM permission boundary ARN (not in HyperShift, applied during role setup)
+        role_policy_bindings:
+          type: array
+          description: Arbitrary IAM policy bindings (not in HyperShift)
+          items:
+            $ref: '#/components/schemas/RolePolicyBinding'
+        log_forwarders:
+          type: array
+          description: Day-1 log forwarding configuration (also available as day-2 sub-resource)
+          items:
+            $ref: '#/components/schemas/LogForwarderSpec'
+        backup_config:
+          $ref: '#/components/schemas/BackupConfig'
+
+        # === HOSTEDCLUSTER PASSTHROUGH ===
+        hosted_cluster:
+          $ref: '#/components/schemas/HostedClusterSpec'
+
+    DeleteProtection:
+      type: object
+      description: Delete protection configuration
+      properties:
+        enabled:
+          type: boolean
+          default: false
+          description: Whether delete protection is enabled
+
+    RolePolicyBinding:
+      type: object
+      description: IAM policy binding for operator roles
+      required:
+        - name
+        - role_arn
+        - type
+        - policies
+      properties:
+        name:
+          type: string
+          description: Binding name
+        role_arn:
+          type: string
+          description: IAM role ARN
+        type:
+          type: string
+          enum: [account, operator]
+          description: Binding type
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyReference'
+
+    PolicyReference:
+      type: object
+      required:
+        - arn
+        - type
+      properties:
+        arn:
+          type: string
+          description: Policy ARN
+        type:
+          type: string
+          enum: [managed, inline, customer]
+          description: Policy type
+
+    BackupConfig:
+      type: object
+      description: Cluster backup configuration
+      properties:
+        enabled:
+          type: boolean
+          default: true
+          description: Whether backup is enabled
+        schedule:
+          type: string
+          description: Cron expression for backup schedule
+          example: "0 */6 * * *"
+
+    LogForwarderSpec:
+      type: object
+      description: Log forwarding configuration
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [cloudwatch, s3]
+          description: Log forwarder type
+        cloudwatch:
+          $ref: '#/components/schemas/CloudWatchConfig'
+        s3:
+          $ref: '#/components/schemas/S3Config'
+
+    CloudWatchConfig:
+      type: object
+      required:
+        - region
+        - group_name
+        - role_arn
+        - log_types
+      properties:
+        region:
+          type: string
+          description: AWS region
+        group_name:
+          type: string
+          description: CloudWatch log group name
+        role_arn:
+          type: string
+          description: IAM role ARN for CloudWatch access
+        log_types:
+          type: array
+          items:
+            type: string
+            enum: [audit, infrastructure, application]
+          description: Types of logs to forward
+
+    S3Config:
+      type: object
+      required:
+        - region
+        - bucket_name
+        - role_arn
+      properties:
+        region:
+          type: string
+          description: AWS region
+        bucket_name:
+          type: string
+          description: S3 bucket name
+        role_arn:
+          type: string
+          description: IAM role ARN for S3 access
+        prefix:
+          type: string
+          description: S3 key prefix for logs
+
+    HostedClusterSpec:
+      type: object
+      description: |
+        HyperShift HostedCluster specification (passthrough).
+
+        The platform applies defaulting to unspecified fields. Customers submit only
+        the fields they want to set/override. On GET, returns fully-defaulted spec.
+
+        Defaults include: VPC provisioning, IAM role creation, OIDC provider setup,
+        network CIDRs, KMS encryption, and more. See specification document for full list.
+      required:
+        - release
+        - platform
+      properties:
+        release:
+          $ref: '#/components/schemas/ReleaseSpec'
+        platform:
+          $ref: '#/components/schemas/PlatformSpec'
+        issuer_url:
+          type: string
+          description: OIDC issuer URL (BYO or platform-provisioned)
+          example: https://my-oidc.s3.amazonaws.com
+        networking:
+          $ref: '#/components/schemas/NetworkingSpec'
+        etcd:
+          $ref: '#/components/schemas/EtcdSpec'
+        secret_encryption:
+          $ref: '#/components/schemas/SecretEncryptionSpec'
+        fips:
+          type: boolean
+          default: false
+          description: Enable FIPS mode (immutable after creation)
+        controller_availability_policy:
+          type: string
+          enum: [HighlyAvailable, SingleReplica]
+          default: HighlyAvailable
+        infrastructure_availability_policy:
+          type: string
+          enum: [HighlyAvailable, SingleReplica]
+          default: SingleReplica
+        olm_catalog_placement:
+          type: string
+          enum: [management, guest]
+          default: management
+        dns:
+          $ref: '#/components/schemas/DNSSpec'
+        configuration:
+          $ref: '#/components/schemas/ClusterConfigurationSpec'
+        ssh_key:
+          type: string
+          description: SSH public key for node access
+
+    ReleaseSpec:
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          description: OCP release image
+          example: quay.io/openshift-release-dev/ocp-release:4.17.0-multi
+
+    PlatformSpec:
+      type: object
+      required:
+        - aws
+      properties:
+        type:
+          type: string
+          enum: [AWS]
+          default: AWS
+        aws:
+          $ref: '#/components/schemas/AWSPlatformSpec'
+
+    AWSPlatformSpec:
+      type: object
+      required:
+        - region
+      properties:
+        region:
+          type: string
+          description: AWS region (required)
+          example: us-east-1
+        endpoint_access:
+          type: string
+          enum: [Private, PublicAndPrivate]
+          default: Private
+          description: Cluster API endpoint access mode
+        cloud_provider_config:
+          $ref: '#/components/schemas/AWSCloudProviderConfig'
+        roles_ref:
+          $ref: '#/components/schemas/AWSRolesRef'
+        resource_tags:
+          type: array
+          description: Custom AWS resource tags
+          items:
+            $ref: '#/components/schemas/AWSResourceTag'
+        additional_allowed_principals:
+          type: array
+          description: Additional AWS principals for PrivateLink access
+          items:
+            type: string
+
+    AWSCloudProviderConfig:
+      type: object
+      description: AWS VPC and subnet configuration (BYO or platform-provisioned)
+      properties:
+        vpc:
+          type: string
+          description: VPC ID (platform creates if omitted)
+        subnet:
+          type: object
+          description: Subnet configuration
           properties:
-            cloudUrl:
+            id:
               type: string
-              description: |
-                CloudFront URL with cluster ID appended (format: {cloudfront_url}/{cluster_id}).
-                This field is automatically added to the response when creating a cluster.
-              example: https://doku78iof5s87.cloudfront.net/cluster-123
-            placement:
-              type: string
-              description: |
-                Management cluster name where the cluster is deployed.
-                Auto-populated from the first management cluster if not provided during creation.
-              example: management-cluster-us-east-1
-          additionalProperties: true
-        status:
-          $ref: '#/components/schemas/ClusterStatusInfo'
-        created_at:
+              description: Subnet ID
+
+    AWSRolesRef:
+      type: object
+      description: AWS IAM roles for HyperShift operators (7 IRSA roles, platform-created if omitted)
+      properties:
+        ingress_arn:
           type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
+        image_registry_arn:
           type: string
-          format: date-time
-          description: Last update timestamp
+        storage_arn:
+          type: string
+        network_arn:
+          type: string
+        kube_cloud_controller_arn:
+          type: string
+        node_pool_management_arn:
+          type: string
+        control_plane_operator_arn:
+          type: string
+
+    AWSResourceTag:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+
+    NetworkingSpec:
+      type: object
+      description: Cluster networking configuration
+      properties:
+        machine_network:
+          type: array
+          description: Machine network CIDR blocks
+          items:
+            $ref: '#/components/schemas/NetworkCIDR'
+          default:
+            - cidr: 10.0.0.0/16
+        cluster_network:
+          type: array
+          description: Pod network CIDR blocks
+          items:
+            $ref: '#/components/schemas/NetworkCIDR'
+          default:
+            - cidr: 10.132.0.0/14
+        service_network:
+          type: array
+          description: Service network CIDR blocks
+          items:
+            $ref: '#/components/schemas/NetworkCIDR'
+          default:
+            - cidr: 172.31.0.0/16
+        network_type:
+          type: string
+          enum: [OVNKubernetes, OpenShiftSDN]
+          default: OVNKubernetes
+
+    NetworkCIDR:
+      type: object
+      required:
+        - cidr
+      properties:
+        cidr:
+          type: string
+          example: 10.0.0.0/16
+
+    EtcdSpec:
+      type: object
+      properties:
+        management_type:
+          type: string
+          enum: [Managed, Unmanaged]
+          default: Managed
+        managed:
+          type: object
+          properties:
+            storage:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [PersistentVolume]
+                  default: PersistentVolume
+                persistent_volume:
+                  type: object
+                  properties:
+                    size:
+                      type: string
+                      default: 8Gi
+
+    SecretEncryptionSpec:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [kms, aescbc]
+        kms:
+          $ref: '#/components/schemas/KMSSpec'
+
+    KMSSpec:
+      type: object
+      properties:
+        aws:
+          type: object
+          properties:
+            active_key:
+              type: object
+              required:
+                - arn
+              properties:
+                arn:
+                  type: string
+
+    DNSSpec:
+      type: object
+      properties:
+        base_domain:
+          type: string
+          description: Base domain (platform-assigned)
+
+    ClusterConfigurationSpec:
+      type: object
+      description: Additional cluster configuration
+      properties:
+        proxy:
+          $ref: '#/components/schemas/ProxySpec'
+
+    ProxySpec:
+      type: object
+      properties:
+        http_proxy:
+          type: string
+          example: http://proxy.example.com:3128
+        https_proxy:
+          type: string
+          example: http://proxy.example.com:3128
+        no_proxy:
+          type: string
+          example: .cluster.local,.svc,10.0.0.0/8
 
     ClusterCreateRequest:
       type: object
       description: |
-        Request body for creating a cluster.
+        Request body for creating a Cluster.
 
-        The API automatically enriches the cluster spec with the following fields:
-        - cloudUrl: Auto-populated from the first management cluster's cloudfront_url label
-        - placement: Auto-populated from the first management cluster's name if not provided by the client
+        Minimal Example - Only required fields:
+        ```yaml
+        metadata:
+          name: my-cluster
+        spec:
+          hosted_cluster:
+            release:
+              image: quay.io/openshift-release-dev/ocp-release:4.17.0-multi
+            platform:
+              aws:
+                region: us-east-1
+        ```
+
+        The platform automatically provisions VPC, IAM roles, OIDC, networking, and more.
       required:
-        - name
+        - metadata
         - spec
       properties:
-        name:
-          type: string
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'
-          minLength: 3
-          maxLength: 63
-          description: DNS-compatible cluster name
-        target_project_id:
-          type: string
-          description: Target project ID
-        spec:
+        metadata:
           type: object
-          description: |
-            Cluster specification. The following fields are auto-populated if not provided:
-            - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
-            - cloudUrl: CloudFront URL (always auto-populated from management cluster)
+          required:
+            - name
           properties:
-            placement:
+            name:
               type: string
-              description: |
-                Management cluster name where the cluster will be deployed.
-                If not provided, will be auto-populated from the first available management cluster.
-              example: management-cluster-us-east-1
-          additionalProperties: true
+              pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+              minLength: 3
+              maxLength: 53
+              description: Cluster name (3-53 chars, lowercase alphanum + hyphens)
+            labels:
+              type: object
+              description: Key-value metadata labels
+              additionalProperties:
+                type: string
+        spec:
+          $ref: '#/components/schemas/ClusterSpec'
 
     ClusterUpdateRequest:
       type: object
-      description: Request body for updating a cluster
+      description: |
+        Request body for updating a cluster.
+        Only spec fields can be updated; metadata is immutable.
       required:
         - spec
       properties:
         spec:
-          type: object
-          description: Cluster specification
-          additionalProperties: true
+          $ref: '#/components/schemas/ClusterSpec'
 
     ClusterStatusInfo:
       type: object
-      description: Kubernetes-like aggregated status for clusters
+      description: |
+        Kubernetes-like aggregated status for clusters.
+        Phase progression: Pending → Progressing → Ready/Failed.
       properties:
         observedGeneration:
           type: integer
@@ -2615,7 +3069,7 @@ components:
           description: Last generation processed by controllers
         conditions:
           type: array
-          description: Status conditions
+          description: Status conditions (Kubernetes-style)
           items:
             $ref: '#/components/schemas/Condition'
         phase:
@@ -2635,11 +3089,15 @@ components:
 
     Condition:
       type: object
-      description: Status condition
+      description: Kubernetes-style status condition
+      required:
+        - type
+        - status
       properties:
         type:
           type: string
-          description: Condition type
+          description: Condition type (e.g., Ready, Available, Progressing)
+          example: Ready
         status:
           type: string
           enum: [True, False, Unknown]
@@ -2647,13 +3105,15 @@ components:
         lastTransitionTime:
           type: string
           format: date-time
-          description: Last time the condition transitioned
+          description: Last time the condition transitioned from one status to another
         reason:
           type: string
-          description: Machine-readable reason code
+          description: Machine-readable, PascalCase reason for the condition's last transition
+          example: ClusterProvisioningSucceeded
         message:
           type: string
-          description: Human-readable message
+          description: Human-readable message explaining the condition's status
+          example: All cluster components are healthy
 
     ClusterControllerStatus:
       type: object
@@ -2728,119 +3188,365 @@ components:
     # NodePool Schemas
     NodePool:
       type: object
-      description: A nodepool resource
+      description: |
+        A NodePool resource - sub-resource of Cluster containing an envelope around a
+        HyperShift NodePool spec. Follows Kubernetes-like structure.
+
+        NodePools are created AFTER the cluster exists and have a separate lifecycle.
       required:
-        - id
-        - cluster_id
-        - name
-        - created_by
-        - generation
-        - resource_version
+        - kind
+        - apiVersion
+        - metadata
         - spec
-        - created_at
-        - updated_at
       properties:
-        id:
+        kind:
           type: string
-          description: Unique identifier for the nodepool
-        cluster_id:
+          enum: [NodePool]
+          description: Resource kind
+          example: NodePool
+        apiVersion:
           type: string
-          description: Parent cluster ID
-        name:
-          type: string
-          description: NodePool name
-        created_by:
-          type: string
-          description: Email of the user who created this nodepool
-        generation:
-          type: integer
-          format: int64
-          description: Generation number for optimistic concurrency control
-        resource_version:
-          type: string
-          description: Resource version for optimistic concurrency control
+          enum: [v0]
+          description: API version
+          example: v0
+        metadata:
+          $ref: '#/components/schemas/NodePoolMetadata'
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
         status:
           $ref: '#/components/schemas/NodePoolStatusInfo'
-        created_at:
+
+    NodePoolMetadata:
+      type: object
+      description: NodePool metadata
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Platform-assigned unique identifier
+          readOnly: true
+        name:
+          type: string
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          minLength: 3
+          maxLength: 15
+          description: NodePool name (3-15 chars)
+        labels:
+          type: object
+          description: Key-value metadata labels
+          additionalProperties:
+            type: string
+        creation_timestamp:
           type: string
           format: date-time
-          description: Creation timestamp
-        updated_at:
+          description: Creation timestamp (RFC3339)
+          readOnly: true
+
+    NodePoolSpec:
+      type: object
+      description: |
+        NodePool specification containing node_pool passthrough (HyperShift NodePool spec).
+
+        The platform applies defaulting to unspecified fields. Customers submit only the
+        fields they want to set. On GET, returns fully-defaulted spec.
+      properties:
+        # === NODEPOOL PASSTHROUGH ===
+        node_pool:
+          $ref: '#/components/schemas/HyperShiftNodePoolSpec'
+
+    HyperShiftNodePoolSpec:
+      type: object
+      description: |
+        HyperShift NodePool specification (passthrough).
+
+        Defaults: m5.xlarge instance, 2 replicas, 300GB gp3 encrypted volume, RollingUpdate,
+        auto-repair enabled, amd64 arch. See specification document for full defaults.
+      properties:
+        release:
+          type: object
+          description: NodePool release/version (inherits from cluster if omitted)
+          properties:
+            image:
+              type: string
+              description: OCP release image
+        platform:
+          $ref: '#/components/schemas/NodePoolPlatformSpec'
+        replicas:
+          type: integer
+          format: int32
+          default: 2
+          description: Number of nodes (XOR with auto_scaling)
+        auto_scaling:
+          $ref: '#/components/schemas/NodePoolAutoScaling'
+        management:
+          $ref: '#/components/schemas/NodePoolManagement'
+        node_labels:
+          type: object
+          description: Kubernetes labels applied to nodes
+          additionalProperties:
+            type: string
+        taints:
+          type: array
+          description: Node taints
+          items:
+            $ref: '#/components/schemas/NodeTaint'
+        node_drain_timeout:
           type: string
-          format: date-time
-          description: Last update timestamp
+          default: 15m
+          description: Timeout for draining nodes during upgrades
+        node_volume_detach_timeout:
+          type: string
+          default: 5m
+          description: Timeout for detaching volumes during node termination
+        arch:
+          type: string
+          enum: [amd64, arm64]
+          default: amd64
+          description: CPU architecture (immutable after creation)
+        tuning_config:
+          type: array
+          description: References to TuningConfig resources
+          items:
+            type: string
+        config:
+          type: array
+          description: MachineConfig references
+          items:
+            type: object
+
+    NodePoolPlatformSpec:
+      type: object
+      description: NodePool platform configuration
+      properties:
+        type:
+          type: string
+          enum: [AWS]
+          default: AWS
+        aws:
+          $ref: '#/components/schemas/NodePoolAWSPlatform'
+
+    NodePoolAWSPlatform:
+      type: object
+      description: AWS-specific NodePool configuration
+      properties:
+        instance_type:
+          type: string
+          default: m5.xlarge
+          description: EC2 instance type
+          example: m5.2xlarge
+        subnet:
+          type: object
+          description: Subnet configuration (defaults from cluster VPC)
+          properties:
+            id:
+              type: string
+        instance_profile:
+          type: string
+          description: IAM instance profile (platform-provisioned if omitted)
+        ami:
+          type: string
+          description: Custom AMI ID (from release payload if omitted)
+        image_type:
+          type: string
+          enum: [Linux, Windows]
+          default: Linux
+        security_groups:
+          type: array
+          description: Additional security group IDs
+          items:
+            type: string
+        root_volume:
+          $ref: '#/components/schemas/NodePoolRootVolume'
+        resource_tags:
+          type: array
+          description: Per-node AWS resource tags
+          items:
+            $ref: '#/components/schemas/AWSResourceTag'
+        placement:
+          $ref: '#/components/schemas/NodePoolPlacement'
+
+    NodePoolRootVolume:
+      type: object
+      description: Root EBS volume configuration
+      properties:
+        size:
+          type: integer
+          default: 300
+          description: Volume size in GiB
+        type:
+          type: string
+          enum: [gp3, gp2, io1, io2]
+          default: gp3
+        iops:
+          type: integer
+          description: Provisioned IOPS (for io1/io2)
+        encrypted:
+          type: boolean
+          default: true
+
+    NodePoolPlacement:
+      type: object
+      description: EC2 placement configuration
+      properties:
+        tenancy:
+          type: string
+          enum: [default, dedicated, host]
+          default: default
+
+    NodePoolAutoScaling:
+      type: object
+      description: NodePool autoscaling configuration (XOR with replicas)
+      required:
+        - min
+        - max
+      properties:
+        min:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Minimum number of nodes (can be 0 for scale-to-zero)
+        max:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Maximum number of nodes
+
+    NodePoolManagement:
+      type: object
+      description: NodePool management and upgrade configuration
+      properties:
+        upgrade_type:
+          type: string
+          enum: [Replace, InPlace]
+          default: Replace
+          description: Upgrade strategy (immutable after creation)
+        replace:
+          $ref: '#/components/schemas/NodePoolReplaceStrategy'
+        auto_repair:
+          type: boolean
+          default: true
+          description: Enable automatic node repair
+
+    NodePoolReplaceStrategy:
+      type: object
+      description: Replace upgrade strategy configuration
+      properties:
+        strategy:
+          type: string
+          enum: [RollingUpdate]
+          default: RollingUpdate
+        rolling_update:
+          type: object
+          properties:
+            max_surge:
+              oneOf:
+                - type: integer
+                - type: string
+              default: 1
+              description: Maximum additional nodes during upgrade
+            max_unavailable:
+              oneOf:
+                - type: integer
+                - type: string
+              default: 0
+              description: Maximum unavailable nodes during upgrade
+
+    NodeTaint:
+      type: object
+      description: Kubernetes node taint
+      required:
+        - key
+        - effect
+      properties:
+        key:
+          type: string
+          description: Taint key
+        value:
+          type: string
+          description: Taint value
+        effect:
+          type: string
+          enum: [NoSchedule, PreferNoSchedule, NoExecute]
+          description: Taint effect
 
     NodePoolCreateRequest:
       type: object
-      description: Request body for creating a nodepool
+      description: |
+        Request body for creating a NodePool.
+
+        Minimal Example:
+        ```yaml
+        metadata:
+          name: workers
+        spec:
+          node_pool:
+            platform:
+              aws:
+                instance_type: m5.2xlarge
+        ```
       required:
-        - cluster_id
-        - name
+        - metadata
         - spec
       properties:
-        cluster_id:
-          type: string
-          description: Parent cluster ID
-        name:
-          type: string
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'
-          minLength: 3
-          maxLength: 63
-          description: DNS-compatible nodepool name
+        metadata:
+          type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+              minLength: 3
+              maxLength: 15
+              description: NodePool name (3-15 chars)
+            labels:
+              type: object
+              description: Key-value metadata labels
+              additionalProperties:
+                type: string
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
 
     NodePoolUpdateRequest:
       type: object
-      description: Request body for updating a nodepool
+      description: |
+        Request body for updating a NodePool.
+        Only spec fields can be updated; metadata is immutable.
       required:
         - spec
       properties:
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
 
-    NodePoolSpec:
+    NodePoolStatusInfo:
       type: object
-      description: NodePool specification defining desired state
+      description: |
+        Kubernetes-like aggregated status for nodepools.
+        Phase progression: Pending → Scaling → Ready/Upgrading/Failed.
       properties:
         replicas:
           type: integer
           format: int32
-          description: Number of worker nodes in the pool
-        management:
-          type: object
-          description: Node pool management configuration
-          additionalProperties: true
-        platform:
-          type: object
-          description: Platform-specific configuration
-          additionalProperties: true
-        release:
-          type: object
-          description: Release/version configuration
-          additionalProperties: true
-        nodeDrainTimeout:
+          description: Current number of replicas
+        version:
           type: string
-          description: Timeout for draining nodes
-
-    NodePoolStatusInfo:
-      type: object
-      description: Kubernetes-like aggregated status for nodepools
-      properties:
+          description: Current OCP version running on nodes
+          example: 4.17.0
         observedGeneration:
           type: integer
           format: int64
           description: Last generation processed by controllers
         conditions:
           type: array
-          description: Status conditions
+          description: Status conditions (Kubernetes-style)
           items:
             $ref: '#/components/schemas/Condition'
         phase:
           type: string
-          enum: [Pending, Progressing, Ready, Failed]
+          enum: [Pending, Scaling, Ready, Upgrading, Failed]
           description: High-level nodepool phase
         message:
           type: string
