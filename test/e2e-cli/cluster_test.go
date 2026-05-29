@@ -44,11 +44,11 @@ import (
 )
 
 func customerEnv() []string {
-	return []string{
-		"AWS_ACCESS_KEY_ID=" + os.Getenv("CUSTOMER_AWS_ACCESS_KEY_ID"),
-		"AWS_SECRET_ACCESS_KEY=" + os.Getenv("CUSTOMER_AWS_SECRET_ACCESS_KEY"),
-		"AWS_SESSION_TOKEN=" + os.Getenv("CUSTOMER_AWS_SESSION_TOKEN"),
+	profile := os.Getenv("CUSTOMER_AWS_PROFILE")
+	if profile == "" {
+		profile = "rrp-customer"
 	}
+	return []string{"AWS_PROFILE=" + profile}
 }
 
 var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
@@ -82,11 +82,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		if ROSACTL_BIN == "" {
 			Skip("ROSACTL_BIN is not set")
 		}
-		if os.Getenv("CUSTOMER_AWS_ACCESS_KEY_ID") == "" {
-			Skip("CUSTOMER_AWS_ACCESS_KEY_ID is not set")
-		}
-		if os.Getenv("CUSTOMER_AWS_SECRET_ACCESS_KEY") == "" {
-			Skip("CUSTOMER_AWS_SECRET_ACCESS_KEY is not set")
+		if os.Getenv("CUSTOMER_AWS_PROFILE") == "" {
+			Skip("CUSTOMER_AWS_PROFILE is not set — no customer AWS profile available")
 		}
 
 		// this is the RC account id, a privileged account id to the baseURL orAPI_URL
