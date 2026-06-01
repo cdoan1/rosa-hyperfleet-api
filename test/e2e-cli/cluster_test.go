@@ -293,6 +293,29 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		GinkgoWriter.Printf("HCP cluster ID: %s\n", clusterID)
 		GinkgoWriter.Printf("HCP cluster cloud url: %s\n", cloudUrl)
 		GinkgoWriter.Printf("HCP cluster created successfully: %s\n", clusterName)
+
+		// Dump resource bundles containing the HostedCluster CR
+		GinkgoWriter.Printf("Fetching resource bundles for cluster: %s\n", clusterID)
+		response, err := apiClient.Get("/api/v0/resource_bundles?page=1&size=100", accountID)
+		if err == nil && response.StatusCode == http.StatusOK {
+			var bundleList struct {
+				Items []map[string]interface{} `json:"items"`
+			}
+			if json.Unmarshal(response.Body, &bundleList) == nil {
+				for _, bundle := range bundleList.Items {
+					if metadata, ok := bundle["metadata"].(map[string]interface{}); ok {
+						if name, ok := metadata["name"].(string); ok && strings.Contains(name, clusterID) {
+							bundleJSON, _ := json.MarshalIndent(bundle, "", "  ")
+							fmt.Println("=== Resource Bundle (contains HostedCluster CR) ===")
+							fmt.Println(string(bundleJSON))
+							fmt.Println("=== End Resource Bundle ===")
+						}
+					}
+				}
+			}
+		} else {
+			GinkgoWriter.Printf("Warning: Could not fetch resource bundles for cluster %s\n", clusterID)
+		}
 	})
 
 	It("should be able to create the cluster-oidc", Label("oidc-create", "setup"), func() {
