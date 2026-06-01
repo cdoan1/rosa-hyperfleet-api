@@ -79,7 +79,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 			Skip("ROSACTL_BIN is not set")
 		}
 		if os.Getenv("CUSTOMER_AWS_PROFILE") == "" {
-			Skip("CUSTOMER_AWS_PROFILE is not set — no customer AWS profile available")
+			os.Setenv("CUSTOMER_AWS_PROFILE", "rrp-customer")
+			GinkgoWriter.Printf("No CUSTOMER_AWS_PROFILE set, defaulting to rrp-customer\n")
 		}
 
 		// this is the RC account id, a privileged account id to the baseURL orAPI_URL
