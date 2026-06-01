@@ -122,10 +122,12 @@ test-e2e-quiet:
 	--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e
 
 # Run e2e CLI tests only (HCP cluster creation via rosactl)
-# Requires: E2E_BASE_URL, ROSACTL_BIN, AWS_REGION, CUSTOMER_AWS_ACCESS_KEY_ID, CUSTOMER_AWS_SECRET_ACCESS_KEY
+# Requires: E2E_BASE_URL, ROSACTL_BIN, AWS_REGION, CUSTOMER_AWS_PROFILE
 test-e2e-cli:
 	@E2E_BASE_URL="${BASE_URL}" \
 		E2E_ACCOUNT_ID="${E2E_ACCOUNT_ID}" \
+		E2E_CUSTOMER_ACCOUNT_ID="${E2E_CUSTOMER_ACCOUNT_ID}" \
+		CUSTOMER_AWS_PROFILE="${CUSTOMER_AWS_PROFILE}" \
 		ROSACTL_BIN="${ROSACTL_BIN}" \
 		AWS_REGION="${AWS_REGION}" \
 		ginkgo -vv --junit-report=junit-cli.xml \
