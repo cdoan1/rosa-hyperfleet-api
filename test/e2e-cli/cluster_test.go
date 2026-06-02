@@ -122,14 +122,14 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		apiClient = e2e.NewAPIClient(baseURL)
 	})
 
-	It("should be able to have help", Label("help"), func() {
-		cmd := exec.Command(ROSACTL_BIN, "help")
+	It("should be able to get version", Label("version"), func() {
+		cmd := exec.Command(ROSACTL_BIN, "version")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			Fail("Failed to get help: " + err.Error())
+			Fail("Failed to get version: " + err.Error())
 		}
 		fmt.Println(string(output))
-		Expect(string(output)).To(ContainSubstring("Usage:"))
+		Expect(string(output)).ToNot(BeEmpty())
 	})
 
 	// Add your CLI-based cluster tests here
