@@ -519,7 +519,8 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred())
 				// accept 204 or 200
 				// Expect(response.StatusCode).To(Or(Equal(http.StatusNoContent), Equal(http.StatusOK)))
-				GinkgoWriter.Printf("Resource bundle GET successfully: %s\n", item["id"])
+				GinkgoWriter.Printf("\nResource bundle GET successfully: %s\n", response)
+				GinkgoWriter.Printf("\nResource bundle GET body successfully: %s\n", response.body)
 				// deletedCount++
 			}
 		}
