@@ -514,14 +514,13 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		for _, item := range allBundles {
 			workID := item["metadata"].(map[string]interface{})["name"].(string) // this is the work id
 			if strings.Contains(workID, clusterID) {
-				GinkgoWriter.Printf("Deleting bundle ID: %s, Name: %s\n", item["id"], workID)
+				GinkgoWriter.Printf("Fetching bundle ID: %s, Name: %s\n", item["id"], workID)
 				response, err := apiClient.Get("/api/v0/resource_bundles/"+item["id"].(string), accountID)
 				Expect(err).ToNot(HaveOccurred())
-				// accept 204 or 200
-				// Expect(response.StatusCode).To(Or(Equal(http.StatusNoContent), Equal(http.StatusOK)))
-				GinkgoWriter.Printf("\nResource bundle GET successfully: %s\n", response)
-				GinkgoWriter.Printf("\nResource bundle GET body successfully: %s\n", response.body)
-				// deletedCount++
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				GinkgoWriter.Printf("\nResource bundle GET status: %d\n", response.StatusCode)
+				GinkgoWriter.Printf("\nResource bundle body:\n%s\n", string(response.Body))
+				deletedCount++
 			}
 		}
 		GinkgoWriter.Printf("Deleted %d resource bundles for cluster %s\n", deletedCount, clusterID)
