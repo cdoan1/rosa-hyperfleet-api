@@ -515,7 +515,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 			workID := item["metadata"].(map[string]interface{})["name"].(string) // this is the work id
 			if strings.Contains(workID, clusterID) {
 				GinkgoWriter.Printf("Deleting bundle ID: %s, Name: %s\n", item["id"], workID)
-				response, err := apiClient.GET("/api/v0/resource_bundles/"+item["id"].(string), accountID)
+				response, err := apiClient.Get("/api/v0/resource_bundles/"+item["id"].(string), accountID)
 				Expect(err).ToNot(HaveOccurred())
 				// accept 204 or 200
 				// Expect(response.StatusCode).To(Or(Equal(http.StatusNoContent), Equal(http.StatusOK)))
