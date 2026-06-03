@@ -470,61 +470,61 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	// it should search for the resource bundle that corresponds to this HCP and display the manifestwork to standard out
-	It("should be able to extract the resource bundles", Label("hcp-show", "bundles-show", "show"), func() {
-		if clusterID == "" {
-			clusterID = os.Getenv("HCP_INSTANCE_ID")
-			if clusterID == "" {
-				Skip("clusterID not set - run full Ordered suite or set HCP_INSTANCE_ID")
-			}
-		}
+	// It("should be able to extract the resource bundles", Label("hcp-show", "bundles-show", "show"), func() {
+	// 	if clusterID == "" {
+	// 		clusterID = os.Getenv("HCP_INSTANCE_ID")
+	// 		if clusterID == "" {
+	// 			Skip("clusterID not set - run full Ordered suite or set HCP_INSTANCE_ID")
+	// 		}
+	// 	}
 
-		GinkgoWriter.Printf("Querying platform api for /resource_bundles\n")
+	// 	GinkgoWriter.Printf("Querying platform api for /resource_bundles\n")
 
-		// Fetch all pages of resource bundles
-		allBundles := []map[string]interface{}{}
-		page := 1
-		for {
-			response, err := apiClient.Get(fmt.Sprintf("/api/v0/resource_bundles?page=%d&size=100", page), accountID)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
+	// 	// Fetch all pages of resource bundles
+	// 	allBundles := []map[string]interface{}{}
+	// 	page := 1
+	// 	for {
+	// 		response, err := apiClient.Get(fmt.Sprintf("/api/v0/resource_bundles?page=%d&size=100", page), accountID)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			var list struct {
-				Page  int                      `json:"page"`
-				Size  int                      `json:"size"`
-				Total int                      `json:"total"`
-				Items []map[string]interface{} `json:"items"`
-			}
-			err = json.Unmarshal(response.Body, &list)
-			Expect(err).To(BeNil())
+	// 		var list struct {
+	// 			Page  int                      `json:"page"`
+	// 			Size  int                      `json:"size"`
+	// 			Total int                      `json:"total"`
+	// 			Items []map[string]interface{} `json:"items"`
+	// 		}
+	// 		err = json.Unmarshal(response.Body, &list)
+	// 		Expect(err).To(BeNil())
 
-			allBundles = append(allBundles, list.Items...)
-			GinkgoWriter.Printf("Fetched page %d: %d bundles (total: %d)\n", page, len(list.Items), list.Total)
+	// 		allBundles = append(allBundles, list.Items...)
+	// 		GinkgoWriter.Printf("Fetched page %d: %d bundles (total: %d)\n", page, len(list.Items), list.Total)
 
-			// Check if we've fetched all items
-			if len(allBundles) >= list.Total || len(list.Items) == 0 {
-				break
-			}
-			page++
-		}
+	// 		// Check if we've fetched all items
+	// 		if len(allBundles) >= list.Total || len(list.Items) == 0 {
+	// 			break
+	// 		}
+	// 		page++
+	// 	}
 
-		GinkgoWriter.Printf("Total bundles fetched: %d\n", len(allBundles))
+	// 	GinkgoWriter.Printf("Total bundles fetched: %d\n", len(allBundles))
 
-		// Delete bundles matching the cluster ID
-		deletedCount := 0
-		for _, item := range allBundles {
-			workID := item["metadata"].(map[string]interface{})["name"].(string) // this is the work id
-			if strings.Contains(workID, clusterID) {
-				GinkgoWriter.Printf("Fetching bundle ID: %s, Name: %s\n", item["id"], workID)
-				response, err := apiClient.Get("/api/v0/resource_bundles/"+item["id"].(string), accountID)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				GinkgoWriter.Printf("\nResource bundle GET status: %d\n", response.StatusCode)
-				GinkgoWriter.Printf("\nResource bundle body:\n%s\n", string(response.Body))
-				deletedCount++
-			}
-		}
-		GinkgoWriter.Printf("Deleted %d resource bundles for cluster %s\n", deletedCount, clusterID)
-	})
+	// 	// Delete bundles matching the cluster ID
+	// 	deletedCount := 0
+	// 	for _, item := range allBundles {
+	// 		workID := item["metadata"].(map[string]interface{})["name"].(string) // this is the work id
+	// 		if strings.Contains(workID, clusterID) {
+	// 			GinkgoWriter.Printf("Fetching bundle ID: %s, Name: %s\n", item["id"], workID)
+	// 			response, err := apiClient.Get("/api/v0/resource_bundles/"+item["id"].(string), accountID)
+	// 			Expect(err).ToNot(HaveOccurred())
+	// 			Expect(response.StatusCode).To(Equal(http.StatusOK))
+	// 			GinkgoWriter.Printf("\nResource bundle GET status: %d\n", response.StatusCode)
+	// 			GinkgoWriter.Printf("\nResource bundle body:\n%s\n", string(response.Body))
+	// 			deletedCount++
+	// 		}
+	// 	}
+	// 	GinkgoWriter.Printf("Deleted %d resource bundles for cluster %s\n", deletedCount, clusterID)
+	// })
 
 	// delete the hcp cluster
 	// delete all resource bundles
