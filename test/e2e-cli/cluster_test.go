@@ -216,6 +216,16 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 			}
 			GinkgoWriter.Printf("\n=== DeferCleanup: safety-net cleanup (normal cleanup was skipped) ===\n")
 
+			if hook := os.Getenv("PRE_CLEANUP_HOOK"); hook != "" {
+				GinkgoWriter.Printf("Running pre-cleanup hook (DeferCleanup path): %s\n", hook)
+				cmd := exec.Command("bash", "-c", hook)
+				cmd.Stdout = GinkgoWriter
+				cmd.Stderr = GinkgoWriter
+				if err := cmd.Run(); err != nil {
+					GinkgoWriter.Printf("WARNING: pre-cleanup hook failed: %v (continuing with cleanup)\n", err)
+				}
+			}
+
 			if hcpCreated && clusterID != "" {
 				GinkgoWriter.Printf("Cleanup: deleting HCP cluster %s (id: %s)\n", clusterName, clusterID)
 				resp, err := apiClient.Delete("/api/v0/clusters/"+clusterID, accountID)
