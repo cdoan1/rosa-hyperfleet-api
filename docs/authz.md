@@ -14,10 +14,7 @@ The authorization flow is as follows:
 
 ```mermaid
 flowchart TD
-    A[Incoming API Request] --> B[Extract Identity<br/><i>Account ID & Caller ARN from headers</i>]
-
-    B --> C{Is this a<br/>privileged account?}
-    C -->|Yes| D[✅ ALLOW<br/><i>This is an SRE.<br/>Full access, bypass all checks.</i>]
+    A[Incoming API Request] --> C[Extract Identity<br/><i>Account ID & Caller ARN from headers</i>]
 
     C -->|No| E{Is the account<br/>provisioned?}
     E -->|No| F[❌ DENY<br/><i>403 — Account not provisioned</i>]
