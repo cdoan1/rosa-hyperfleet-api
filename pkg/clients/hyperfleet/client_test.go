@@ -274,12 +274,21 @@ func TestUpdateCluster(t *testing.T) {
 
 func TestDeleteCluster(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify request method and path
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/hyperfleet/v1/clusters/cluster-1", r.URL.Path)
+		// Verify request method and path - now using force-delete endpoint
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/hyperfleet/v1/clusters/cluster-1/force-delete", r.URL.Path)
 
-		// Verify force parameter
-		assert.Equal(t, "true", r.URL.Query().Get("force"))
+		// Verify Content-Type header
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		// Verify AWS headers
+		assert.Equal(t, "123456789012", r.Header.Get("X-Amz-Account-Id"))
+
+		// Verify request body contains reason field
+		var body map[string]interface{}
+		err := json.NewDecoder(r.Body).Decode(&body)
+		require.NoError(t, err)
+		assert.Equal(t, "Requested via Platform API", body["reason"])
 
 		w.WriteHeader(http.StatusAccepted)
 	}))

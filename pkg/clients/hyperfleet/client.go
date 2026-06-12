@@ -272,27 +272,33 @@ func (c *Client) UpdateCluster(ctx context.Context, accountID, clusterID string,
 	return hyperfleetToPlatformCluster(&hfCluster), nil
 }
 
-// DeleteCluster deletes a cluster in Hyperfleet
+// DeleteCluster deletes a cluster in Hyperfleet using force-delete endpoint
 func (c *Client) DeleteCluster(ctx context.Context, accountID, clusterID string, force bool) error {
-	u, err := url.Parse(c.baseURL + fmt.Sprintf("%s/%s", clustersPath, url.PathEscape(clusterID)))
+	// Use the force-delete endpoint (POST /api/hyperfleet/v1/clusters/{id}/force-delete)
+	path := fmt.Sprintf("%s/%s/force-delete", clustersPath, url.PathEscape(clusterID))
+	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
 		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	if force {
-		q := u.Query()
-		q.Set("force", "true")
-		u.RawQuery = q.Encode()
+	// Prepare force-delete request body with required reason field
+	requestBody := map[string]interface{}{
+		"reason": "Requested via Platform API",
+	}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, u.String(), nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+	httpReq.Header.Set("Content-Type", "application/json")
 
 	c.setAWSHeaders(httpReq, ctx)
 
-	c.logger.Debug("deleting cluster in Hyperfleet", "account_id", accountID, "cluster_id", clusterID, "force", force)
+	c.logger.Debug("force-deleting cluster in Hyperfleet", "account_id", accountID, "cluster_id", clusterID)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -306,10 +312,15 @@ func (c *Client) DeleteCluster(ctx context.Context, accountID, clusterID string,
 	}
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		c.logger.Error("hyperfleet force-delete failed",
+			"status_code", resp.StatusCode,
+			"cluster_id", clusterID,
+			"account_id", accountID,
+			"response_body", string(respBody))
 		return c.parseError(resp.StatusCode, respBody)
 	}
 
-	c.logger.Debug("cluster deletion initiated in Hyperfleet", "cluster_id", clusterID)
+	c.logger.Debug("cluster force-deletion initiated in Hyperfleet", "cluster_id", clusterID)
 
 	return nil
 }

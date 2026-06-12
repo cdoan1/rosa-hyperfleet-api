@@ -246,7 +246,19 @@ func (h *ClusterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.logger.Error("failed to delete cluster", "error", err, "account_id", accountID, "cluster_id", clusterID)
-		h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-DELETE-002", "Failed to delete cluster")
+
+		// Extract detailed error from Hyperfleet if available
+		reason := "Failed to delete cluster"
+		if hfErr, ok := err.(*hyperfleet.Error); ok {
+			if hfErr.Detail != "" {
+				reason = hfErr.Detail
+			} else if hfErr.Reason != "" {
+				reason = hfErr.Reason
+			} else if hfErr.Message != "" {
+				reason = hfErr.Message
+			}
+		}
+		h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-DELETE-002", reason)
 		return
 	}
 

@@ -687,7 +687,7 @@ func TestClusterHandler_Get_NotFound(t *testing.T) {
 // TestClusterHandler_Delete_Success tests successful cluster deletion
 func TestClusterHandler_Delete_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete && r.URL.Path == "/api/hyperfleet/v1/clusters/cluster-123" {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/hyperfleet/v1/clusters/cluster-123/force-delete" {
 			w.WriteHeader(http.StatusNoContent)
 		}
 	}))
@@ -727,7 +727,7 @@ func TestClusterHandler_Delete_Success(t *testing.T) {
 // TestClusterHandler_Delete_NotFound tests deleting non-existent cluster
 func TestClusterHandler_Delete_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete && r.URL.Path == "/api/hyperfleet/v1/clusters/cluster-999" {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/hyperfleet/v1/clusters/cluster-999/force-delete" {
 			w.WriteHeader(http.StatusNotFound)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"code":    "404",
