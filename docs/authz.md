@@ -86,6 +86,16 @@ All resources, policies, and attachments within the API are scoped to this bound
 | **Global** | AWS IAM identity, AWS account → RH org mapping, RH Org Admin status, OCM role assignments (regional scoping for OCM roles is under evaluation) |
 | **Regional (per AWS account, per region)** | Cedar policies, policy attachments, policy stores, ROSA resources (clusters, node pools, access entries). Each region has its own independent policy store. A principal may have different permissions in different regions. |
 
+## Policy Evaluation Semantics
+
+Cedar uses a **default-deny, permit-unless-forbid** model:
+
+- If no policy matches, the request is **denied** (implicit deny).
+- If any `permit` policy matches, the request is **allowed**.
+- If any `forbid` policy matches, the request is **denied**, regardless of any matching `permit` policies.
+
+When multiple policies are attached to a principal, all are evaluated together. A single `forbid` overrides any number of `permit` policies.
+
 ## Default Access Policy
 
 By default, newly linked AWS accounts grant **no permissions** to any IAM principal. Permissions must be explicitly granted through Cedar policies.
@@ -140,7 +150,7 @@ Attachments bind a policy to an IAM principal ARN (user or role).
 | --- | --- | --- |
 | POST | `/api/v0/authz/check` | Test whether a principal is authorized for a given action/resource |
 
-> **Note:** Policy and attachment management endpoints are accessible to Organization Administrators (via RH token) and to any IAM principal that has been granted a Cedar policy authorizing policy management. The `/api/v0/authz/check` endpoint requires only a linked AWS account.
+> **Note:** Policy and attachment management endpoints are accessible to Organization Administrators (via RH token) and to any IAM principal that has been granted a Cedar policy authorizing policy management. The `/api/v0/authz/check` endpoint allows a principal to check their own permissions. Checking another principal's permissions requires administrative access or a Cedar policy granting the `CheckAuthorization` action.
 
 ## Policy Types
 
@@ -150,13 +160,23 @@ Predefined policies provided by the platform covering common use cases such as f
 
 ### Custom Policies
 
-Policies written directly in [Cedar](https://docs.cedarpolicy.com/), returned with `"type": "custom"`. The `?principal` placeholder is used as a template variable — when a policy is attached to a principal, the system resolves `?principal` to the concrete principal entity.
+Policies written directly in [Cedar](https://docs.cedarpolicy.com/), returned with `"type": "custom"`. The `?principal` placeholder is the only template variable — when a policy is attached to a principal, the system resolves `?principal` to the concrete principal entity (an ARN within the same AWS account). Policies cannot reference principals in other AWS accounts.
 
 Both types are attached to principals using the same `POST /api/v0/authz/attachments` endpoint.
 
 ### Best Practice
 
 Attach policies to **IAM roles** rather than individual IAM users. Create an IAM role within the AWS account with a trust policy defining which IAM principals can assume the role, then attach ROSA policies to that role. This aligns with AWS IAM best practices and simplifies permission management.
+
+### Principal ARN Matching
+
+Policies can be attached at different levels of the IAM principal hierarchy:
+
+- **Role ARN** (`arn:aws:iam::123456789012:role/DeveloperRole`) — matches all sessions that assume this role.
+- **Session ARN** (`arn:aws:sts::123456789012:assumed-role/DeveloperRole/session-name`) — matches only that specific session.
+- **IAM user ARN** (`arn:aws:iam::123456789012:user/alice`) — matches that user directly.
+
+During policy evaluation, the system checks for policies attached to both the caller's exact ARN and, for assumed-role sessions, the parent role ARN. This allows broad role-level policies and narrow session-level overrides to coexist.
 
 ## ROSA Actions Reference
 
@@ -318,10 +338,28 @@ The ROSA Cedar schema defines the following entity types:
 - **`ROSA::Principal`** — Users and roles identified by ARN
 - **`ROSA::Resource`** — Base resource type with `tags: Map<String, String>`
 - **`ROSA::Cluster`** — Inherits from Resource
-- **`ROSA::NodePool`** — Inherits from Resource
-- **`ROSA::AccessEntry`** — Inherits from Resource
+- **`ROSA::NodePool`** — Inherits from Resource, belongs to a Cluster
+- **`ROSA::AccessEntry`** — Inherits from Resource, belongs to a Cluster
 
-The full schema is at `pkg/authz/schema/rosa.cedarschema`.
+### Resource Hierarchy
+
+Resources have parent-child relationships: node pools and access entries belong to a cluster. Cedar's `in` operator leverages this hierarchy, allowing policies to target a cluster and automatically cover its children:
+
+```cedar
+// Grant access to a cluster and all its node pools and access entries
+permit(?principal, action, resource)
+when { resource in ROSA::Cluster::"cluster-123" };
+
+// Allow nodepool scaling only on a specific cluster
+permit(
+  ?principal,
+  action in ROSA::Action::"NodePoolAdmin",
+  resource
+)
+when { resource in ROSA::Cluster::"cluster-456" };
+```
+
+This means a single policy scoped to a cluster covers all current and future child resources without needing to list each one individually.
 
 ## Context Attributes
 
