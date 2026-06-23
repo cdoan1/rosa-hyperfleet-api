@@ -24,13 +24,13 @@ import (
 
 // Server represents the API server
 type Server struct {
-	cfg            *config.Config
-	logger         *slog.Logger
-	apiServer      *http.Server
-	healthServer   *http.Server
-	metricsServer  *http.Server
-	healthHandler  *apphandlers.HealthHandler
-	zoaReconciler  *zoa.Reconciler
+	cfg           *config.Config
+	logger        *slog.Logger
+	apiServer     *http.Server
+	healthServer  *http.Server
+	metricsServer *http.Server
+	healthHandler *apphandlers.HealthHandler
+	zoaReconciler *zoa.Reconciler
 }
 
 // New creates a new Server instance
@@ -97,8 +97,10 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		accountsHandler := apphandlers.NewAccountsHandler(authorizer, logger)
 		authzHandler := apphandlers.NewAuthzHandler(authorizer, authorizer, logger)
 
+		// === V2 ROUTES (CURRENT) ===
+
 		// Account management routes (privileged only)
-		accountsRouter := apiRouter.PathPrefix("/api/v0/accounts").Subrouter()
+		accountsRouter := apiRouter.PathPrefix(APIPrefix + "/accounts").Subrouter()
 		accountsRouter.Use(privilegedMiddleware.CheckPrivileged)
 		accountsRouter.Use(privilegedMiddleware.RequirePrivileged)
 		accountsRouter.HandleFunc("", accountsHandler.Create).Methods(http.MethodPost)
@@ -107,13 +109,13 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		accountsRouter.HandleFunc("/{id}", accountsHandler.Delete).Methods(http.MethodDelete)
 
 		// Authorization check route (requires provisioned account, open to all users)
-		checkRouter := apiRouter.PathPrefix("/api/v0/authz/check").Subrouter()
+		checkRouter := apiRouter.PathPrefix(APIPrefix + "/authz/check").Subrouter()
 		checkRouter.Use(privilegedMiddleware.CheckPrivileged)
 		checkRouter.Use(accountCheckMiddleware.RequireProvisioned)
 		checkRouter.HandleFunc("", authzHandler.CheckAuthorization).Methods(http.MethodPost)
 
 		// Authorization management routes (require provisioned account + admin)
-		authzRouter := apiRouter.PathPrefix("/api/v0/authz").Subrouter()
+		authzRouter := apiRouter.PathPrefix(APIPrefix + "/authz").Subrouter()
 		authzRouter.Use(privilegedMiddleware.CheckPrivileged)
 		authzRouter.Use(accountCheckMiddleware.RequireProvisioned)
 		authzRouter.Use(adminCheckMiddleware.RequireAdmin)
@@ -143,11 +145,64 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		authzRouter.HandleFunc("/admins", authzHandler.ListAdmins).Methods(http.MethodGet)
 		authzRouter.HandleFunc("/admins/{arn:.*}", authzHandler.RemoveAdmin).Methods(http.MethodDelete)
 
+		// === V0 ROUTES (DEPRECATED - BACKWARD COMPATIBILITY) ===
+
+		// Account management routes v0 (deprecated)
+		accountsRouterV0 := apiRouter.PathPrefix("/api/v0/accounts").Subrouter()
+		accountsRouterV0.Use(middleware.AddDeprecationHeaders)
+		accountsRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		accountsRouterV0.Use(privilegedMiddleware.RequirePrivileged)
+		accountsRouterV0.HandleFunc("", accountsHandler.Create).Methods(http.MethodPost)
+		accountsRouterV0.HandleFunc("", accountsHandler.List).Methods(http.MethodGet)
+		accountsRouterV0.HandleFunc("/{id}", accountsHandler.Get).Methods(http.MethodGet)
+		accountsRouterV0.HandleFunc("/{id}", accountsHandler.Delete).Methods(http.MethodDelete)
+
+		// Authorization check route v0 (deprecated)
+		checkRouterV0 := apiRouter.PathPrefix("/api/v0/authz/check").Subrouter()
+		checkRouterV0.Use(middleware.AddDeprecationHeaders)
+		checkRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		checkRouterV0.Use(accountCheckMiddleware.RequireProvisioned)
+		checkRouterV0.HandleFunc("", authzHandler.CheckAuthorization).Methods(http.MethodPost)
+
+		// Authorization management routes v0 (deprecated)
+		authzRouterV0 := apiRouter.PathPrefix("/api/v0/authz").Subrouter()
+		authzRouterV0.Use(middleware.AddDeprecationHeaders)
+		authzRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		authzRouterV0.Use(accountCheckMiddleware.RequireProvisioned)
+		authzRouterV0.Use(adminCheckMiddleware.RequireAdmin)
+
+		// Policy routes v0
+		authzRouterV0.HandleFunc("/policies", authzHandler.CreatePolicy).Methods(http.MethodPost)
+		authzRouterV0.HandleFunc("/policies", authzHandler.ListPolicies).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/policies/{id}", authzHandler.GetPolicy).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/policies/{id}", authzHandler.UpdatePolicy).Methods(http.MethodPut)
+		authzRouterV0.HandleFunc("/policies/{id}", authzHandler.DeletePolicy).Methods(http.MethodDelete)
+
+		// Group routes v0
+		authzRouterV0.HandleFunc("/groups", authzHandler.CreateGroup).Methods(http.MethodPost)
+		authzRouterV0.HandleFunc("/groups", authzHandler.ListGroups).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/groups/{id}", authzHandler.GetGroup).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/groups/{id}", authzHandler.DeleteGroup).Methods(http.MethodDelete)
+		authzRouterV0.HandleFunc("/groups/{id}/members", authzHandler.UpdateGroupMembers).Methods(http.MethodPut)
+		authzRouterV0.HandleFunc("/groups/{id}/members", authzHandler.ListGroupMembers).Methods(http.MethodGet)
+
+		// Attachment routes v0
+		authzRouterV0.HandleFunc("/attachments", authzHandler.CreateAttachment).Methods(http.MethodPost)
+		authzRouterV0.HandleFunc("/attachments", authzHandler.ListAttachments).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/attachments/{id}", authzHandler.DeleteAttachment).Methods(http.MethodDelete)
+
+		// Admin routes v0
+		authzRouterV0.HandleFunc("/admins", authzHandler.AddAdmin).Methods(http.MethodPost)
+		authzRouterV0.HandleFunc("/admins", authzHandler.ListAdmins).Methods(http.MethodGet)
+		authzRouterV0.HandleFunc("/admins/{arn:.*}", authzHandler.RemoveAdmin).Methods(http.MethodDelete)
+
 		logger.Info("Cedar/AVP authorization enabled")
 	}
 
-	// Management cluster routes (require allowed account)
-	mgmtRouter := apiRouter.PathPrefix("/api/v0/management_clusters").Subrouter()
+	// === V2 ROUTES (CURRENT) ===
+
+	// Management cluster routes
+	mgmtRouter := apiRouter.PathPrefix(APIPrefix + "/management_clusters").Subrouter()
 	if authzMiddleware != nil {
 		mgmtRouter.Use(privilegedMiddleware.CheckPrivileged)
 		mgmtRouter.Use(authzMiddleware.Authorize)
@@ -158,8 +213,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	mgmtRouter.HandleFunc("", mgmtClusterHandler.List).Methods(http.MethodGet)
 	mgmtRouter.HandleFunc("/{id}", mgmtClusterHandler.Get).Methods(http.MethodGet)
 
-	// Resource bundle routes (require allowed account)
-	rbRouter := apiRouter.PathPrefix("/api/v0/resource_bundles").Subrouter()
+	// Resource bundle routes
+	rbRouter := apiRouter.PathPrefix(APIPrefix + "/resource_bundles").Subrouter()
 	if authzMiddleware != nil {
 		rbRouter.Use(privilegedMiddleware.CheckPrivileged)
 		rbRouter.Use(authzMiddleware.Authorize)
@@ -169,8 +224,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	rbRouter.HandleFunc("", resourceBundleHandler.List).Methods(http.MethodGet)
 	rbRouter.HandleFunc("/{id}", resourceBundleHandler.Delete).Methods(http.MethodDelete)
 
-	// Work routes (require allowed account)
-	workRouter := apiRouter.PathPrefix("/api/v0/work").Subrouter()
+	// Work routes
+	workRouter := apiRouter.PathPrefix(APIPrefix + "/work").Subrouter()
 	if authzMiddleware != nil {
 		workRouter.Use(privilegedMiddleware.CheckPrivileged)
 		workRouter.Use(authzMiddleware.Authorize)
@@ -179,8 +234,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	}
 	workRouter.HandleFunc("", workHandler.Create).Methods(http.MethodPost)
 
-	// Cluster routes (user-facing, require authz)
-	clusterRouter := apiRouter.PathPrefix("/api/v0/clusters").Subrouter()
+	// Cluster routes
+	clusterRouter := apiRouter.PathPrefix(APIPrefix + "/clusters").Subrouter()
 	if authzMiddleware != nil {
 		clusterRouter.Use(privilegedMiddleware.CheckPrivileged)
 		clusterRouter.Use(authzMiddleware.Authorize)
@@ -194,8 +249,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	clusterRouter.HandleFunc("/{id}", clusterHandler.Delete).Methods(http.MethodDelete)
 	clusterRouter.HandleFunc("/{id}/statuses", clusterHandler.GetStatus).Methods(http.MethodGet)
 
-	// NodePool routes (user-facing, require authz)
-	nodePoolRouter := apiRouter.PathPrefix("/api/v0/nodepools").Subrouter()
+	// NodePool routes
+	nodePoolRouter := apiRouter.PathPrefix(APIPrefix + "/nodepools").Subrouter()
 	if authzMiddleware != nil {
 		nodePoolRouter.Use(privilegedMiddleware.CheckPrivileged)
 		nodePoolRouter.Use(authzMiddleware.Authorize)
@@ -208,6 +263,76 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	nodePoolRouter.HandleFunc("/{id}", nodePoolHandler.Update).Methods(http.MethodPut)
 	nodePoolRouter.HandleFunc("/{id}", nodePoolHandler.Delete).Methods(http.MethodDelete)
 	nodePoolRouter.HandleFunc("/{id}/status", nodePoolHandler.GetStatus).Methods(http.MethodGet)
+
+	// === V0 ROUTES (DEPRECATED - BACKWARD COMPATIBILITY) ===
+
+	// Management cluster routes v0 (deprecated)
+	mgmtRouterV0 := apiRouter.PathPrefix("/api/v0/management_clusters").Subrouter()
+	mgmtRouterV0.Use(middleware.AddDeprecationHeaders)
+	if authzMiddleware != nil {
+		mgmtRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		mgmtRouterV0.Use(authzMiddleware.Authorize)
+	} else {
+		mgmtRouterV0.Use(authMiddleware.RequireAllowedAccount)
+	}
+	mgmtRouterV0.HandleFunc("", mgmtClusterHandler.Create).Methods(http.MethodPost)
+	mgmtRouterV0.HandleFunc("", mgmtClusterHandler.List).Methods(http.MethodGet)
+	mgmtRouterV0.HandleFunc("/{id}", mgmtClusterHandler.Get).Methods(http.MethodGet)
+
+	// Resource bundle routes v0 (deprecated)
+	rbRouterV0 := apiRouter.PathPrefix("/api/v0/resource_bundles").Subrouter()
+	rbRouterV0.Use(middleware.AddDeprecationHeaders)
+	if authzMiddleware != nil {
+		rbRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		rbRouterV0.Use(authzMiddleware.Authorize)
+	} else {
+		rbRouterV0.Use(authMiddleware.RequireAllowedAccount)
+	}
+	rbRouterV0.HandleFunc("", resourceBundleHandler.List).Methods(http.MethodGet)
+	rbRouterV0.HandleFunc("/{id}", resourceBundleHandler.Delete).Methods(http.MethodDelete)
+
+	// Work routes v0 (deprecated)
+	workRouterV0 := apiRouter.PathPrefix("/api/v0/work").Subrouter()
+	workRouterV0.Use(middleware.AddDeprecationHeaders)
+	if authzMiddleware != nil {
+		workRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		workRouterV0.Use(authzMiddleware.Authorize)
+	} else {
+		workRouterV0.Use(authMiddleware.RequireAllowedAccount)
+	}
+	workRouterV0.HandleFunc("", workHandler.Create).Methods(http.MethodPost)
+
+	// Cluster routes v0 (deprecated)
+	clusterRouterV0 := apiRouter.PathPrefix("/api/v0/clusters").Subrouter()
+	clusterRouterV0.Use(middleware.AddDeprecationHeaders)
+	if authzMiddleware != nil {
+		clusterRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		clusterRouterV0.Use(authzMiddleware.Authorize)
+	} else {
+		clusterRouterV0.Use(authMiddleware.RequireAllowedAccount)
+	}
+	clusterRouterV0.HandleFunc("", clusterHandler.List).Methods(http.MethodGet)
+	clusterRouterV0.HandleFunc("", clusterHandler.Create).Methods(http.MethodPost)
+	clusterRouterV0.HandleFunc("/{id}", clusterHandler.Get).Methods(http.MethodGet)
+	clusterRouterV0.HandleFunc("/{id}", clusterHandler.Update).Methods(http.MethodPatch, http.MethodPut)
+	clusterRouterV0.HandleFunc("/{id}", clusterHandler.Delete).Methods(http.MethodDelete)
+	clusterRouterV0.HandleFunc("/{id}/statuses", clusterHandler.GetStatus).Methods(http.MethodGet)
+
+	// NodePool routes v0 (deprecated)
+	nodePoolRouterV0 := apiRouter.PathPrefix("/api/v0/nodepools").Subrouter()
+	nodePoolRouterV0.Use(middleware.AddDeprecationHeaders)
+	if authzMiddleware != nil {
+		nodePoolRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		nodePoolRouterV0.Use(authzMiddleware.Authorize)
+	} else {
+		nodePoolRouterV0.Use(authMiddleware.RequireAllowedAccount)
+	}
+	nodePoolRouterV0.HandleFunc("", nodePoolHandler.List).Methods(http.MethodGet)
+	nodePoolRouterV0.HandleFunc("", nodePoolHandler.Create).Methods(http.MethodPost)
+	nodePoolRouterV0.HandleFunc("/{id}", nodePoolHandler.Get).Methods(http.MethodGet)
+	nodePoolRouterV0.HandleFunc("/{id}", nodePoolHandler.Update).Methods(http.MethodPut)
+	nodePoolRouterV0.HandleFunc("/{id}", nodePoolHandler.Delete).Methods(http.MethodDelete)
+	nodePoolRouterV0.HandleFunc("/{id}/status", nodePoolHandler.GetStatus).Methods(http.MethodGet)
 
 	// ZOA Trusted Actions routes (privileged)
 	var zoaReconciler *zoa.Reconciler
@@ -247,7 +372,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 			AuditStore: auditStore,
 		}, logger)
 
-		zoaRouter := apiRouter.PathPrefix("/api/v0/trusted-actions").Subrouter()
+		// ZOA routes v2 (current)
+		zoaRouter := apiRouter.PathPrefix(APIPrefix + "/trusted-actions").Subrouter()
 		if privilegedMiddleware != nil {
 			zoaRouter.Use(privilegedMiddleware.CheckPrivileged)
 		} else {
@@ -260,14 +386,40 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		zoaRouter.HandleFunc("/{action}", zoaHandler.Describe).Methods(http.MethodGet)
 		zoaRouter.HandleFunc("", zoaHandler.Catalog).Methods(http.MethodGet)
 
+		// ZOA routes v0 (deprecated)
+		zoaRouterV0 := apiRouter.PathPrefix("/api/v0/trusted-actions").Subrouter()
+		zoaRouterV0.Use(middleware.AddDeprecationHeaders)
+		if privilegedMiddleware != nil {
+			zoaRouterV0.Use(privilegedMiddleware.CheckPrivileged)
+		} else {
+			zoaRouterV0.Use(authMiddleware.RequireAllowedAccount)
+		}
+		zoaRouterV0.HandleFunc("/audit", zoaHandler.AuditList).Methods(http.MethodGet)
+		zoaRouterV0.HandleFunc("/runs", zoaHandler.List).Methods(http.MethodGet)
+		zoaRouterV0.HandleFunc("/runs/{id}", zoaHandler.Get).Methods(http.MethodGet)
+		zoaRouterV0.HandleFunc("/{action}/run", zoaHandler.Create).Methods(http.MethodPost)
+		zoaRouterV0.HandleFunc("/{action}", zoaHandler.Describe).Methods(http.MethodGet)
+		zoaRouterV0.HandleFunc("", zoaHandler.Catalog).Methods(http.MethodGet)
+
 		zoaReconciler = zoa.NewReconciler(zoaStore, zoaRegistry, maestroClient, jobConfig, cfg.Zoa.PollInterval, logger)
 		logger.Info("ZOA trusted actions enabled", "table", cfg.Zoa.TableName, "bucket", cfg.Zoa.BucketName)
 	}
 
-	// Health and info routes on API server (no auth required)
-	apiRouter.HandleFunc("/api/v0/live", healthHandler.Liveness).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/api/v0/ready", healthHandler.Readiness).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/api/v0/info", infoHandler.Info).Methods(http.MethodGet)
+	// Health and info routes v2 (current)
+	apiRouter.HandleFunc(APIPrefix+"/live", healthHandler.Liveness).Methods(http.MethodGet)
+	apiRouter.HandleFunc(APIPrefix+"/ready", healthHandler.Readiness).Methods(http.MethodGet)
+	apiRouter.HandleFunc(APIPrefix+"/info", infoHandler.Info).Methods(http.MethodGet)
+
+	// Health and info routes v0 (deprecated)
+	apiRouter.HandleFunc("/api/v0/live", func(w http.ResponseWriter, r *http.Request) {
+		middleware.AddDeprecationHeaders(http.HandlerFunc(healthHandler.Liveness)).ServeHTTP(w, r)
+	}).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/api/v0/ready", func(w http.ResponseWriter, r *http.Request) {
+		middleware.AddDeprecationHeaders(http.HandlerFunc(healthHandler.Readiness)).ServeHTTP(w, r)
+	}).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/api/v0/info", func(w http.ResponseWriter, r *http.Request) {
+		middleware.AddDeprecationHeaders(http.HandlerFunc(infoHandler.Info)).ServeHTTP(w, r)
+	}).Methods(http.MethodGet)
 
 	// ROSAENG-1236: CORS disabled for machine-to-machine API
 	// Previous wildcard CORS was a security vulnerability

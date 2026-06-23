@@ -24,6 +24,7 @@ func TestNew(t *testing.T) {
 
 	if server == nil {
 		t.Fatal("expected non-nil server")
+		return
 	}
 
 	if server.cfg == nil {

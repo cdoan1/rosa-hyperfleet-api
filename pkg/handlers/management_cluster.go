@@ -26,7 +26,7 @@ func NewManagementClusterHandler(maestroClient *maestro.Client, logger *slog.Log
 	}
 }
 
-// Create handles POST /api/v0/management_clusters
+// Create handles POST /api/v2/management_clusters
 func (h *ManagementClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -59,7 +59,7 @@ func (h *ManagementClusterHandler) Create(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(consumer)
 }
 
-// List handles GET /api/v0/management_clusters
+// List handles GET /api/v2/management_clusters
 func (h *ManagementClusterHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -98,7 +98,7 @@ func (h *ManagementClusterHandler) List(w http.ResponseWriter, r *http.Request) 
 	_ = json.NewEncoder(w).Encode(list)
 }
 
-// Get handles GET /api/v0/management_clusters/{id}
+// Get handles GET /api/v2/management_clusters/{id}
 func (h *ManagementClusterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)

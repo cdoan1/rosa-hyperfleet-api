@@ -26,7 +26,7 @@ func NewNodePoolHandler(maestroClient *maestro.Client, logger *slog.Logger) *Nod
 	}
 }
 
-// List handles GET /api/v0/nodepools
+// List handles GET /api/v2/nodepools
 func (h *NodePoolHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -71,7 +71,7 @@ func (h *NodePoolHandler) List(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, response)
 }
 
-// Create handles POST /api/v0/nodepools
+// Create handles POST /api/v2/nodepools
 func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -101,7 +101,7 @@ func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusCreated, nodepool)
 }
 
-// Get handles GET /api/v0/nodepools/{id}
+// Get handles GET /api/v2/nodepools/{id}
 func (h *NodePoolHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -124,7 +124,7 @@ func (h *NodePoolHandler) Get(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, nodepool)
 }
 
-// Update handles PUT /api/v0/nodepools/{id}
+// Update handles PUT /api/v2/nodepools/{id}
 func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -158,7 +158,7 @@ func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, nodepool)
 }
 
-// Delete handles DELETE /api/v0/nodepools/{id}
+// Delete handles DELETE /api/v2/nodepools/{id}
 func (h *NodePoolHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -186,7 +186,7 @@ func (h *NodePoolHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusAccepted, response)
 }
 
-// GetStatus handles GET /api/v0/nodepools/{id}/status
+// GetStatus handles GET /api/v2/nodepools/{id}/status
 func (h *NodePoolHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)

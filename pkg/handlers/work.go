@@ -32,7 +32,7 @@ type WorkRequest struct {
 	Data      map[string]interface{} `json:"data"`
 }
 
-// Create handles POST /api/v0/work
+// Create handles POST /api/v2/work
 func (h *WorkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -114,7 +114,7 @@ func (h *WorkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"id":         string(result.UID),
 		"kind":       "ManifestWork",
-		"href":       "/api/v0/work/" + result.Name,
+		"href":       "/api/v2/work/" + result.Name,
 		"cluster_id": req.ClusterID,
 		"name":       result.Name,
 		"status":     result.Status,

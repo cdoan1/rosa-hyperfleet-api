@@ -68,7 +68,7 @@ func NewZoaHandler(
 	}
 }
 
-// Create handles POST /api/v0/trusted-actions/{action}/run
+// Create handles POST /api/v2/trusted-actions/{action}/run
 func (h *ZoaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -240,7 +240,7 @@ func (h *ZoaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(exec)
 }
 
-// Get handles GET /api/v0/trusted-actions/runs/{id}
+// Get handles GET /api/v2/trusted-actions/runs/{id}
 func (h *ZoaHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -307,7 +307,7 @@ func (h *ZoaHandler) Get(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// List handles GET /api/v0/trusted-actions/runs
+// List handles GET /api/v2/trusted-actions/runs
 func (h *ZoaHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -414,7 +414,7 @@ func parseSince(s string) (string, error) {
 	return time.Now().UTC().Add(-d).Format(zoa.AuditTimestampFormat), nil
 }
 
-// Catalog handles GET /api/v0/trusted-actions
+// Catalog handles GET /api/v2/trusted-actions
 func (h *ZoaHandler) Catalog(w http.ResponseWriter, r *http.Request) {
 	templates := h.registry.ListAll()
 
@@ -436,7 +436,7 @@ func (h *ZoaHandler) Catalog(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Describe handles GET /api/v0/trusted-actions/{action}
+// Describe handles GET /api/v2/trusted-actions/{action}
 func (h *ZoaHandler) Describe(w http.ResponseWriter, r *http.Request) {
 	action := mux.Vars(r)["action"]
 
@@ -476,7 +476,9 @@ func (h *ZoaHandler) fetchS3Content(ctx context.Context, s3URI string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	defer result.Body.Close()
+	defer func() {
+		_ = result.Body.Close()
+	}()
 	return io.ReadAll(result.Body)
 }
 
@@ -657,7 +659,7 @@ func (h *ZoaHandler) recordAudit(ctx context.Context, r *http.Request, accountID
 	}
 }
 
-// AuditList handles GET /api/v0/trusted-actions/audit
+// AuditList handles GET /api/v2/trusted-actions/audit
 func (h *ZoaHandler) AuditList(w http.ResponseWriter, r *http.Request) {
 	if h.auditStore == nil {
 		h.writeError(w, http.StatusNotFound, "audit-disabled", "Audit logging is not enabled")
@@ -710,4 +712,3 @@ func (h *ZoaHandler) AuditList(w http.ResponseWriter, r *http.Request) {
 		"total": len(entries),
 	})
 }
-

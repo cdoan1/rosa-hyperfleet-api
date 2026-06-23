@@ -25,7 +25,7 @@ func NewResourceBundleHandler(maestroClient maestro.ClientInterface, logger *slo
 	}
 }
 
-// List handles GET /api/v0/resource_bundles
+// List handles GET /api/v2/resource_bundles
 func (h *ResourceBundleHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -68,7 +68,7 @@ func (h *ResourceBundleHandler) List(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(list)
 }
 
-// Delete handles DELETE /api/v0/resource_bundles/{id}
+// Delete handles DELETE /api/v2/resource_bundles/{id}
 func (h *ResourceBundleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)

@@ -8,8 +8,8 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0
 
 servers:
-  - url: /api/v0
-    description: API v0
+  - url: /api/v2
+    description: API v2
 
 paths:
   /management_clusters:

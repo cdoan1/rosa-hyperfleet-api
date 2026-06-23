@@ -48,7 +48,7 @@ type AccountListResponse struct {
 	Total int               `json:"total"`
 }
 
-// Create handles POST /api/v0/accounts (enable an account)
+// Create handles POST /api/v2/accounts (enable an account)
 func (h *AccountsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	callerARN := middleware.GetCallerARN(ctx)
@@ -99,7 +99,7 @@ func (h *AccountsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// List handles GET /api/v0/accounts
+// List handles GET /api/v2/accounts
 func (h *AccountsHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -130,7 +130,7 @@ func (h *AccountsHandler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Get handles GET /api/v0/accounts/{id}
+// Get handles GET /api/v2/accounts/{id}
 func (h *AccountsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -159,7 +159,7 @@ func (h *AccountsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Delete handles DELETE /api/v0/accounts/{id}
+// Delete handles DELETE /api/v2/accounts/{id}
 func (h *AccountsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)

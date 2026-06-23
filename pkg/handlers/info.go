@@ -16,7 +16,7 @@ func NewInfoHandler() *InfoHandler {
 	return &InfoHandler{}
 }
 
-// Info handles GET /api/v0/info
+// Info handles GET /api/v2/info
 // Returns the ARN of the IAM role used to invoke Lambda functions in this regional account.
 // The account ID is parsed from the TARGET_GROUP_ARN environment variable.
 func (h *InfoHandler) Info(w http.ResponseWriter, r *http.Request) {

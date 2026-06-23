@@ -30,7 +30,7 @@ func NewClusterHandler(hyperfleetClient *hyperfleet.Client, maestroClient *maest
 	}
 }
 
-// List handles GET /api/v0/clusters
+// List handles GET /api/v2/clusters
 func (h *ClusterHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -75,7 +75,7 @@ func (h *ClusterHandler) List(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, response)
 }
 
-// Create handles POST /api/v0/clusters
+// Create handles POST /api/v2/clusters
 func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -170,7 +170,7 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusCreated, cluster)
 }
 
-// Get handles GET /api/v0/clusters/{id}
+// Get handles GET /api/v2/clusters/{id}
 func (h *ClusterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -193,7 +193,7 @@ func (h *ClusterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, cluster)
 }
 
-// Update handles PUT /api/v0/clusters/{id}
+// Update handles PUT /api/v2/clusters/{id}
 func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -227,7 +227,7 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, cluster)
 }
 
-// Delete handles DELETE /api/v0/clusters/{id}
+// Delete handles DELETE /api/v2/clusters/{id}
 func (h *ClusterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -258,7 +258,7 @@ func (h *ClusterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusAccepted, response)
 }
 
-// GetStatus handles GET /api/v0/clusters/{id}/statuses
+// GetStatus handles GET /api/v2/clusters/{id}/statuses
 func (h *ClusterHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)

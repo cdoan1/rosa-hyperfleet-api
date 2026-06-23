@@ -10,6 +10,7 @@ func TestNewConfig(t *testing.T) {
 
 	if cfg == nil {
 		t.Fatal("expected non-nil config")
+		return
 	}
 
 	// Test Server config defaults

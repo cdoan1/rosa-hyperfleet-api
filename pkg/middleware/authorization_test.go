@@ -261,6 +261,7 @@ func TestNewAuthorization(t *testing.T) {
 
 	if auth == nil {
 		t.Fatal("expected non-nil Authorization")
+		return
 	}
 
 	if auth.logger == nil {
@@ -288,6 +289,7 @@ func TestNewAuthorization_NilAccounts(t *testing.T) {
 
 	if auth == nil {
 		t.Fatal("expected non-nil Authorization")
+		return
 	}
 
 	if auth.allowedAccounts == nil {
