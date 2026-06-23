@@ -22,10 +22,7 @@ func TestNew(t *testing.T) {
 		t.Fatalf("unexpected error creating server: %v", err)
 	}
 
-	if server == nil {
-		t.Fatal("expected non-nil server")
-	}
-
+	// Direct field checks - New never returns nil server on success
 	if server.cfg == nil {
 		t.Error("expected non-nil config")
 	}

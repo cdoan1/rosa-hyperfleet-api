@@ -23,10 +23,7 @@ func TestNewClient(t *testing.T) {
 
 	client := NewClient(cfg, logger)
 
-	if client == nil {
-		t.Fatal("expected non-nil client")
-	}
-
+	// Direct field checks - NewClient never returns nil
 	if client.baseURL != cfg.BaseURL {
 		t.Errorf("expected baseURL=%s, got %s", cfg.BaseURL, client.baseURL)
 	}
@@ -627,4 +624,3 @@ func TestError_Error(t *testing.T) {
 		t.Errorf("expected error message='This is a test error', got %s", err.Error())
 	}
 }
-

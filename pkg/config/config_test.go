@@ -8,11 +8,7 @@ import (
 func TestNewConfig(t *testing.T) {
 	cfg := NewConfig()
 
-	if cfg == nil {
-		t.Fatal("expected non-nil config")
-	}
-
-	// Test Server config defaults
+	// Test Server config defaults - NewConfig never returns nil
 	if cfg.Server.APIBindAddress != "0.0.0.0" {
 		t.Errorf("expected APIBindAddress=0.0.0.0, got %s", cfg.Server.APIBindAddress)
 	}

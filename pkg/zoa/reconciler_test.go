@@ -56,13 +56,13 @@ func (m *mockMaestroClient) DeleteManifestWork(ctx context.Context, clusterName,
 }
 
 type mockExecutionStore struct {
-	createFunc             func(ctx context.Context, exec *Execution) error
-	getFunc                func(ctx context.Context, executionID string) (*Execution, error)
-	listFunc               func(ctx context.Context, accountID string, limit int, filter *ListFilter) ([]*Execution, error)
-	updateStatusFunc       func(ctx context.Context, executionID string, status ExecutionStatus, completedAt string, duration int) error
-	updateCompletionFunc   func(ctx context.Context, executionID string, status ExecutionStatus, completedAt string, duration int, runnerSeconds int, uploadSeconds int, outputStatus OutputStatus) error
-	updateMWNameFunc       func(ctx context.Context, executionID, mwName string) error
-	listPendingFunc        func(ctx context.Context) ([]*Execution, error)
+	createFunc           func(ctx context.Context, exec *Execution) error
+	getFunc              func(ctx context.Context, executionID string) (*Execution, error)
+	listFunc             func(ctx context.Context, accountID string, limit int, filter *ListFilter) ([]*Execution, error)
+	updateStatusFunc     func(ctx context.Context, executionID string, status ExecutionStatus, completedAt string, duration int) error
+	updateCompletionFunc func(ctx context.Context, executionID string, status ExecutionStatus, completedAt string, duration int, runnerSeconds int, uploadSeconds int, outputStatus OutputStatus) error
+	updateMWNameFunc     func(ctx context.Context, executionID, mwName string) error
+	listPendingFunc      func(ctx context.Context) ([]*Execution, error)
 }
 
 func (m *mockExecutionStore) Create(ctx context.Context, exec *Execution) error {

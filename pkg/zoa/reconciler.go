@@ -245,12 +245,12 @@ func (r *Reconciler) isTimedOut(exec *Execution) bool {
 
 // jobResult holds parsed completion info from ManifestWork feedback for both Jobs.
 type jobResult struct {
-	taSucceeded         bool
-	taFailed            bool
-	uploadSucceeded     bool
-	uploadFailed        bool
-	applied             bool
-	runnerStartTime     string
+	taSucceeded          bool
+	taFailed             bool
+	uploadSucceeded      bool
+	uploadFailed         bool
+	applied              bool
+	runnerStartTime      string
 	runnerCompletionTime string
 	uploadCompletionTime string
 }

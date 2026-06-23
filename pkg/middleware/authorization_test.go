@@ -259,10 +259,7 @@ func TestNewAuthorization(t *testing.T) {
 	accounts := []string{"123456789012", "987654321098", "555555555555"}
 	auth := NewAuthorization(accounts, logger)
 
-	if auth == nil {
-		t.Fatal("expected non-nil Authorization")
-	}
-
+	// Direct field checks - NewAuthorization never returns nil
 	if auth.logger == nil {
 		t.Error("expected non-nil logger")
 	}
@@ -286,10 +283,7 @@ func TestNewAuthorization_NilAccounts(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	auth := NewAuthorization(nil, logger)
 
-	if auth == nil {
-		t.Fatal("expected non-nil Authorization")
-	}
-
+	// Direct field checks - NewAuthorization never returns nil
 	if auth.allowedAccounts == nil {
 		t.Error("expected non-nil allowedAccounts map")
 	}

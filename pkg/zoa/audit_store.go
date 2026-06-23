@@ -147,7 +147,7 @@ func (s *DynamoAuditStore) List(ctx context.Context, accountID string, limit int
 	input := &dynamodb.QueryInput{
 		TableName:                 aws.String(s.tableName),
 		KeyConditionExpression:    aws.String(keyCondition),
-		ExpressionAttributeNames: exprNames,
+		ExpressionAttributeNames:  exprNames,
 		ExpressionAttributeValues: exprValues,
 		ScanIndexForward:          aws.Bool(false),
 		Limit:                     aws.Int32(int32(limit)),
