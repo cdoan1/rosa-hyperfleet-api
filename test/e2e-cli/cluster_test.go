@@ -735,6 +735,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	It("should be able to delete the hcp cluster", Label("hcp-delete", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-cluster-delete")()
 		if clusterID == "" {
 			clusterID = os.Getenv("HCP_INSTANCE_ID")
@@ -751,6 +752,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 
 	// it should be able to query the /cluster/id until it is deleted
 	It("should be able to query the /cluster/id until it is deleted", Label("hcp-delete", "cluster-query", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-cluster-delete-wait")()
 		GinkgoWriter.Printf("Querying the hcp clusterId: %s\n", clusterID)
 		if clusterID == "" {
@@ -768,6 +770,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	It("should be able to delete the resource bundles", Label("hcp-delete", "bundles-delete", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-bundles-delete")()
 		if clusterID == "" {
 			clusterID = os.Getenv("HCP_INSTANCE_ID")
@@ -781,6 +784,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	It("should wait for resource bundles to be fully removed", Label("bundles-wait", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-bundles-wait")()
 		if clusterID == "" {
 			clusterID = os.Getenv("HCP_INSTANCE_ID")
@@ -801,6 +805,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	It("should be able to delete the cluster-oidc", Label("oidc-delete", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-oidc-delete")()
 		GinkgoWriter.Printf("Deleting the cluster-oidc: %s\n", clusterName)
 		cmd := exec.Command(ROSACTL_BIN, "cluster-oidc", "delete", clusterName, "--region", region)
@@ -814,6 +819,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 
 	// Delete cluster-vpc with up to 3 attempts; fail the spec if all attempts return an error.
 	It("should be able to try to delete the cluster-vpc, trying 3 times", Label("vpc-delete", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-vpc-delete")()
 		const maxAttempts = 3
 		const backoffBetweenAttempts = 5 * time.Minute
@@ -854,6 +860,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 	})
 
 	It("should be able to delete the cluster-iam", Label("iam-delete", "cleanup"), func() {
+		Skip("Skipping cluster deletion tests - cluster will be kept for inspection")
 		defer recordTiming("hcp-iam-delete")()
 		GinkgoWriter.Printf("Deleting the cluster-iam: %s\n", clusterName)
 		cmd := exec.Command(ROSACTL_BIN, "cluster-iam", "delete", clusterName, "--region", region)
