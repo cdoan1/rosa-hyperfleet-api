@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet sdk-generate sdk-test sdk-build
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -77,8 +77,13 @@ help:
 	@echo ""
 	@echo "Code Generation:"
 	@echo "  deps           - Download and tidy dependencies"
-	@echo "  generate       - Generate OpenAPI code"
+	@echo "  generate       - Generate OpenAPI code and SDK types"
 	@echo "  generate-swagger - Regenerate swagger-ui.html"
+	@echo ""
+	@echo "SDK:"
+	@echo "  sdk-generate   - Generate SDK types from OpenAPI spec"
+	@echo "  sdk-test       - Run SDK tests"
+	@echo "  sdk-build      - Build SDK (generate + test)"
 	@echo ""
 	@echo "  all            - Run all checks (deps, fmt, vet, lint, test, build)"
 
@@ -275,7 +280,7 @@ deps:
 	go mod tidy
 
 # Generate OpenAPI code (requires oapi-codegen)
-generate:
+generate: sdk-generate
 	@echo "OpenAPI code generation not yet configured"
 	@echo "Install oapi-codegen: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"
 
@@ -342,3 +347,13 @@ verify:
 
 # All checks
 all: deps fmt vet lint test build
+
+# SDK targets
+sdk-generate:
+	cd sdk && make generate
+
+sdk-test:
+	cd sdk && make test
+
+sdk-build:
+	cd sdk && make build

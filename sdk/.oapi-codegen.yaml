@@ -1,0 +1,10 @@
+package: types
+generate:
+  models: true
+  client: false
+  chi-server: false
+  echo-server: false
+  gin-server: false
+output: pkg/types/generated.go
+output-options:
+  skip-prune: true

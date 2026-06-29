@@ -178,10 +178,10 @@ func TestBuildManifestWork_NamespaceScoped(t *testing.T) {
 
 func TestBuildManifestWork_AWSScope_NoSAManifest(t *testing.T) {
 	tmpl := &TATemplate{
-		Name:  "describe_instance",
-		Scope: "aws-api",
-		Type:  "read",
-		RBAC:  nil,
+		Name:   "describe_instance",
+		Scope:  "aws-api",
+		Type:   "read",
+		RBAC:   nil,
 		Script: "aws ec2 describe-instances > /artifacts/output.json\n",
 	}
 

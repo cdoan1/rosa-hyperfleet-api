@@ -24,13 +24,13 @@ import (
 
 // Server represents the API server
 type Server struct {
-	cfg            *config.Config
-	logger         *slog.Logger
-	apiServer      *http.Server
-	healthServer   *http.Server
-	metricsServer  *http.Server
-	healthHandler  *apphandlers.HealthHandler
-	zoaReconciler  *zoa.Reconciler
+	cfg           *config.Config
+	logger        *slog.Logger
+	apiServer     *http.Server
+	healthServer  *http.Server
+	metricsServer *http.Server
+	healthHandler *apphandlers.HealthHandler
+	zoaReconciler *zoa.Reconciler
 }
 
 // New creates a new Server instance
