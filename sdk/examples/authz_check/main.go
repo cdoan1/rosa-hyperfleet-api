@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cdoan1/rosa-hyperfleet-api/sdk/pkg/client"
-	"github.com/cdoan1/rosa-hyperfleet-api/sdk/pkg/types"
+	"github.com/cdoan1/rosa-hyperfleet-api-sdk/pkg/client"
+	"github.com/cdoan1/rosa-hyperfleet-api-sdk/pkg/types"
 )
 
 func main() {
