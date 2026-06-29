@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/openshift-online/rosa-hyperfleet-api-sdk/pkg/types"
+	"github.com/cdoan1/rosa-hyperfleet-api/sdk/pkg/types"
 )
 
 // CheckAuthorization checks if a principal is authorized to perform an action

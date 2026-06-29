@@ -1,4 +1,4 @@
-module github.com/openshift-online/rosa-hyperfleet-api-sdk
+module github.com/cdoan1/rosa-hyperfleet-api/sdk
 
 go 1.24.0
 

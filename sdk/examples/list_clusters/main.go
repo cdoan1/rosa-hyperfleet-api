@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/openshift-online/rosa-hyperfleet-api-sdk/pkg/client"
+	"github.com/cdoan1/rosa-hyperfleet-api/sdk/pkg/client"
 )
 
 func main() {
