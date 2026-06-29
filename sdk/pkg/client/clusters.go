@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/cdoan1/rosa-hyperfleet-api-sdk/pkg/types"
+	"github.com/cdoan1/rosa-hyperfleet-api/sdk/pkg/types"
 )
 
 // ListClustersOptions contains options for listing clusters
