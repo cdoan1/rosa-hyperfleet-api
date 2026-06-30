@@ -137,7 +137,7 @@ When multiple policies are attached to a principal, all are evaluated together. 
 
 By default, newly linked AWS accounts grant **no permissions** to any IAM principal. Permissions must be explicitly granted through Cedar policies.
 
-Organization Administrators can attach ROSA managed policies to any IAM principals in the AWS account. For example, one available ROSA managed policy grants each principal permission to view all clusters in the AWS account and manage their own — reproducing the default behavior of the V1 API. Other ROSA managed policies will cover common patterns such as read-only access or full cluster lifecycle management.
+Organization Administrators can attach managed ROSA policies to any IAM principals in the AWS account. For example, one available ROSA managed policy grants each principal permission to view all clusters in the AWS account and manage their own — reproducing the default behavior of the V1 API. Other managed ROSA policies will cover common patterns such as read-only access or full cluster lifecycle management.
 
 ## Data Storage
 
@@ -199,9 +199,9 @@ Attachments bind a ROSA policy to an IAM principal ARN (user or role). Attachmen
 
 ROSA policies are distinct from AWS IAM policies — they are ROSA-specific policy definitions stored and managed through the HyperFleet API.
 
-### ROSA Managed Policies
+### Managed ROSA Policies
 
-Predefined ROSA policies provided by the platform covering common use cases such as full cluster lifecycle management or read-only access. ROSA managed policies are returned alongside custom policies via `GET /api/v0/authz/policies` and are distinguished by a `"type": "managed"` field. They cannot be modified or deleted (`PUT` and `DELETE` are rejected).
+Predefined ROSA policies provided by the platform covering common use cases such as full cluster lifecycle management or read-only access. managed ROSA policies are returned alongside custom policies via `GET /api/v0/authz/policies` and are distinguished by a `"type": "managed"` field. They cannot be modified or deleted (`PUT` and `DELETE` are rejected).
 
 ### ROSA Custom Policies
 
@@ -243,6 +243,9 @@ All actions use the `ROSA::Action` entity type in Cedar policies.
 - **Policy Management**
   - `CreatePolicy`, `DeletePolicy`, `DescribePolicy`, `ListPolicies`, `UpdatePolicy`
   - `CreateAttachment`, `DeleteAttachment`, `ListAttachments`
+  - `CreateAttachmentRegional`, `DeleteAttachmentRegional`, `ListAttachmentsRegional`
+
+> **Note:** `*AttachmentRegional` only permits the creation of attachments that are scoped to a region, not global. This allows us to have regional permissions admins.
 
 ### Action Matching
 
@@ -352,7 +355,7 @@ permit(
 when { resource.labels["Team"] == "platform-engineering" };
 ```
 
-**Time-based access** — restricts operations to business hours on weekdays using `context.requestTime`. The `timezone` field is mandatory in time-based conditions — `requestTime` fields (`hour`, `dayOfWeek`) are expressed in the specified timezone.
+**Time-based access** — restricts operations to business hours on weekdays using `context.requestTime`. `requestTime` fields (`hour`, `dayOfWeek`) are expressed in UTC.
 
 ```cedar
 permit(
@@ -360,7 +363,6 @@ permit(
   action,
   resource
 )
-when { context.requestTime.timezone == "America/New_York" }
 when { context.requestTime.dayOfWeek >= 1 && context.requestTime.dayOfWeek <= 5 }
 when { context.requestTime.hour >= 9 && context.requestTime.hour < 17 };
 ```
@@ -372,6 +374,7 @@ when { context.requestTime.hour >= 9 && context.requestTime.hour < 17 };
 permit(?principal, action, resource)
 when { context.region in ["us-east-1", "us-west-2"] };
 ```
+> **Note:** In order for this policy to take effect, the IAM principal must have a corresponding attachment in the specified regions, either globally or regionally.
 
 ```cedar
 // Deny all actions outside approved regions
