@@ -94,7 +94,13 @@ func MapOperatorRolesToRolesRef(operatorRoles []OperatorIAMRole) (*AWSRolesRef, 
 
 	for _, required := range requiredRoles {
 		if !foundRoles[required] {
-			return nil, fmt.Errorf("missing required operator role: %s", required)
+			// Build a helpful error message showing what was received
+			var receivedRoles []string
+			for _, role := range operatorRoles {
+				receivedRoles = append(receivedRoles, fmt.Sprintf("%s/%s", role.Namespace, role.Name))
+			}
+			return nil, fmt.Errorf("missing required operator role: %s (received %d roles: %v)",
+				required, len(operatorRoles), receivedRoles)
 		}
 	}
 
