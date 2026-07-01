@@ -321,6 +321,10 @@ paths:
         - cloudUrl: Auto-populated from the management cluster's cloudfront_url label
         - placement: Auto-populated from the management cluster's name (if not provided by client)
 
+        For ROSA HCP clusters, the API transforms ROSA CLI format to HostedCluster format:
+        - operator_iam_roles array → platform.aws.rolesRef object
+        - subnet_ids array → platform.aws.cloudProviderConfig (queries AWS for VPC and AZ)
+
         Possible error codes:
         - CLUSTERS-MGMT-CREATE-001: Invalid request body
         - CLUSTERS-MGMT-CREATE-002: Missing required fields (name or spec)
@@ -329,6 +333,7 @@ paths:
         - CLUSTERS-MGMT-CREATE-005: No management clusters found
         - CLUSTERS-MGMT-CREATE-006: CloudFront URL not configured
         - CLUSTERS-MGMT-CREATE-007: Management cluster name not available for placement
+        - CLUSTERS-MGMT-CREATE-008: Invalid cluster specification (transformation error)
       operationId: createUserCluster
       tags:
         - Clusters
@@ -338,6 +343,73 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ClusterCreateRequest'
+            examples:
+              rosa-cli-format:
+                summary: ROSA CLI format (with operator_iam_roles and subnet_ids)
+                description: |
+                  This is the format sent by ROSA CLI. The API automatically transforms
+                  operator_iam_roles to platform.aws.rolesRef and queries AWS to populate
+                  platform.aws.cloudProviderConfig from subnet_ids.
+                value:
+                  name: mytest-hf
+                  spec:
+                    operator_iam_roles:
+                      - name: cloud-credentials
+                        namespace: openshift-cloud-network
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+                      - name: ebs-cloud-credentials
+                        namespace: openshift-cluster-csi-drivers
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
+                      - name: cloud-network-config-controller-cloud-credentials
+                        namespace: openshift-cloud-network-config-controller
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
+                      - name: kube-controller-manager
+                        namespace: kube-system
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kube-controller-manager
+                      - name: capa-controller-manager
+                        namespace: kube-system
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-capa-controller-manager
+                      - name: control-plane-operator
+                        namespace: kube-system
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-control-plane-operator
+                      - name: ingress-operator-cloud-credentials
+                        namespace: openshift-ingress-operator
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-ingress-operator-cloud-credentials
+                      - name: kms-provider
+                        namespace: kube-system
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kms-provider
+                    subnet_ids:
+                      - subnet-0a1b2c3d4e5f6789
+                      - subnet-9k8l7m6n5o4p3q2r
+                    region: us-east-1
+                    oidc_config_id: 2r8p7g9fogag2lg31hph07larks4jpql
+                    installer_role_arn: arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Installer-Role
+                    support_role_arn: arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Support-Role
+              hostedcluster-format:
+                summary: HostedCluster format (after transformation)
+                description: |
+                  This is the format after server-side transformation. You can also send data
+                  in this format directly if you've already transformed it client-side.
+                value:
+                  name: mytest-hf
+                  spec:
+                    region: us-east-1
+                    platform:
+                      aws:
+                        region: us-east-1
+                        rolesRef:
+                          networkARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+                          storageARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
+                          imageRegistryARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
+                          kubeCloudControllerARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kube-controller-manager
+                          nodePoolManagementARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-capa-controller-manager
+                          controlPlaneOperatorARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-control-plane-operator
+                          ingressARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-ingress-operator-cloud-credentials
+                        cloudProviderConfig:
+                          subnet:
+                            id: subnet-0a1b2c3d4e5f6789
+                          vpc: vpc-0x1y2z3a4b5c6d7e8f
+                          zone: us-east-1a
       responses:
         '201':
           description: Cluster created successfully
@@ -2585,6 +2657,19 @@ components:
             Cluster specification. The following fields are auto-populated if not provided:
             - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
             - cloudUrl: CloudFront URL (always auto-populated from management cluster)
+
+            For ROSA HCP clusters, the API accepts operator IAM roles and subnet configuration in ROSA CLI format
+            and transforms them server-side to the HostedCluster format:
+
+            **Input format (ROSA CLI):**
+            - operator_iam_roles: Array of operator IAM roles with namespace, name, and role_arn
+            - subnet_ids: Array of AWS subnet IDs
+
+            **Output format (HostedCluster):**
+            - platform.aws.rolesRef: IAM role ARNs for cluster operators (transformed from operator_iam_roles)
+            - platform.aws.cloudProviderConfig: Network configuration including VPC and availability zone (derived from subnet_ids via AWS API)
+
+            See the examples below for the complete structure.
           properties:
             placement:
               type: string
@@ -2592,6 +2677,126 @@ components:
                 Management cluster name where the cluster will be deployed.
                 If not provided, will be auto-populated from the first available management cluster.
               example: management-cluster-us-east-1
+            operator_iam_roles:
+              type: array
+              description: |
+                (ROSA CLI format) Array of operator IAM roles. The API transforms these to platform.aws.rolesRef.
+                Required roles: network, storage, imageRegistry, kubeCloudController, nodePoolManagement,
+                controlPlaneOperator, and ingress. The kms-provider role is optional and used for encryption.
+              items:
+                type: object
+                required:
+                  - name
+                  - namespace
+                  - role_arn
+                properties:
+                  name:
+                    type: string
+                    description: Role name (e.g., "cloud-credentials", "ebs-cloud-credentials")
+                    example: cloud-credentials
+                  namespace:
+                    type: string
+                    description: Kubernetes namespace for the role
+                    example: openshift-cloud-network
+                  role_arn:
+                    type: string
+                    description: AWS IAM role ARN
+                    pattern: '^arn:aws:iam::\d{12}:role/.+$'
+                    example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+            subnet_ids:
+              type: array
+              description: |
+                (ROSA CLI format) Array of AWS subnet IDs. The API queries AWS to get VPC and availability zone
+                information and populates platform.aws.cloudProviderConfig. Only the first subnet is used for
+                the control plane configuration.
+              items:
+                type: string
+                pattern: '^subnet-[0-9a-f]{8,17}$'
+              example:
+                - subnet-0a1b2c3d4e5f6789
+                - subnet-9k8l7m6n5o4p3q2r
+            region:
+              type: string
+              description: AWS region for the cluster
+              example: us-east-1
+            oidc_config_id:
+              type: string
+              description: OIDC configuration ID for the cluster
+              example: 2r8p7g9fogag2lg31hph07larks4jpql
+            installer_role_arn:
+              type: string
+              description: AWS IAM role ARN for the installer
+              pattern: '^arn:aws:iam::\d{12}:role/.+$'
+              example: arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Installer-Role
+            support_role_arn:
+              type: string
+              description: AWS IAM role ARN for support access
+              pattern: '^arn:aws:iam::\d{12}:role/.+$'
+              example: arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Support-Role
+            platform:
+              type: object
+              description: |
+                (HostedCluster format) Platform-specific configuration. The API transforms operator_iam_roles
+                and subnet_ids into this structure automatically.
+              properties:
+                aws:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: AWS region
+                      example: us-east-1
+                    rolesRef:
+                      type: object
+                      description: IAM role ARNs for cluster operators (transformed from operator_iam_roles)
+                      properties:
+                        networkARN:
+                          type: string
+                          description: Network operator role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+                        storageARN:
+                          type: string
+                          description: EBS CSI driver role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
+                        imageRegistryARN:
+                          type: string
+                          description: Image registry role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
+                        kubeCloudControllerARN:
+                          type: string
+                          description: Kubernetes cloud controller role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kube-controller-manager
+                        nodePoolManagementARN:
+                          type: string
+                          description: Node pool management (CAPA) role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-capa-controller-manager
+                        controlPlaneOperatorARN:
+                          type: string
+                          description: Control plane operator role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-control-plane-operator
+                        ingressARN:
+                          type: string
+                          description: Ingress operator role ARN
+                          example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-ingress-operator-cloud-credentials
+                    cloudProviderConfig:
+                      type: object
+                      description: Cloud provider configuration (derived from subnet_ids via AWS API)
+                      properties:
+                        subnet:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: Subnet ID (first from subnet_ids array)
+                              example: subnet-0a1b2c3d4e5f6789
+                        vpc:
+                          type: string
+                          description: VPC ID (queried from AWS)
+                          example: vpc-0x1y2z3a4b5c6d7e8f
+                        zone:
+                          type: string
+                          description: Availability zone (queried from AWS)
+                          example: us-east-1a
           additionalProperties: true
 
     ClusterUpdateRequest:

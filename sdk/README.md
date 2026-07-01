@@ -99,6 +99,61 @@ c, err := client.NewClient(
 
 ### Cluster Management
 
+#### Create a ROSA HCP cluster (ROSA CLI format)
+
+The API supports creating ROSA HCP clusters using the ROSA CLI format. The server automatically transforms:
+- `operator_iam_roles` → `platform.aws.rolesRef`
+- `subnet_ids` → `platform.aws.cloudProviderConfig` (queries AWS for VPC and AZ)
+
+```go
+operatorIamRoles := []struct {
+    Name      string `json:"name"`
+    Namespace string `json:"namespace"`
+    RoleArn   string `json:"role_arn"`
+}{
+    {
+        Name:      "cloud-credentials",
+        Namespace: "openshift-cloud-network",
+        RoleArn:   "arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials",
+    },
+    {
+        Name:      "ebs-cloud-credentials",
+        Namespace: "openshift-cluster-csi-drivers",
+        RoleArn:   "arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials",
+    },
+    // ... other required roles (7 total)
+}
+
+installerRoleArn := "arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Installer-Role"
+supportRoleArn := "arn:aws:iam::123456789012:role/rosa/ManagedOpenShift-HCP-ROSA-Support-Role"
+oidcConfigID := "2r8p7g9fogag2lg31hph07larks4jpql"
+
+cluster, err := c.CreateCluster(ctx, &types.ClusterCreateRequest{
+    Name: "my-rosa-hcp-cluster",
+    Spec: types.ClusterCreateRequest_Spec{
+        OperatorIamRoles: &operatorIamRoles,
+        InstallerRoleArn: &installerRoleArn,
+        SupportRoleArn:   &supportRoleArn,
+        OidcConfigId:     &oidcConfigID,
+        AdditionalProperties: map[string]interface{}{
+            "region":     "us-east-1",
+            "subnet_ids": []string{"subnet-0a1b2c3d4e5f6789", "subnet-9k8l7m6n5o4p3q2r"},
+        },
+    },
+})
+```
+
+See the complete example in [`examples/create_rosa_cluster`](./examples/create_rosa_cluster/).
+
+**Required operator roles:**
+- `openshift-cloud-network/cloud-credentials` → networkARN
+- `openshift-cluster-csi-drivers/ebs-cloud-credentials` → storageARN
+- `openshift-cloud-network-config-controller/cloud-network-config-controller-cloud-credentials` → imageRegistryARN
+- `kube-system/kube-controller-manager` → kubeCloudControllerARN
+- `kube-system/capa-controller-manager` → nodePoolManagementARN
+- `kube-system/control-plane-operator` → controlPlaneOperatorARN
+- `openshift-ingress-operator/ingress-operator-cloud-credentials` → ingressARN
+
 #### List clusters
 
 ```go
@@ -295,7 +350,8 @@ c, err := client.NewClient(
 
 Complete working examples are available in the [`examples/`](./examples/) directory:
 
-- [`create_cluster`](./examples/create_cluster/) - Create a new cluster
+- [`create_cluster`](./examples/create_cluster/) - Create a new cluster (generic format)
+- [`create_rosa_cluster`](./examples/create_rosa_cluster/) - Create a ROSA HCP cluster (ROSA CLI format)
 - [`list_clusters`](./examples/list_clusters/) - List all clusters
 - [`authz_check`](./examples/authz_check/) - Check authorization
 

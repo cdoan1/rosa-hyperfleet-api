@@ -439,6 +439,19 @@ type ClusterCreateRequest struct {
 	// Spec Cluster specification. The following fields are auto-populated if not provided:
 	// - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
 	// - cloudUrl: CloudFront URL (always auto-populated from management cluster)
+	//
+	// For ROSA HCP clusters, the API accepts operator IAM roles and subnet configuration in ROSA CLI format
+	// and transforms them server-side to the HostedCluster format:
+	//
+	// **Input format (ROSA CLI):**
+	// - operator_iam_roles: Array of operator IAM roles with namespace, name, and role_arn
+	// - subnet_ids: Array of AWS subnet IDs
+	//
+	// **Output format (HostedCluster):**
+	// - platform.aws.rolesRef: IAM role ARNs for cluster operators (transformed from operator_iam_roles)
+	// - platform.aws.cloudProviderConfig: Network configuration including VPC and availability zone (derived from subnet_ids via AWS API)
+	//
+	// See the examples below for the complete structure.
 	Spec ClusterCreateRequest_Spec `json:"spec"`
 
 	// TargetProjectId Target project ID
@@ -448,10 +461,101 @@ type ClusterCreateRequest struct {
 // ClusterCreateRequest_Spec Cluster specification. The following fields are auto-populated if not provided:
 // - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
 // - cloudUrl: CloudFront URL (always auto-populated from management cluster)
+//
+// For ROSA HCP clusters, the API accepts operator IAM roles and subnet configuration in ROSA CLI format
+// and transforms them server-side to the HostedCluster format:
+//
+// **Input format (ROSA CLI):**
+// - operator_iam_roles: Array of operator IAM roles with namespace, name, and role_arn
+// - subnet_ids: Array of AWS subnet IDs
+//
+// **Output format (HostedCluster):**
+// - platform.aws.rolesRef: IAM role ARNs for cluster operators (transformed from operator_iam_roles)
+// - platform.aws.cloudProviderConfig: Network configuration including VPC and availability zone (derived from subnet_ids via AWS API)
+//
+// See the examples below for the complete structure.
 type ClusterCreateRequest_Spec struct {
+	// InstallerRoleArn AWS IAM role ARN for the installer
+	InstallerRoleArn *string `json:"installer_role_arn,omitempty"`
+
+	// OidcConfigId OIDC configuration ID for the cluster
+	OidcConfigId *string `json:"oidc_config_id,omitempty"`
+
+	// OperatorIamRoles (ROSA CLI format) Array of operator IAM roles. The API transforms these to platform.aws.rolesRef.
+	// Required roles: network, storage, imageRegistry, kubeCloudController, nodePoolManagement,
+	// controlPlaneOperator, and ingress. The kms-provider role is optional and used for encryption.
+	OperatorIamRoles *[]struct {
+		// Name Role name (e.g., "cloud-credentials", "ebs-cloud-credentials")
+		Name string `json:"name"`
+
+		// Namespace Kubernetes namespace for the role
+		Namespace string `json:"namespace"`
+
+		// RoleArn AWS IAM role ARN
+		RoleArn string `json:"role_arn"`
+	} `json:"operator_iam_roles,omitempty"`
+
 	// Placement Management cluster name where the cluster will be deployed.
 	// If not provided, will be auto-populated from the first available management cluster.
-	Placement            *string                `json:"placement,omitempty"`
+	Placement *string `json:"placement,omitempty"`
+
+	// Platform (HostedCluster format) Platform-specific configuration. The API transforms operator_iam_roles
+	// and subnet_ids into this structure automatically.
+	Platform *struct {
+		Aws *struct {
+			// CloudProviderConfig Cloud provider configuration (derived from subnet_ids via AWS API)
+			CloudProviderConfig *struct {
+				Subnet *struct {
+					// Id Subnet ID (first from subnet_ids array)
+					Id *string `json:"id,omitempty"`
+				} `json:"subnet,omitempty"`
+
+				// Vpc VPC ID (queried from AWS)
+				Vpc *string `json:"vpc,omitempty"`
+
+				// Zone Availability zone (queried from AWS)
+				Zone *string `json:"zone,omitempty"`
+			} `json:"cloudProviderConfig,omitempty"`
+
+			// Region AWS region
+			Region *string `json:"region,omitempty"`
+
+			// RolesRef IAM role ARNs for cluster operators (transformed from operator_iam_roles)
+			RolesRef *struct {
+				// ControlPlaneOperatorARN Control plane operator role ARN
+				ControlPlaneOperatorARN *string `json:"controlPlaneOperatorARN,omitempty"`
+
+				// ImageRegistryARN Image registry role ARN
+				ImageRegistryARN *string `json:"imageRegistryARN,omitempty"`
+
+				// IngressARN Ingress operator role ARN
+				IngressARN *string `json:"ingressARN,omitempty"`
+
+				// KubeCloudControllerARN Kubernetes cloud controller role ARN
+				KubeCloudControllerARN *string `json:"kubeCloudControllerARN,omitempty"`
+
+				// NetworkARN Network operator role ARN
+				NetworkARN *string `json:"networkARN,omitempty"`
+
+				// NodePoolManagementARN Node pool management (CAPA) role ARN
+				NodePoolManagementARN *string `json:"nodePoolManagementARN,omitempty"`
+
+				// StorageARN EBS CSI driver role ARN
+				StorageARN *string `json:"storageARN,omitempty"`
+			} `json:"rolesRef,omitempty"`
+		} `json:"aws,omitempty"`
+	} `json:"platform,omitempty"`
+
+	// Region AWS region for the cluster
+	Region *string `json:"region,omitempty"`
+
+	// SubnetIds (ROSA CLI format) Array of AWS subnet IDs. The API queries AWS to get VPC and availability zone
+	// information and populates platform.aws.cloudProviderConfig. Only the first subnet is used for
+	// the control plane configuration.
+	SubnetIds *[]string `json:"subnet_ids,omitempty"`
+
+	// SupportRoleArn AWS IAM role ARN for support access
+	SupportRoleArn       *string                `json:"support_role_arn,omitempty"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
@@ -1335,12 +1439,68 @@ func (a *ClusterCreateRequest_Spec) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if raw, found := object["installer_role_arn"]; found {
+		err = json.Unmarshal(raw, &a.InstallerRoleArn)
+		if err != nil {
+			return fmt.Errorf("error reading 'installer_role_arn': %w", err)
+		}
+		delete(object, "installer_role_arn")
+	}
+
+	if raw, found := object["oidc_config_id"]; found {
+		err = json.Unmarshal(raw, &a.OidcConfigId)
+		if err != nil {
+			return fmt.Errorf("error reading 'oidc_config_id': %w", err)
+		}
+		delete(object, "oidc_config_id")
+	}
+
+	if raw, found := object["operator_iam_roles"]; found {
+		err = json.Unmarshal(raw, &a.OperatorIamRoles)
+		if err != nil {
+			return fmt.Errorf("error reading 'operator_iam_roles': %w", err)
+		}
+		delete(object, "operator_iam_roles")
+	}
+
 	if raw, found := object["placement"]; found {
 		err = json.Unmarshal(raw, &a.Placement)
 		if err != nil {
 			return fmt.Errorf("error reading 'placement': %w", err)
 		}
 		delete(object, "placement")
+	}
+
+	if raw, found := object["platform"]; found {
+		err = json.Unmarshal(raw, &a.Platform)
+		if err != nil {
+			return fmt.Errorf("error reading 'platform': %w", err)
+		}
+		delete(object, "platform")
+	}
+
+	if raw, found := object["region"]; found {
+		err = json.Unmarshal(raw, &a.Region)
+		if err != nil {
+			return fmt.Errorf("error reading 'region': %w", err)
+		}
+		delete(object, "region")
+	}
+
+	if raw, found := object["subnet_ids"]; found {
+		err = json.Unmarshal(raw, &a.SubnetIds)
+		if err != nil {
+			return fmt.Errorf("error reading 'subnet_ids': %w", err)
+		}
+		delete(object, "subnet_ids")
+	}
+
+	if raw, found := object["support_role_arn"]; found {
+		err = json.Unmarshal(raw, &a.SupportRoleArn)
+		if err != nil {
+			return fmt.Errorf("error reading 'support_role_arn': %w", err)
+		}
+		delete(object, "support_role_arn")
 	}
 
 	if len(object) != 0 {
@@ -1362,10 +1522,59 @@ func (a ClusterCreateRequest_Spec) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
+	if a.InstallerRoleArn != nil {
+		object["installer_role_arn"], err = json.Marshal(a.InstallerRoleArn)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'installer_role_arn': %w", err)
+		}
+	}
+
+	if a.OidcConfigId != nil {
+		object["oidc_config_id"], err = json.Marshal(a.OidcConfigId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'oidc_config_id': %w", err)
+		}
+	}
+
+	if a.OperatorIamRoles != nil {
+		object["operator_iam_roles"], err = json.Marshal(a.OperatorIamRoles)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'operator_iam_roles': %w", err)
+		}
+	}
+
 	if a.Placement != nil {
 		object["placement"], err = json.Marshal(a.Placement)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'placement': %w", err)
+		}
+	}
+
+	if a.Platform != nil {
+		object["platform"], err = json.Marshal(a.Platform)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'platform': %w", err)
+		}
+	}
+
+	if a.Region != nil {
+		object["region"], err = json.Marshal(a.Region)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'region': %w", err)
+		}
+	}
+
+	if a.SubnetIds != nil {
+		object["subnet_ids"], err = json.Marshal(a.SubnetIds)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'subnet_ids': %w", err)
+		}
+	}
+
+	if a.SupportRoleArn != nil {
+		object["support_role_arn"], err = json.Marshal(a.SupportRoleArn)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'support_role_arn': %w", err)
 		}
 	}
 
