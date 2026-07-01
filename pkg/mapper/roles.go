@@ -26,7 +26,7 @@ func MapOperatorRolesToRolesRef(operatorRoles []OperatorIAMRole) (*AWSRolesRef, 
 		switch {
 		// CORRECTED: networkARN comes from cloud-network-config-controller, NOT openshift-cloud-network
 		case role.Namespace == "openshift-cloud-network-config-controller" &&
-			role.Name == "cloud-network-config-controller-cloud-credentials":
+			role.Name == "cloud-credentials":
 			if foundRoles["network"] {
 				return nil, fmt.Errorf("duplicate network role found: %s", key)
 			}
