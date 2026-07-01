@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gorilla/mux"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleet"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/maestro"
@@ -22,32 +22,32 @@ import (
 type ClusterHandler struct {
 	hyperfleetClient *hyperfleet.Client
 	maestroClient    *maestro.Client
-	ec2Client        *ec2.Client
+	awsConfig        *aws.Config
 	logger           *slog.Logger
 }
 
 // NewClusterHandler creates a new cluster handler
 func NewClusterHandler(hyperfleetClient *hyperfleet.Client, maestroClient *maestro.Client, logger *slog.Logger) *ClusterHandler {
-	// Initialize AWS EC2 client for subnet queries
+	// Initialize AWS config for assuming roles
 	// This uses default AWS credential chain (env vars, IAM role, etc.)
-	ec2Client := initEC2Client(context.Background(), logger)
+	awsConfig := initAWSConfig(context.Background(), logger)
 
 	return &ClusterHandler{
 		hyperfleetClient: hyperfleetClient,
 		maestroClient:    maestroClient,
-		ec2Client:        ec2Client,
+		awsConfig:        awsConfig,
 		logger:           logger,
 	}
 }
 
-// initEC2Client initializes the AWS EC2 client
-func initEC2Client(ctx context.Context, logger *slog.Logger) *ec2.Client {
+// initAWSConfig initializes the AWS config
+func initAWSConfig(ctx context.Context, logger *slog.Logger) *aws.Config {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		logger.Warn("failed to load AWS config, EC2 client will be nil", "error", err)
+		logger.Warn("failed to load AWS config, AWS operations will be unavailable", "error", err)
 		return nil
 	}
-	return ec2.NewFromConfig(cfg)
+	return &cfg
 }
 
 // List handles GET /api/v0/clusters
@@ -114,8 +114,8 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply ROSA CLI to HostedCluster transformation
-	if h.ec2Client != nil {
-		transformedSpec, err := mapper.TransformClusterSpec(ctx, req.Spec, h.ec2Client)
+	if h.awsConfig != nil {
+		transformedSpec, err := mapper.TransformClusterSpec(ctx, req.Spec, *h.awsConfig)
 		if err != nil {
 			h.logger.Error("failed to transform cluster spec", "error", err, "account_id", accountID, "cluster_name", req.Name)
 			h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-CREATE-008", fmt.Sprintf("Invalid cluster specification: %v", err))
@@ -124,7 +124,7 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Spec = transformedSpec
 		h.logger.Debug("cluster spec transformed", "cluster_name", req.Name)
 	} else {
-		h.logger.Warn("EC2 client not available, skipping spec transformation", "cluster_name", req.Name)
+		h.logger.Warn("AWS config not available, skipping spec transformation", "cluster_name", req.Name)
 	}
 
 	// Get CloudFront URL from the first management cluster before creating the cluster

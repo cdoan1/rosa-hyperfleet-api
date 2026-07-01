@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,7 +80,7 @@ func TestIsValidSubnetID(t *testing.T) {
 }
 
 func TestMapSubnetToCloudConfig_EmptySubnetIDs(t *testing.T) {
-	config, err := MapSubnetToCloudConfig(context.TODO(), nil, []string{})
+	config, err := MapSubnetToCloudConfig(context.TODO(), aws.Config{}, "arn:aws:iam::123456789012:role/installer", []string{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 	assert.Contains(t, err.Error(), "subnet_ids is required and cannot be empty")
@@ -87,7 +88,7 @@ func TestMapSubnetToCloudConfig_EmptySubnetIDs(t *testing.T) {
 
 func TestMapSubnetToCloudConfig_InvalidSubnetID(t *testing.T) {
 	invalidSubnetIDs := []string{"invalid-subnet-id"}
-	config, err := MapSubnetToCloudConfig(context.TODO(), nil, invalidSubnetIDs)
+	config, err := MapSubnetToCloudConfig(context.TODO(), aws.Config{}, "arn:aws:iam::123456789012:role/installer", invalidSubnetIDs)
 	assert.Error(t, err)
 	assert.Nil(t, config)
 	assert.Contains(t, err.Error(), "invalid subnet ID format")

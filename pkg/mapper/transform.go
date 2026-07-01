@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 // TransformClusterSpec transforms the cluster spec from ROSA CLI format
@@ -13,7 +13,7 @@ import (
 func TransformClusterSpec(
 	ctx context.Context,
 	spec map[string]interface{},
-	ec2Client *ec2.Client,
+	awsConfig aws.Config,
 ) (map[string]interface{}, error) {
 	// Create a copy of the spec to avoid mutating the original
 	transformed := make(map[string]interface{})
@@ -50,8 +50,14 @@ func TransformClusterSpec(
 			return nil, fmt.Errorf("failed to parse subnet_ids: %w", err)
 		}
 
+		// Extract installer_role_arn (required for assuming role to describe subnets)
+		installerRoleARN, _ := transformed["installer_role_arn"].(string)
+		if installerRoleARN == "" {
+			return nil, fmt.Errorf("installer_role_arn is required when subnet_ids is provided")
+		}
+
 		// Map to cloudProviderConfig
-		cloudConfig, err := MapSubnetToCloudConfig(ctx, ec2Client, subnetIDs)
+		cloudConfig, err := MapSubnetToCloudConfig(ctx, awsConfig, installerRoleARN, subnetIDs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map subnet configuration: %w", err)
 		}
