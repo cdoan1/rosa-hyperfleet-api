@@ -10,6 +10,7 @@ type Config struct {
 	Server          ServerConfig
 	Maestro         MaestroConfig
 	Hyperfleet      HyperfleetConfig
+	AWS             AWSConfig
 	Logging         LoggingConfig
 	Authz           *authz.Config
 	Zoa             ZoaConfig
@@ -50,6 +51,10 @@ type HyperfleetConfig struct {
 	Timeout time.Duration
 }
 
+type AWSConfig struct {
+	Region string
+}
+
 type LoggingConfig struct {
 	Level  string
 	Format string
@@ -76,6 +81,9 @@ func NewConfig() *Config {
 		Hyperfleet: HyperfleetConfig{
 			BaseURL: "http://hyperfleet-api.hyperfleet-system:8000",
 			Timeout: 30 * time.Second,
+		},
+		AWS: AWSConfig{
+			Region: "us-east-1", // Default region, can be overridden by env var
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
