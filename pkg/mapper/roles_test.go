@@ -10,9 +10,9 @@ import (
 func TestMapOperatorRolesToRolesRef_Success(t *testing.T) {
 	operatorRoles := []OperatorIAMRole{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
-			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-cloud-credentials",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
+			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials",
 		},
 		{
 			Name:      "ebs-cloud-credentials",
@@ -20,9 +20,9 @@ func TestMapOperatorRolesToRolesRef_Success(t *testing.T) {
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cluster-csi-drivers-ebs-cloud-credentials",
 		},
 		{
-			Name:      "cloud-network-config-controller-cloud-credentials",
-			Namespace: "openshift-cloud-network-config-controller",
-			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials",
+			Name:      "installer-cloud-credentials",
+			Namespace: "openshift-image-registry",
+			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-image-registry-installer-cloud-credentials",
 		},
 		{
 			Name:      "kube-controller-manager",
@@ -40,9 +40,9 @@ func TestMapOperatorRolesToRolesRef_Success(t *testing.T) {
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-kube-system-control-plane-operator",
 		},
 		{
-			Name:      "ingress-operator-cloud-credentials",
+			Name:      "cloud-credentials",
 			Namespace: "openshift-ingress-operator",
-			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-ingress-operator-ingress-operator-cloud-credentials",
+			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-op-openshift-ingress-operator-cloud-credentials",
 		},
 		{
 			Name:      "kms-provider",
@@ -55,21 +55,21 @@ func TestMapOperatorRolesToRolesRef_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rolesRef)
 
-	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-cloud-credentials", rolesRef.NetworkARN)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials", rolesRef.NetworkARN)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cluster-csi-drivers-ebs-cloud-credentials", rolesRef.StorageARN)
-	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials", rolesRef.ImageRegistryARN)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-image-registry-installer-cloud-credentials", rolesRef.ImageRegistryARN)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-kube-system-kube-controller-manager", rolesRef.KubeCloudControllerARN)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-kube-system-capa-controller-manager", rolesRef.NodePoolManagementARN)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-kube-system-control-plane-operator", rolesRef.ControlPlaneOperatorARN)
-	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-ingress-operator-ingress-operator-cloud-credentials", rolesRef.IngressARN)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/rosa/test-op-openshift-ingress-operator-cloud-credentials", rolesRef.IngressARN)
 }
 
 func TestMapOperatorRolesToRolesRef_MissingRole(t *testing.T) {
 	// Missing ingress role
 	operatorRoles := []OperatorIAMRole{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-network",
 		},
 		{
@@ -78,8 +78,8 @@ func TestMapOperatorRolesToRolesRef_MissingRole(t *testing.T) {
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-storage",
 		},
 		{
-			Name:      "cloud-network-config-controller-cloud-credentials",
-			Namespace: "openshift-cloud-network-config-controller",
+			Name:      "installer-cloud-credentials",
+			Namespace: "openshift-image-registry",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-registry",
 		},
 		{
@@ -109,13 +109,13 @@ func TestMapOperatorRolesToRolesRef_MissingRole(t *testing.T) {
 func TestMapOperatorRolesToRolesRef_DuplicateRole(t *testing.T) {
 	operatorRoles := []OperatorIAMRole{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-network-1",
 		},
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-network-2",
 		},
 	}
@@ -129,8 +129,8 @@ func TestMapOperatorRolesToRolesRef_DuplicateRole(t *testing.T) {
 func TestMapOperatorRolesToRolesRef_InvalidARN(t *testing.T) {
 	operatorRoles := []OperatorIAMRole{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
 			RoleARN:   "invalid-arn-format",
 		},
 	}
@@ -191,8 +191,8 @@ func TestMapOperatorRolesToRolesRef_KMSProviderIgnored(t *testing.T) {
 	// Test that KMS provider role is properly ignored and doesn't cause errors
 	operatorRoles := []OperatorIAMRole{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-network",
 		},
 		{
@@ -201,8 +201,8 @@ func TestMapOperatorRolesToRolesRef_KMSProviderIgnored(t *testing.T) {
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-storage",
 		},
 		{
-			Name:      "cloud-network-config-controller-cloud-credentials",
-			Namespace: "openshift-cloud-network-config-controller",
+			Name:      "installer-cloud-credentials",
+			Namespace: "openshift-image-registry",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-registry",
 		},
 		{
@@ -221,7 +221,7 @@ func TestMapOperatorRolesToRolesRef_KMSProviderIgnored(t *testing.T) {
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-cpo",
 		},
 		{
-			Name:      "ingress-operator-cloud-credentials",
+			Name:      "cloud-credentials",
 			Namespace: "openshift-ingress-operator",
 			RoleARN:   "arn:aws:iam::123456789012:role/rosa/test-ingress",
 		},

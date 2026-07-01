@@ -485,7 +485,7 @@ type ClusterCreateRequest_Spec struct {
 	// Required roles: network, storage, imageRegistry, kubeCloudController, nodePoolManagement,
 	// controlPlaneOperator, and ingress. The kms-provider role is optional and used for encryption.
 	OperatorIamRoles *[]struct {
-		// Name Role name (e.g., "cloud-credentials", "ebs-cloud-credentials")
+		// Name Role name (e.g., "cloud-network-config-controller-cloud-credentials", "ebs-cloud-credentials", "installer-cloud-credentials")
 		Name string `json:"name"`
 
 		// Namespace Kubernetes namespace for the role

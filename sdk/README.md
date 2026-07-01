@@ -146,13 +146,13 @@ cluster, err := c.CreateCluster(ctx, &types.ClusterCreateRequest{
 See the complete example in [`examples/create_rosa_cluster`](./examples/create_rosa_cluster/).
 
 **Required operator roles:**
-- `openshift-cloud-network/cloud-credentials` → networkARN
+- `openshift-cloud-network-config-controller/cloud-network-config-controller-cloud-credentials` → networkARN
 - `openshift-cluster-csi-drivers/ebs-cloud-credentials` → storageARN
-- `openshift-cloud-network-config-controller/cloud-network-config-controller-cloud-credentials` → imageRegistryARN
+- `openshift-image-registry/installer-cloud-credentials` → imageRegistryARN
 - `kube-system/kube-controller-manager` → kubeCloudControllerARN
 - `kube-system/capa-controller-manager` → nodePoolManagementARN
 - `kube-system/control-plane-operator` → controlPlaneOperatorARN
-- `openshift-ingress-operator/ingress-operator-cloud-credentials` → ingressARN
+- `openshift-ingress-operator/cloud-credentials` → ingressARN
 
 #### List clusters
 

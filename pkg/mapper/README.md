@@ -22,13 +22,13 @@ Maps the `operator_iam_roles` array to the `platform.aws.rolesRef` structure.
 
 | Namespace | Role Name | HostedCluster Field |
 |-----------|-----------|---------------------|
-| `openshift-cloud-network` | `cloud-credentials` | `rolesRef.networkARN` |
+| `openshift-cloud-network-config-controller` | `cloud-network-config-controller-cloud-credentials` | `rolesRef.networkARN` |
 | `openshift-cluster-csi-drivers` | `ebs-cloud-credentials` | `rolesRef.storageARN` |
-| `openshift-cloud-network-config-controller` | `cloud-network-config-controller-cloud-credentials` | `rolesRef.imageRegistryARN` |
+| `openshift-image-registry` | `installer-cloud-credentials` | `rolesRef.imageRegistryARN` |
 | `kube-system` | `kube-controller-manager` | `rolesRef.kubeCloudControllerARN` |
 | `kube-system` | `capa-controller-manager` | `rolesRef.nodePoolManagementARN` |
 | `kube-system` | `control-plane-operator` | `rolesRef.controlPlaneOperatorARN` |
-| `openshift-ingress-operator` | `ingress-operator-cloud-credentials` | `rolesRef.ingressARN` |
+| `openshift-ingress-operator` | `cloud-credentials` | `rolesRef.ingressARN` |
 | `kube-system` | `kms-provider` | *(Not mapped to rolesRef)* |
 
 #### Validation

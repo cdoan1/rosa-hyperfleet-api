@@ -354,15 +354,15 @@ paths:
                   name: mytest-hf
                   spec:
                     operator_iam_roles:
-                      - name: cloud-credentials
-                        namespace: openshift-cloud-network
-                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
-                      - name: ebs-cloud-credentials
-                        namespace: openshift-cluster-csi-drivers
-                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
                       - name: cloud-network-config-controller-cloud-credentials
                         namespace: openshift-cloud-network-config-controller
                         role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
+                      - name: ebs-cloud-credentials
+                        namespace: openshift-cluster-csi-drivers
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
+                      - name: installer-cloud-credentials
+                        namespace: openshift-image-registry
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-image-registry-installer-cloud-credentials
                       - name: kube-controller-manager
                         namespace: kube-system
                         role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kube-controller-manager
@@ -372,9 +372,9 @@ paths:
                       - name: control-plane-operator
                         namespace: kube-system
                         role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-control-plane-operator
-                      - name: ingress-operator-cloud-credentials
+                      - name: cloud-credentials
                         namespace: openshift-ingress-operator
-                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-ingress-operator-cloud-credentials
+                        role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-cloud-credentials
                       - name: kms-provider
                         namespace: kube-system
                         role_arn: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kms-provider
@@ -398,13 +398,13 @@ paths:
                       aws:
                         region: us-east-1
                         rolesRef:
-                          networkARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+                          networkARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
                           storageARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cluster-csi-drivers-ebs-cloud-credentials
-                          imageRegistryARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
+                          imageRegistryARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-image-registry-installer-cloud-credentials
                           kubeCloudControllerARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-kube-controller-manager
                           nodePoolManagementARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-capa-controller-manager
                           controlPlaneOperatorARN: arn:aws:iam::123456789012:role/rosa/mytest-op-kube-system-control-plane-operator
-                          ingressARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-ingress-operator-cloud-credentials
+                          ingressARN: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-ingress-operator-cloud-credentials
                         cloudProviderConfig:
                           subnet:
                             id: subnet-0a1b2c3d4e5f6789
@@ -2692,17 +2692,17 @@ components:
                 properties:
                   name:
                     type: string
-                    description: Role name (e.g., "cloud-credentials", "ebs-cloud-credentials")
-                    example: cloud-credentials
+                    description: Role name (e.g., "cloud-network-config-controller-cloud-credentials", "ebs-cloud-credentials", "installer-cloud-credentials")
+                    example: cloud-network-config-controller-cloud-credentials
                   namespace:
                     type: string
                     description: Kubernetes namespace for the role
-                    example: openshift-cloud-network
+                    example: openshift-cloud-network-config-controller
                   role_arn:
                     type: string
                     description: AWS IAM role ARN
                     pattern: '^arn:aws:iam::\d{12}:role/.+$'
-                    example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-cloud-credentials
+                    example: arn:aws:iam::123456789012:role/rosa/mytest-op-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials
             subnet_ids:
               type: array
               description: |

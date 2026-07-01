@@ -50,9 +50,9 @@ func main() {
 		RoleArn   string `json:"role_arn"`
 	}{
 		{
-			Name:      "cloud-credentials",
-			Namespace: "openshift-cloud-network",
-			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-cloud-network-cloud-credentials", accountID, operatorRolePrefix),
+			Name:      "cloud-network-config-controller-cloud-credentials",
+			Namespace: "openshift-cloud-network-config-controller",
+			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials", accountID, operatorRolePrefix),
 		},
 		{
 			Name:      "ebs-cloud-credentials",
@@ -60,9 +60,9 @@ func main() {
 			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-cluster-csi-drivers-ebs-cloud-credentials", accountID, operatorRolePrefix),
 		},
 		{
-			Name:      "cloud-network-config-controller-cloud-credentials",
-			Namespace: "openshift-cloud-network-config-controller",
-			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-cloud-network-config-controller-cloud-network-config-controller-cloud-credentials", accountID, operatorRolePrefix),
+			Name:      "installer-cloud-credentials",
+			Namespace: "openshift-image-registry",
+			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-image-registry-installer-cloud-credentials", accountID, operatorRolePrefix),
 		},
 		{
 			Name:      "kube-controller-manager",
@@ -80,9 +80,9 @@ func main() {
 			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-kube-system-control-plane-operator", accountID, operatorRolePrefix),
 		},
 		{
-			Name:      "ingress-operator-cloud-credentials",
+			Name:      "cloud-credentials",
 			Namespace: "openshift-ingress-operator",
-			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-ingress-operator-ingress-operator-cloud-credentials", accountID, operatorRolePrefix),
+			RoleArn:   fmt.Sprintf("arn:aws:iam::%s:role/rosa/%s-openshift-ingress-operator-cloud-credentials", accountID, operatorRolePrefix),
 		},
 		{
 			Name:      "kms-provider",

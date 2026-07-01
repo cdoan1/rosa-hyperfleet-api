@@ -24,7 +24,9 @@ func MapOperatorRolesToRolesRef(operatorRoles []OperatorIAMRole) (*AWSRolesRef, 
 		}
 
 		switch {
-		case role.Namespace == "openshift-cloud-network" && role.Name == "cloud-credentials":
+		// CORRECTED: networkARN comes from cloud-network-config-controller, NOT openshift-cloud-network
+		case role.Namespace == "openshift-cloud-network-config-controller" &&
+			role.Name == "cloud-network-config-controller-cloud-credentials":
 			if foundRoles["network"] {
 				return nil, fmt.Errorf("duplicate network role found: %s", key)
 			}
@@ -38,8 +40,9 @@ func MapOperatorRolesToRolesRef(operatorRoles []OperatorIAMRole) (*AWSRolesRef, 
 			rolesRef.StorageARN = role.RoleARN
 			foundRoles["storage"] = true
 
-		case role.Namespace == "openshift-cloud-network-config-controller" &&
-			role.Name == "cloud-network-config-controller-cloud-credentials":
+		// CORRECTED: imageRegistryARN comes from openshift-image-registry, NOT cloud-network-config-controller
+		case role.Namespace == "openshift-image-registry" &&
+			role.Name == "installer-cloud-credentials":
 			if foundRoles["imageRegistry"] {
 				return nil, fmt.Errorf("duplicate imageRegistry role found: %s", key)
 			}
@@ -67,8 +70,9 @@ func MapOperatorRolesToRolesRef(operatorRoles []OperatorIAMRole) (*AWSRolesRef, 
 			rolesRef.ControlPlaneOperatorARN = role.RoleARN
 			foundRoles["controlPlaneOperator"] = true
 
+		// CORRECTED: ingressARN uses 'cloud-credentials' name, NOT 'ingress-operator-cloud-credentials'
 		case role.Namespace == "openshift-ingress-operator" &&
-			role.Name == "ingress-operator-cloud-credentials":
+			role.Name == "cloud-credentials":
 			if foundRoles["ingress"] {
 				return nil, fmt.Errorf("duplicate ingress role found: %s", key)
 			}
