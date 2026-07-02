@@ -76,9 +76,14 @@ help:
 	@echo "  image-e2e-push-multiarch - Build and push E2E test container (multiarch)"
 	@echo ""
 	@echo "Code Generation:"
-	@echo "  deps           - Download and tidy dependencies"
-	@echo "  generate       - Generate OpenAPI code"
-	@echo "  generate-swagger - Regenerate swagger-ui.html"
+	@echo "  deps                        - Download and tidy dependencies"
+	@echo "  generate                    - Generate OpenAPI code and SDK types"
+	@echo "  generate-sdk                - Generate SDK types from OpenAPI spec"
+	@echo "  generate-swagger            - Regenerate swagger-ui.html"
+	@echo ""
+	@echo "SDK Management:"
+	@echo "  update-sdk-version VERSION=X.Y.Z - Update SDK version"
+	@echo "  publish-sdk VERSION=X.Y.Z        - Tag and push SDK release"
 	@echo ""
 	@echo "  all            - Run all checks (deps, fmt, vet, lint, test, build)"
 
@@ -274,10 +279,36 @@ deps:
 	go mod download
 	go mod tidy
 
+# Generate SDK code from OpenAPI spec
+generate-sdk:
+	@echo "Generating SDK types from OpenAPI spec..."
+	@cd sdk && make generate
+
+# Update SDK version
+update-sdk-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make update-sdk-version VERSION=0.1.0"; \
+		exit 1; \
+	fi
+	@echo "Updating SDK version to $(VERSION)..."
+	@printf 'package version\n\nconst (\n\t// Version is the SDK version\n\tVersion = "%s"\n)\n' "$(VERSION)" > sdk/pkg/version/version.go
+	@cd sdk && go mod tidy
+	@echo "Updated SDK version to $(VERSION)"
+
+# Publish SDK release
+publish-sdk:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make publish-sdk VERSION=0.1.0"; \
+		exit 1; \
+	fi
+	@echo "Publishing SDK version $(VERSION)..."
+	@git tag -a "sdk/v$(VERSION)" -m "SDK v$(VERSION)"
+	@git push origin "sdk/v$(VERSION)"
+	@echo "Published SDK v$(VERSION)"
+
 # Generate OpenAPI code (requires oapi-codegen)
-generate:
-	@echo "OpenAPI code generation not yet configured"
-	@echo "Install oapi-codegen: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"
+generate: generate-sdk
+	@echo "OpenAPI code generation complete"
 
 # Regenerate swagger-ui.html from openapi.yaml (requires yq)
 generate-swagger:
