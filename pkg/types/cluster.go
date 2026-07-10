@@ -1,41 +1,61 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	hyperfleetv1alpha1 "github.com/typeid/hyperfleet-operator/api/v1alpha1"
+)
 
 // Cluster represents a cluster resource
 type Cluster struct {
-	ID              string                 `json:"id"`
-	Name            string                 `json:"name"`
-	TargetProjectID string                 `json:"target_project_id"`
-	CreatedBy       string                 `json:"created_by"`
-	Generation      int64                  `json:"generation"`
-	ResourceVersion string                 `json:"resource_version"`
-	Spec            map[string]interface{} `json:"spec"`
-	Status          *ClusterStatusInfo     `json:"status,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	ID              string                         `json:"id"`
+	Name            string                         `json:"name"`
+	TargetProjectID string                         `json:"target_project_id"`
+	CreatedBy       string                         `json:"created_by"`
+	OIDCIssuerURL   string                         `json:"oidc_issuer_url,omitempty"`
+	Generation      int64                          `json:"generation"`
+	ResourceVersion string                         `json:"resource_version"`
+	Spec            hyperfleetv1alpha1.ClusterSpec `json:"spec"`
+	Status          *ClusterStatusInfo             `json:"status,omitempty"`
+	CreatedAt       time.Time                      `json:"created_at"`
+	UpdatedAt       time.Time                      `json:"updated_at"`
 }
 
 // ClusterCreateRequest represents a request to create a cluster
 type ClusterCreateRequest struct {
-	Name            string                 `json:"name"`
-	TargetProjectID string                 `json:"target_project_id,omitempty"`
-	Spec            map[string]interface{} `json:"spec"`
+	Name            string                          `json:"name"`
+	TargetProjectID string                          `json:"target_project_id,omitempty"`
+	Spec            *hyperfleetv1alpha1.ClusterSpec `json:"spec"`
 }
 
 // ClusterUpdateRequest represents a request to update a cluster
 type ClusterUpdateRequest struct {
-	Spec map[string]interface{} `json:"spec"`
+	Spec *hyperfleetv1alpha1.ClusterSpec `json:"spec"`
 }
 
 // ClusterStatusInfo represents the status of a cluster
 type ClusterStatusInfo struct {
-	ObservedGeneration int64       `json:"observedGeneration"`
-	Conditions         []Condition `json:"conditions,omitempty"`
-	Phase              string      `json:"phase"`
-	Message            string      `json:"message,omitempty"`
-	Reason             string      `json:"reason,omitempty"`
-	LastUpdateTime     time.Time   `json:"lastUpdateTime"`
+	ObservedGeneration   int64               `json:"observedGeneration"`
+	Conditions           []Condition         `json:"conditions,omitempty"`
+	Phase                string              `json:"phase"`
+	ControlPlaneEndpoint *APIEndpoint        `json:"controlPlaneEndpoint,omitempty"`
+	Version              string              `json:"version,omitempty"`
+	PlacementRef         *PlacementReference `json:"placementRef,omitempty"`
+	Message              string              `json:"message,omitempty"`
+	Reason               string              `json:"reason,omitempty"`
+	LastUpdateTime       time.Time           `json:"lastUpdateTime"`
+}
+
+// PlacementReference identifies the management cluster assignment.
+type PlacementReference struct {
+	Name              string `json:"name"`
+	ManagementCluster string `json:"managementCluster"`
+}
+
+// APIEndpoint represents the API server endpoint for a hosted cluster.
+type APIEndpoint struct {
+	Host string `json:"host"`
+	Port int32  `json:"port"`
 }
 
 // Condition represents a status condition

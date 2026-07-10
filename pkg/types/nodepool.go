@@ -1,40 +1,35 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	hyperfleetv1alpha1 "github.com/typeid/hyperfleet-operator/api/v1alpha1"
+)
 
 // NodePool represents a nodepool resource
 type NodePool struct {
-	ID              string              `json:"id"`
-	ClusterID       string              `json:"cluster_id"`
-	Name            string              `json:"name"`
-	CreatedBy       string              `json:"created_by"`
-	Generation      int64               `json:"generation"`
-	ResourceVersion string              `json:"resource_version"`
-	Spec            *NodePoolSpec       `json:"spec"`
-	Status          *NodePoolStatusInfo `json:"status,omitempty"`
-	CreatedAt       time.Time           `json:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at"`
+	ID              string                          `json:"id"`
+	ClusterID       string                          `json:"cluster_id"`
+	Name            string                          `json:"name"`
+	CreatedBy       string                          `json:"created_by"`
+	Generation      int64                           `json:"generation"`
+	ResourceVersion string                          `json:"resource_version"`
+	Spec            hyperfleetv1alpha1.NodePoolSpec `json:"spec"`
+	Status          *NodePoolStatusInfo             `json:"status,omitempty"`
+	CreatedAt       time.Time                       `json:"created_at"`
+	UpdatedAt       time.Time                       `json:"updated_at"`
 }
 
 // NodePoolCreateRequest represents a request to create a nodepool
 type NodePoolCreateRequest struct {
-	ClusterID string        `json:"cluster_id"`
-	Name      string        `json:"name"`
-	Spec      *NodePoolSpec `json:"spec"`
+	ClusterID string                           `json:"cluster_id"`
+	Name      string                           `json:"name"`
+	Spec      *hyperfleetv1alpha1.NodePoolSpec `json:"spec"`
 }
 
 // NodePoolUpdateRequest represents a request to update a nodepool
 type NodePoolUpdateRequest struct {
-	Spec *NodePoolSpec `json:"spec"`
-}
-
-// NodePoolSpec represents the specification for a nodepool
-type NodePoolSpec struct {
-	Replicas         int32                  `json:"replicas,omitempty"`
-	Management       map[string]interface{} `json:"management,omitempty"`
-	Platform         map[string]interface{} `json:"platform,omitempty"`
-	Release          map[string]interface{} `json:"release,omitempty"`
-	NodeDrainTimeout string                 `json:"nodeDrainTimeout,omitempty"`
+	Spec *hyperfleetv1alpha1.NodePoolSpec `json:"spec"`
 }
 
 // NodePoolStatusInfo represents the status of a nodepool

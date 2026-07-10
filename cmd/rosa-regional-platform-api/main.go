@@ -4,31 +4,32 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/cobra"
 
+	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
 	"github.com/openshift/rosa-regional-platform-api/pkg/config"
 	"github.com/openshift/rosa-regional-platform-api/pkg/server"
 )
 
 var (
 	// Config flags
-	logLevel        string
-	logFormat       string
-	maestroURL      string
-	maestroGRPCURL  string
-	hyperfleetURL   string
-	allowedAccounts string
-	dynamodbRegion  string
-	dynamodbPrefix  string
-	apiPort         int
-	healthPort      int
-	metricsPort     int
+	logLevel          string
+	logFormat         string
+	allowedAccounts   string
+	postgresDSN       string
+	dynamodbRegion    string
+	dynamodbPrefix    string
+	oidcIssuerBaseURL string
+	apiPort           int
+	healthPort        int
+	metricsPort       int
 )
 
 func main() {
@@ -53,12 +54,11 @@ var serveCmd = &cobra.Command{
 func init() {
 	serveCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	serveCmd.Flags().StringVar(&logFormat, "log-format", "json", "Log format (json, text)")
-	serveCmd.Flags().StringVar(&maestroURL, "maestro-url", "http://maestro:8000", "Maestro service base URL")
 	serveCmd.Flags().StringVar(&allowedAccounts, "allowed-accounts", "", "Comma-separated list of allowed AWS account IDs")
-	serveCmd.Flags().StringVar(&maestroGRPCURL, "maestro-grpc-url", "maestro-grpc.maestro-server:8090", "Maestro gRPC service base URL")
-	serveCmd.Flags().StringVar(&hyperfleetURL, "hyperfleet-url", "http://hyperfleet-api.hyperfleet-system:8000", "Hyperfleet service base URL")
-	serveCmd.Flags().StringVar(&dynamodbRegion, "dynamodb-region", "", "AWS region for DynamoDB (defaults to us-east-1)")
-	serveCmd.Flags().StringVar(&dynamodbPrefix, "dynamodb-prefix", "rosa", "Prefix for DynamoDB table names (default: rosa)")
+	serveCmd.Flags().StringVar(&postgresDSN, "postgres-dsn", "", "PostgreSQL connection string (required)")
+	serveCmd.Flags().StringVar(&dynamodbRegion, "dynamodb-region", "", "AWS region for DynamoDB (defaults to auto-detected region)")
+	serveCmd.Flags().StringVar(&dynamodbPrefix, "dynamodb-prefix", "rosa", "Prefix for DynamoDB table names")
+	serveCmd.Flags().StringVar(&oidcIssuerBaseURL, "oidc-issuer-base-url", "", "Base URL for OIDC issuer (e.g. https://<cloudfront-domain>)")
 	serveCmd.Flags().IntVar(&apiPort, "api-port", 8000, "API server port")
 	serveCmd.Flags().IntVar(&healthPort, "health-port", 8080, "Health check server port")
 	serveCmd.Flags().IntVar(&metricsPort, "metrics-port", 9090, "Metrics server port")
@@ -75,49 +75,49 @@ func runServe(cmd *cobra.Command, args []string) error {
 		"log_format", logFormat,
 	)
 
+	// Detect AWS region from SDK default chain (IMDS, AWS_REGION env var, etc.)
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to detect AWS region: %w", err)
+	}
+	if awsCfg.Region == "" {
+		return fmt.Errorf("AWS region could not be detected from environment; set AWS_REGION")
+	}
+	logger.Info("detected AWS region", "region", awsCfg.Region)
+
 	// Create config
 	cfg := config.NewConfig()
 	cfg.Logging.Level = logLevel
 	cfg.Logging.Format = logFormat
-	cfg.Maestro.BaseURL = maestroURL
-	cfg.Maestro.GRPCBaseURL = maestroGRPCURL
-
-	// Validate Hyperfleet URL
-	parsedURL, err := url.ParseRequestURI(hyperfleetURL)
-	if err != nil {
-		logger.Error("invalid hyperfleet URL", "url", hyperfleetURL, "error", err)
-		return fmt.Errorf("invalid hyperfleet URL: %w", err)
+	if postgresDSN == "" {
+		postgresDSN = os.Getenv("POSTGRES_DSN")
 	}
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		logger.Error("hyperfleet URL must have http or https scheme", "url", hyperfleetURL, "scheme", parsedURL.Scheme)
-		return fmt.Errorf("hyperfleet URL must have http or https scheme, got: %s", parsedURL.Scheme)
+	if postgresDSN == "" {
+		return fmt.Errorf("--postgres-dsn or POSTGRES_DSN is required")
 	}
-	cfg.Hyperfleet.BaseURL = hyperfleetURL
+	cfg.DB.DSN = postgresDSN
 
+	cfg.Regional.OIDCIssuerBaseURL = oidcIssuerBaseURL
 	cfg.AllowedAccounts = parseAllowedAccounts(allowedAccounts)
 	cfg.Server.APIPort = apiPort
 	cfg.Server.HealthPort = healthPort
 	cfg.Server.MetricsPort = metricsPort
 
-	// Set DynamoDB region from flag if provided
+	// Authz DynamoDB config
 	if dynamodbRegion != "" {
 		cfg.Authz.AWSRegion = dynamodbRegion
-		logger.Info("using DynamoDB region from flag", "region", dynamodbRegion)
+	} else {
+		cfg.Authz.AWSRegion = awsCfg.Region
 	}
-
-	// Set DynamoDB table name prefix
 	if dynamodbPrefix != "" {
 		cfg.Authz.AccountsTableName = dynamodbPrefix + "-authz-accounts"
 		cfg.Authz.AdminsTableName = dynamodbPrefix + "-authz-admins"
 		cfg.Authz.GroupsTableName = dynamodbPrefix + "-authz-groups"
 		cfg.Authz.MembersTableName = dynamodbPrefix + "-authz-group-members"
-		logger.Info("using DynamoDB table prefix", "prefix", dynamodbPrefix)
 	}
-
-	// Authz config from environment variables (for local development)
 	if endpoint := os.Getenv("DYNAMODB_ENDPOINT"); endpoint != "" {
 		cfg.Authz.DynamoDBEndpoint = endpoint
-		logger.Info("using custom DynamoDB endpoint", "endpoint", endpoint)
+		logger.Info("using custom DynamoDB endpoint for authz", "endpoint", endpoint)
 	}
 	if endpoint := os.Getenv("CEDAR_AGENT_ENDPOINT"); endpoint != "" {
 		cfg.Authz.CedarAgentEndpoint = endpoint
@@ -131,11 +131,13 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// ZOA configuration from environment variables
 	if os.Getenv("ZOA_ENABLED") == "true" {
 		cfg.Zoa.Enabled = true
-		cfg.Zoa.AWSRegion = dynamodbRegion
+		if dynamodbRegion != "" {
+			cfg.Zoa.AWSRegion = dynamodbRegion
+		} else {
+			cfg.Zoa.AWSRegion = awsCfg.Region
+		}
 		if table := os.Getenv("ZOA_TABLE_NAME"); table != "" {
 			cfg.Zoa.TableName = table
-		} else if dynamodbPrefix != "" {
-			cfg.Zoa.TableName = dynamodbPrefix + "-zoa-executions"
 		}
 		if bucket := os.Getenv("ZOA_BUCKET_NAME"); bucket != "" {
 			cfg.Zoa.BucketName = bucket
@@ -163,8 +165,21 @@ func runServe(cmd *cobra.Command, args []string) error {
 		)
 	}
 
+	// Create hyperfleet DB client (Postgres via pgruntime)
+	bucketCount := 1
+	if s := os.Getenv("BUCKET_COUNT"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			bucketCount = n
+		}
+	}
+	dbClient, err := hyperfleetdb.NewClient(context.Background(), cfg.DB.DSN, bucketCount, logger)
+	if err != nil {
+		return fmt.Errorf("failed to create hyperfleetdb client: %w", err)
+	}
+	defer dbClient.Close()
+
 	// Create server
-	srv, err := server.New(cfg, logger)
+	srv, err := server.New(cfg, dbClient, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
@@ -178,9 +193,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		"api_port", cfg.Server.APIPort,
 		"health_port", cfg.Server.HealthPort,
 		"metrics_port", cfg.Server.MetricsPort,
-		"maestro_url", cfg.Maestro.BaseURL,
-		"maestro_grpc_url", cfg.Maestro.GRPCBaseURL,
-		"hyperfleet_url", cfg.Hyperfleet.BaseURL,
+		"aws_region", awsCfg.Region,
 		"allowed_accounts_count", len(cfg.AllowedAccounts),
 	)
 
