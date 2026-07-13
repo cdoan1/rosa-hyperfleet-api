@@ -38,7 +38,7 @@ WORKDIR /app
 
 COPY --from=builder /app/rosa-regional-platform-api /app/rosa-regional-platform-api
 
-EXPOSE 8000 8080 9090
+EXPOSE 8000 8081 9090
 
 USER 1001
 
