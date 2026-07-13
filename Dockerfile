@@ -12,6 +12,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -buildvcs=false \
     -ldflags="-w -s" \
     -o rosa-regional-platform-api \
     ./cmd/rosa-regional-platform-api
