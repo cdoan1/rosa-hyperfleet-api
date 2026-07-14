@@ -1,5 +1,5 @@
 # Build stage
-FROM registry.access.redhat.com/ubi9/go-toolset:1.26 AS builder
+FROM registry.access.redhat.com/ubi9/go-toolset:1.26.4-1783442369 AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     ./cmd/rosa-regional-platform-api
 
 # Runtime stage
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1782797275
 
 ARG VERSION=0.0.1
 ARG RELEASE=1
