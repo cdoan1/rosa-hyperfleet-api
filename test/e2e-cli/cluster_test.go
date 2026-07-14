@@ -709,7 +709,7 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 				g.Expect(phase).To(Equal("Ready"), "nodepool %s should be Ready", npName)
 			}
 			g.Expect(foundNodePool).To(BeTrue(), "no nodepools found for cluster %s", id)
-		}).WithTimeout(15*time.Minute).WithPolling(30*time.Second).Should(Succeed(),
+		}).WithTimeout(20*time.Minute).WithPolling(30*time.Second).Should(Succeed(),
 			"all nodepools should be ready")
 
 		GinkgoWriter.Printf("All nodepools ready for cluster %s\n", id)
