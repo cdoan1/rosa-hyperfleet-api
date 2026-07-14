@@ -1,41 +1,47 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM registry.access.redhat.com/ubi9/go-toolset:1.26.4-1783442369 AS builder
 
-# Build arguments for OS and architecture support
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates
-
-# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
 
-# Build the binary
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -buildvcs=false \
     -ldflags="-w -s" \
     -o rosa-regional-platform-api \
     ./cmd/rosa-regional-platform-api
 
 # Runtime stage
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1782797275
+
+ARG VERSION=0.0.1
+ARG RELEASE=1
+
+LABEL name="rosa-hyperfleet-api" \
+      vendor="Red Hat, Inc." \
+      version="${VERSION}" \
+      release="${RELEASE}" \
+      summary="ROSA Hyperfleet platform API" \
+      description="ROSA Hyperfleet platform API service" \
+      io.k8s.display-name="rosa-hyperfleet-api" \
+      io.k8s.description="ROSA Hyperfleet platform API service" \
+      com.redhat.component="rosa-hyperfleet-api-container" \
+      distribution-scope="public" \
+      url="https://github.com/openshift-online/rosa-hyperfleet-api"
 
 WORKDIR /app
 
-# Copy the binary from builder
 COPY --from=builder /app/rosa-regional-platform-api /app/rosa-regional-platform-api
 
-# Expose ports
-EXPOSE 8000 8080 9090
+EXPOSE 8000 8081 9090
 
-# Run as non-root user
-USER nonroot:nonroot
+USER 65534:65534
 
 ENTRYPOINT ["/app/rosa-regional-platform-api"]
 CMD ["serve"]
