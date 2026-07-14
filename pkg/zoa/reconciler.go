@@ -105,11 +105,6 @@ func (r *Reconciler) reconcileExecution(ctx context.Context, exec *Execution) {
 
 	result := r.parseManifestStatus(hfm, exec.ExecutionID)
 
-	if result.fullyCompleted() {
-		r.handleCompletion(ctx, exec, result)
-		return
-	}
-
 	if result.applied && exec.Status == StatusPending {
 		if err := r.store.UpdateStatus(ctx, exec.ExecutionID, StatusRunning, "", 0); err != nil {
 			r.logger.Error("failed to update execution status to running",
@@ -122,6 +117,12 @@ func (r *Reconciler) reconcileExecution(ctx context.Context, exec *Execution) {
 			"execution_id", exec.ExecutionID,
 			"status", "running",
 		)
+		return
+	}
+
+	if result.fullyCompleted() {
+		r.handleCompletion(ctx, exec, result)
+		return
 	}
 }
 
@@ -371,12 +372,12 @@ func (r *Reconciler) parseManifestStatus(hfm *hyperfleetv1alpha1.Manifest, execI
 		}
 	}
 
-	if result.taCompleted() || result.uploadCompleted() {
-		return result
-	}
-
 	if hfm.Status.Phase == hyperfleetv1alpha1.ManifestPhaseApplied {
 		result.applied = true
+	}
+
+	if result.taCompleted() || result.uploadCompleted() {
+		return result
 	}
 
 	return result
