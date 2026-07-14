@@ -41,7 +41,7 @@ COPY --from=builder /app/rosa-regional-platform-api /app/rosa-regional-platform-
 
 EXPOSE 8000 8081 9090
 
-USER 1001
+USER 65534:65534
 
 ENTRYPOINT ["/app/rosa-regional-platform-api"]
 CMD ["serve"]
