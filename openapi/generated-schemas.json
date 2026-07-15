@@ -1,0 +1,445 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "OpenAPI schema for ROSA Regional Platform API generated from Go types with markers\n\nFields marked with +k8s:openapi-gen=false are excluded from this schema.",
+    "title": "ROSA Regional Platform API",
+    "version": "v2alpha1"
+  },
+  "paths": {},
+  "definitions": {
+    "APIServerNetworkConfiguration": {
+      "type": "object"
+    },
+    "Cluster": {
+      "description": "Cluster represents a HyperFleet managed OpenShift cluster\n+kubebuilder:object:root=true\n+kubebuilder:subresource:status\n+kubebuilder:resource:scope=Namespaced",
+      "type": "object",
+      "required": [
+        "spec"
+      ],
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/ClusterSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/ClusterStatus"
+        }
+      }
+    },
+    "ClusterAuthentication": {
+      "type": "object"
+    },
+    "ClusterConfiguration": {
+      "description": "ClusterConfiguration specifies configuration for individual OCP components in the cluster.\nThis is a HyperFleet-owned mirror of hypershiftv1beta1.ClusterConfiguration that allows\nus to add granular markers to nested fields like kubelet config.",
+      "type": "object",
+      "properties": {
+        "kubelet": {
+          "description": "kubelet contains the configuration for kubelet on nodes.\nThis is where we can add granular control over kubelet fields.\n+hyperfleet:write-mode=service-set",
+          "$ref": "#/definitions/KubeletConfig"
+        },
+        "machineConfig": {
+          "description": "machineConfig contains the configuration for machine-level settings (kernel params, systemd, files).\nGranular markers allow safe subset exposure while hiding dangerous operations.\n+hyperfleet:write-mode=service-set",
+          "$ref": "#/definitions/MachineConfigSpec"
+        }
+      }
+    },
+    "ClusterList": {
+      "description": "ClusterList contains a list of Clusters\n+kubebuilder:object:root=true",
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "ClusterReference": {
+      "description": "ClusterReference identifies the parent cluster",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "description": "Name is the name of the Cluster resource\n+kubebuilder:validation:Required",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace is the namespace of the Cluster resource\nIf empty, defaults to the same namespace as this NodePool",
+          "type": "string"
+        }
+      }
+    },
+    "ClusterSpec": {
+      "description": "ClusterSpec defines the desired state of a Cluster",
+      "type": "object",
+      "required": [
+        "hostedCluster"
+      ],
+      "properties": {
+        "deleteProtection": {
+          "description": "DeleteProtection prevents accidental deletion when enabled\n+hyperfleet:write-mode=mutable",
+          "type": "boolean"
+        },
+        "displayName": {
+          "description": "DisplayName is a human-readable name for the cluster\n+hyperfleet:write-mode=mutable\n+kubebuilder:validation:MaxLength=256",
+          "type": "string"
+        },
+        "expirationTimestamp": {
+          "description": "ExpirationTimestamp marks when this cluster should be automatically deleted\n+hyperfleet:write-mode=mutable",
+          "type": "object"
+        },
+        "hostedCluster": {
+          "description": "HostedCluster contains the full HyperShift HostedCluster configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)\nuntil explicitly reviewed and exposed\n+kubebuilder:validation:Required",
+          "$ref": "#/definitions/HostedClusterSpecPassthrough"
+        },
+        "properties": {
+          "description": "Properties are arbitrary key-value pairs for customer metadata\n+hyperfleet:write-mode=mutable",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "description": "Tags are customer-defined labels for organizational purposes\nThis is a TechPreview feature\n+hyperfleet:write-mode=mutable\n+openshift:enable:FeatureGate=HyperFleetAutoScaling",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ClusterStatus": {
+      "description": "ClusterStatus defines the observed state of a Cluster",
+      "type": "object",
+      "properties": {
+        "apiEndpoint": {
+          "description": "APIEndpoint is the cluster API server endpoint",
+          "type": "string"
+        },
+        "conditions": {
+          "description": "Conditions represent detailed cluster status",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "consoleUrl": {
+          "description": "ConsoleURL is the web console URL",
+          "type": "string"
+        },
+        "provisionStartTime": {
+          "description": "ProvisionStartTime is when provisioning began",
+          "type": "object"
+        },
+        "readyTime": {
+          "description": "ReadyTime is when the cluster became ready",
+          "type": "object"
+        },
+        "state": {
+          "description": "State represents the high-level cluster state\n+kubebuilder:validation:Enum=pending;provisioning;ready;degraded;deleting;failed",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version is the observed OpenShift version",
+          "type": "string"
+        }
+      }
+    },
+    "FeatureGateConfiguration": {
+      "type": "object"
+    },
+    "FileSpec": {
+      "description": "FileSpec represents a file to write to nodes.",
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "contents": {
+          "description": "contents is the file contents",
+          "type": "string"
+        },
+        "group": {
+          "description": "group is the file owner group",
+          "type": "string"
+        },
+        "mode": {
+          "description": "mode is the file permissions (e.g., 0644)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "overwrite": {
+          "description": "overwrite specifies whether to overwrite existing files",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "path is the absolute path where the file should be written",
+          "type": "string"
+        },
+        "user": {
+          "description": "user is the file owner user",
+          "type": "string"
+        }
+      }
+    },
+    "HostedClusterSpecPassthrough": {
+      "description": "HostedClusterSpecPassthrough mirrors HostedClusterSpec from upstream HyperShift",
+      "type": "object"
+    },
+    "ImageConfiguration": {
+      "type": "object"
+    },
+    "IngressConfiguration": {
+      "type": "object"
+    },
+    "KubeletConfig": {
+      "description": "KubeletConfig specifies kubelet configuration.\nThis is a HyperFleet-owned type that mirrors hypershiftv1beta1.KubeletConfig\nwith granular markers for customer control.",
+      "type": "object",
+      "properties": {
+        "containerLogMaxFiles": {
+          "description": "containerLogMaxFiles is the maximum number of container log files.\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "containerLogMaxSize": {
+          "description": "containerLogMaxSize is the maximum size of container log file before it is rotated.\n+hyperfleet:write-mode=mutable",
+          "type": "string"
+        },
+        "imageGCHighThresholdPercent": {
+          "description": "imageGCHighThresholdPercent is the disk usage percent triggering image GC.\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "imageGCLowThresholdPercent": {
+          "description": "imageGCLowThresholdPercent is the disk usage percent to gc to.\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "imageMinimumGCAge": {
+          "description": "imageMinimumGCAge is the minimum age for an unused image before it is garbage collected.\n+hyperfleet:write-mode=mutable",
+          "type": "object"
+        },
+        "kubeReserved": {
+          "description": "kubeReserved specifies resources reserved for Kubernetes system components.\n+hyperfleet:write-mode=immutable",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "maxPods": {
+          "description": "maxPods is the maximum number of pods per node.\nCustomers can set this to optimize for high-density workloads.\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "podPidsLimit": {
+          "description": "podPidsLimit is the maximum number of PIDs allowed per pod.\nCustomers can increase this for applications that spawn many processes.\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int64"
+        },
+        "registryBurst": {
+          "description": "registryBurst is the maximum size of bursty pulls, temporarily allows pulls to burst.\n+openshift:enable:FeatureGate=HyperFleetKubeletAdvanced\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "registryPullQPS": {
+          "description": "registryPullQPS is the limit of registry pulls per second.\n+openshift:enable:FeatureGate=HyperFleetKubeletAdvanced\n+hyperfleet:write-mode=mutable",
+          "type": "integer",
+          "format": "int32"
+        },
+        "serializeImagePulls": {
+          "description": "serializeImagePulls when enabled, tells kubelet to pull images one at a time.\nTech preview feature for optimizing image pull performance.\n+openshift:enable:FeatureGate=HyperFleetKubeletAdvanced\n+hyperfleet:write-mode=mutable",
+          "type": "boolean"
+        },
+        "streamingConnectionIdleTimeout": {
+          "description": "streamingConnectionIdleTimeout is the maximum time a streaming connection can be idle.\n+hyperfleet:write-mode=mutable",
+          "type": "object"
+        },
+        "systemReserved": {
+          "description": "systemReserved specifies resources reserved for system daemons.\nCustomers can set this on cluster creation but cannot change it later.\n+hyperfleet:write-mode=immutable",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "MachineConfigSpec": {
+      "description": "MachineConfigSpec specifies machine-level configuration.\nThis controls kernel parameters, systemd units, and file writes.\nMost fields are platform-managed for security and stability.",
+      "type": "object",
+      "properties": {
+        "allowedKernelArguments": {
+          "description": "allowedKernelArguments specifies kernel parameters customers can request.\nThis is a WHITELIST approach - customers can only request known-safe parameters.\nPlatform validates against an allowlist and applies approved parameters.\nTech Preview feature requiring explicit enablement.\n+openshift:enable:FeatureGate=HyperFleetMachineConfig\n+hyperfleet:write-mode=immutable",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fips": {
+          "description": "fips enables FIPS mode on nodes.\nImmutable - must be set at cluster creation, cannot be changed.\n+hyperfleet:write-mode=immutable",
+          "type": "boolean"
+        }
+      }
+    },
+    "NetworkConfiguration": {
+      "type": "object"
+    },
+    "NodePool": {
+      "description": "NodePool represents a HyperFleet managed NodePool for a cluster\n+kubebuilder:object:root=true\n+kubebuilder:subresource:status\n+kubebuilder:resource:scope=Namespaced",
+      "type": "object",
+      "required": [
+        "spec"
+      ],
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/NodePoolSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/NodePoolStatus"
+        }
+      }
+    },
+    "NodePoolList": {
+      "description": "NodePoolList contains a list of NodePools\n+kubebuilder:object:root=true",
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "NodePoolSpec": {
+      "description": "NodePoolSpec defines the desired state of a NodePool",
+      "type": "object",
+      "required": [
+        "clusterRef",
+        "nodePool"
+      ],
+      "properties": {
+        "autoRepair": {
+          "description": "AutoRepair enables automatic repair of unhealthy nodes\n+hyperfleet:write-mode=mutable",
+          "type": "boolean"
+        },
+        "clusterRef": {
+          "description": "ClusterRef references the parent Cluster\n+kubebuilder:validation:Required",
+          "$ref": "#/definitions/ClusterReference"
+        },
+        "displayName": {
+          "description": "DisplayName is a human-readable name for the node pool\n+hyperfleet:write-mode=mutable",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Labels to apply to nodes in this pool\n+hyperfleet:write-mode=mutable",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "nodePool": {
+          "description": "NodePool contains the full HyperShift NodePool configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)\n+kubebuilder:validation:Required",
+          "$ref": "#/definitions/NodePoolSpecPassthrough"
+        }
+      }
+    },
+    "NodePoolSpecPassthrough": {
+      "description": "NodePoolSpecPassthrough mirrors NodePoolSpec from upstream HyperShift",
+      "type": "object"
+    },
+    "NodePoolStatus": {
+      "description": "NodePoolStatus defines the observed state of a NodePool",
+      "type": "object",
+      "properties": {
+        "availableReplicas": {
+          "description": "AvailableReplicas is the number of available nodes",
+          "type": "integer",
+          "format": "int32"
+        },
+        "conditions": {
+          "description": "Conditions represent detailed node pool status",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "readyReplicas": {
+          "description": "ReadyReplicas is the number of ready nodes",
+          "type": "integer",
+          "format": "int32"
+        },
+        "replicas": {
+          "description": "Replicas is the current number of nodes",
+          "type": "integer",
+          "format": "int32"
+        },
+        "state": {
+          "description": "State represents the high-level node pool state\n+kubebuilder:validation:Enum=pending;scaling;ready;degraded;deleting;failed",
+          "type": "string"
+        }
+      }
+    },
+    "OAuthConfiguration": {
+      "type": "object"
+    },
+    "ProxyConfiguration": {
+      "type": "object"
+    },
+    "SchedulerConfiguration": {
+      "type": "object"
+    },
+    "SystemdDropin": {
+      "description": "SystemdDropin represents a systemd drop-in configuration.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "contents": {
+          "description": "contents is the drop-in file contents",
+          "type": "string"
+        },
+        "name": {
+          "description": "name is the name of the drop-in file",
+          "type": "string"
+        }
+      }
+    },
+    "SystemdUnit": {
+      "description": "SystemdUnit represents a systemd unit configuration.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "contents": {
+          "description": "contents is the full systemd unit file contents",
+          "type": "string"
+        },
+        "dropins": {
+          "description": "dropins are drop-in configurations for the unit",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "enabled": {
+          "description": "enabled specifies whether the unit is enabled",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "name is the name of the systemd unit (e.g., \"custom.service\")",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

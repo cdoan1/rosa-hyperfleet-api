@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-verify get-hypershift-version
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-openapi codegen-verify get-hypershift-version
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -359,6 +359,7 @@ HYPERSHIFT_TYPES ?= HostedClusterSpec,NodePoolSpec
 codegen-install-tools:
 	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/passthrough-gen@$(CODEGEN_TOOLS_VERSION)
 	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/marker-scanner@$(CODEGEN_TOOLS_VERSION)
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/openapi-gen@$(CODEGEN_TOOLS_VERSION)
 
 codegen-passthrough: codegen-install-tools
 	@echo "Generating passthrough types from $(HYPERSHIFT_IMPORT_PATH)..."
@@ -378,6 +379,16 @@ codegen-registry: codegen-install-tools
 	bin/marker-scanner \
 		--input-dirs=api/v2alpha1 \
 		--output-file=internal/codegen/registry/field_metadata.go
+
+codegen-openapi: codegen-install-tools
+	@echo "Generating OpenAPI schemas from api/v2alpha1/..."
+	bin/openapi-gen \
+		--input-dirs=api/v2alpha1 \
+		--output-file=openapi/generated-schemas.json \
+		--title="ROSA Regional Platform API" \
+		--version=v2alpha1
+	@echo "Merging generated schemas into openapi/openapi.yaml..."
+	hack/merge-openapi.sh openapi/generated-schemas.json openapi/openapi.yaml
 
 codegen-verify:
 	@echo "Verifying codegen packages compile..."

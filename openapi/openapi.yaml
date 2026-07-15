@@ -6,11 +6,9 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
-
 servers:
   - url: /api/v0
     description: API v0
-
 paths:
   /management_clusters:
     post:
@@ -52,7 +50,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
     get:
       summary: List all management clusters
       description: |
@@ -96,7 +93,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /management_clusters/{id}:
     get:
       summary: Get a management cluster by ID
@@ -138,7 +134,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /resource_bundles:
     get:
       summary: List all resource bundles
@@ -208,7 +203,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /work:
     post:
       summary: Create manifestwork for a cluster
@@ -267,7 +261,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Cluster Management Endpoints
   /clusters:
     get:
@@ -311,7 +304,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
     post:
       summary: Create cluster
       description: |
@@ -353,7 +345,6 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /clusters/{id}:
     parameters:
       - name: id
@@ -362,7 +353,6 @@ paths:
         schema:
           type: string
         description: Cluster ID
-
     get:
       summary: Get cluster details
       description: Retrieve cluster details (user must own the cluster)
@@ -386,7 +376,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
     patch:
       summary: Update cluster
       description: Partially update cluster (user must own the cluster)
@@ -416,7 +405,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
     put:
       summary: Update cluster (deprecated)
       description: Update cluster (user must own the cluster). Deprecated - use PATCH instead for partial updates.
@@ -447,7 +435,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
     delete:
       summary: Delete cluster
       description: Delete cluster (user must own the cluster)
@@ -483,7 +470,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /clusters/{id}/statuses:
     parameters:
       - name: id
@@ -492,7 +478,6 @@ paths:
         schema:
           type: string
         description: Cluster ID
-
     get:
       summary: Get cluster statuses
       description: Retrieve cluster status and controller statuses (user must own the cluster)
@@ -516,7 +501,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   # NodePool Management Endpoints
   /nodepools:
     get:
@@ -559,7 +543,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
     post:
       summary: Create nodepool
       description: Create a new nodepool for the authenticated user
@@ -589,7 +572,6 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /nodepools/{id}:
     parameters:
       - name: id
@@ -598,7 +580,6 @@ paths:
         schema:
           type: string
         description: NodePool ID
-
     get:
       summary: Get nodepool details
       description: Retrieve nodepool details (user must own the cluster)
@@ -622,7 +603,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
     put:
       summary: Update nodepool
       description: Update nodepool (user must own the cluster)
@@ -652,7 +632,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
     delete:
       summary: Delete nodepool
       description: Delete nodepool (user must own the cluster)
@@ -681,7 +660,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /nodepools/{id}/status:
     parameters:
       - name: id
@@ -690,7 +668,6 @@ paths:
         schema:
           type: string
         description: NodePool ID
-
     get:
       summary: Get nodepool status
       description: Retrieve nodepool status (user must own the cluster)
@@ -714,7 +691,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /live:
     get:
       summary: Liveness probe
@@ -729,7 +705,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-
   /ready:
     get:
       summary: Readiness probe
@@ -750,7 +725,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-
   # Authorization - Account Management
   /accounts:
     post:
@@ -826,7 +800,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /accounts/{id}:
     get:
       summary: Get an account
@@ -899,7 +872,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Authorization - Check
   /authz/check:
     post:
@@ -941,7 +913,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Authorization - Policy Management
   /authz/policies:
     post:
@@ -1023,7 +994,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /authz/policies/{id}:
     get:
       summary: Get a policy
@@ -1153,7 +1123,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Authorization - Group Management
   /authz/groups:
     post:
@@ -1238,7 +1207,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /authz/groups/{id}:
     get:
       summary: Get a group
@@ -1316,7 +1284,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /authz/groups/{id}/members:
     get:
       summary: List group members
@@ -1421,7 +1388,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Authorization - Attachment Management
   /authz/attachments:
     post:
@@ -1533,7 +1499,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /authz/attachments/{id}:
     delete:
       summary: Delete an attachment
@@ -1572,7 +1537,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   # Authorization - Admin Management
   /authz/admins:
     post:
@@ -1659,7 +1623,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /authz/admins/{arn}:
     delete:
       summary: Remove an admin
@@ -1695,7 +1658,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
 components:
   schemas:
     ManagementClusterRequest:
@@ -1715,7 +1677,6 @@ components:
           description: Key-value labels for the management cluster
           additionalProperties:
             type: string
-
     ManagementCluster:
       type: object
       description: A management cluster (passthrough from Maestro consumer)
@@ -1751,7 +1712,6 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
-
     ManagementClusterList:
       type: object
       description: Paginated list of management clusters
@@ -1779,7 +1739,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ManagementCluster'
-
     ResourceBundle:
       type: object
       description: A resource bundle containing manifests for deployment
@@ -1841,7 +1800,6 @@ components:
         status:
           type: object
           description: Status of the resource bundle
-
     ResourceBundleList:
       type: object
       description: Paginated list of resource bundles
@@ -1869,7 +1827,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ResourceBundle'
-
     WorkRequest:
       type: object
       description: Request body for creating manifestwork
@@ -1886,7 +1843,6 @@ components:
             Payload data to be passed to Maestro gRPC for creating the manifestwork.
             This should contain the ManifestWork specification including manifests.
           additionalProperties: true
-
     Work:
       type: object
       description: A manifestwork resource created for a cluster
@@ -1925,7 +1881,6 @@ components:
         status:
           type: object
           description: Status of the manifestwork
-
     Error:
       type: object
       description: Error response
@@ -1952,7 +1907,6 @@ components:
         operation_id:
           type: string
           description: Request operation ID for tracing
-
     HealthStatus:
       type: object
       description: Health check response
@@ -1961,7 +1915,6 @@ components:
           type: string
           enum: [ok, degraded, unavailable]
           description: Health status
-
     # Authorization Schemas
     EnableAccountRequest:
       type: object
@@ -1976,7 +1929,6 @@ components:
           type: boolean
           description: If true, account bypasses all authorization checks
           default: false
-
     Account:
       type: object
       description: An enabled account
@@ -2002,7 +1954,6 @@ components:
         createdBy:
           type: string
           description: ARN of who enabled the account
-
     AccountList:
       type: object
       description: List of accounts
@@ -2021,7 +1972,6 @@ components:
         total:
           type: integer
           description: Total number of accounts
-
     CheckAuthorizationRequest:
       type: object
       description: Request body for checking authorization
@@ -2048,7 +1998,6 @@ components:
           description: Tags on the resource
           additionalProperties:
             type: string
-
     CheckAuthorizationResponse:
       type: object
       description: Authorization decision response
@@ -2066,7 +2015,6 @@ components:
         reason:
           type: string
           description: Reason for the decision
-
     CreatePolicyRequest:
       type: object
       description: Request body for creating a policy
@@ -2085,7 +2033,6 @@ components:
           maxLength: 1024
         policy:
           $ref: '#/components/schemas/V0Policy'
-
     UpdatePolicyRequest:
       type: object
       description: Request body for updating a policy
@@ -2101,7 +2048,6 @@ components:
           maxLength: 1024
         policy:
           $ref: '#/components/schemas/V0Policy'
-
     V0Policy:
       type: object
       description: IAM-like policy in v0 format
@@ -2119,7 +2065,6 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/PolicyStatement'
-
     PolicyStatement:
       type: object
       description: A single statement in a policy
@@ -2150,7 +2095,6 @@ components:
           description: Optional conditions (operator -> key -> value)
           additionalProperties:
             $ref: '#/components/schemas/PolicyCondition'
-
     PolicyCondition:
       type: object
       description: Condition key-value pairs
@@ -2162,7 +2106,6 @@ components:
           - type: array
             items:
               type: string
-
     Policy:
       type: object
       description: A policy template
@@ -2201,7 +2144,6 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
-
     PolicyList:
       type: object
       description: Paginated list of policies
@@ -2225,7 +2167,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Policy'
-
     CreateGroupRequest:
       type: object
       description: Request body for creating a group
@@ -2241,7 +2182,6 @@ components:
           type: string
           description: Optional group description
           maxLength: 1024
-
     Group:
       type: object
       description: A group of users
@@ -2275,7 +2215,6 @@ components:
           type: string
           format: date-time
           description: Creation timestamp
-
     GroupList:
       type: object
       description: Paginated list of groups
@@ -2299,7 +2238,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Group'
-
     GroupMember:
       type: object
       description: A member of a group
@@ -2314,7 +2252,6 @@ components:
           type: string
           format: date-time
           description: When the member was added
-
     GroupMemberList:
       type: object
       description: Paginated list of group members
@@ -2338,7 +2275,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GroupMember'
-
     UpdateGroupMembersRequest:
       type: object
       description: Request body for updating group members
@@ -2353,7 +2289,6 @@ components:
           description: ARNs to remove from the group
           items:
             type: string
-
     CreateAttachmentRequest:
       type: object
       description: Request body for creating an attachment
@@ -2373,7 +2308,6 @@ components:
         targetId:
           type: string
           description: Target ID (ARN for user, groupId for group)
-
     Attachment:
       type: object
       description: A policy attachment to a user or group
@@ -2417,7 +2351,6 @@ components:
           type: string
           format: date-time
           description: Creation timestamp
-
     AttachmentList:
       type: object
       description: Paginated list of attachments
@@ -2441,7 +2374,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Attachment'
-
     AddAdminRequest:
       type: object
       description: Request body for adding an admin
@@ -2451,7 +2383,6 @@ components:
         principalArn:
           type: string
           description: ARN of the principal to make admin
-
     Admin:
       type: object
       description: An admin for the account
@@ -2469,7 +2400,6 @@ components:
         createdBy:
           type: string
           description: ARN of who added this admin
-
     AdminList:
       type: object
       description: Paginated list of admins
@@ -2493,7 +2423,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Admin'
-
     # Cluster Schemas
     Cluster:
       type: object
@@ -2530,23 +2459,39 @@ components:
           description: Resource version for optimistic concurrency control
         spec:
           type: object
-          description: |
-            Cluster specification. When a cluster is created, the response includes
-            auto-populated fields like cloudUrl and placement.
+          description: Cluster specification
+          additionalProperties: true
           properties:
+            deleteProtection:
+              description: DeleteProtection prevents accidental deletion when enabled
+              type: boolean
+            displayName:
+              description: DisplayName is a human-readable name for the cluster
+              type: string
+            expirationTimestamp:
+              description: ExpirationTimestamp marks when this cluster should be automatically deleted
+              type: object
+            properties:
+              description: Properties are arbitrary key-value pairs for customer metadata
+              type: object
+              additionalProperties:
+                type: string
+            tags:
+              description: |-
+                Tags are customer-defined labels for organizational purposes
+                This is a TechPreview feature
+              type: object
+              additionalProperties:
+                type: string
             cloudUrl:
               type: string
-              description: |
-                CloudFront URL with cluster ID appended (format: {cloudfront_url}/{cluster_id}).
-                This field is automatically added to the response when creating a cluster.
+              readOnly: true
+              description: CloudFront URL with cluster ID (auto-populated by server)
               example: https://doku78iof5s87.cloudfront.net/cluster-123
             placement:
               type: string
-              description: |
-                Management cluster name where the cluster is deployed.
-                Auto-populated from the first management cluster if not provided during creation.
+              description: Management cluster name (auto-populated if not provided)
               example: management-cluster-us-east-1
-          additionalProperties: true
         status:
           $ref: '#/components/schemas/ClusterStatusInfo'
         created_at:
@@ -2557,7 +2502,6 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
-
     ClusterCreateRequest:
       type: object
       description: |
@@ -2581,19 +2525,34 @@ components:
           description: Target project ID
         spec:
           type: object
-          description: |
-            Cluster specification. The following fields are auto-populated if not provided:
-            - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
-            - cloudUrl: CloudFront URL (always auto-populated from management cluster)
+          description: Cluster specification
+          additionalProperties: true
           properties:
+            deleteProtection:
+              description: DeleteProtection prevents accidental deletion when enabled
+              type: boolean
+            displayName:
+              description: DisplayName is a human-readable name for the cluster
+              type: string
+            expirationTimestamp:
+              description: ExpirationTimestamp marks when this cluster should be automatically deleted
+              type: object
+            properties:
+              description: Properties are arbitrary key-value pairs for customer metadata
+              type: object
+              additionalProperties:
+                type: string
+            tags:
+              description: |-
+                Tags are customer-defined labels for organizational purposes
+                This is a TechPreview feature
+              type: object
+              additionalProperties:
+                type: string
             placement:
               type: string
-              description: |
-                Management cluster name where the cluster will be deployed.
-                If not provided, will be auto-populated from the first available management cluster.
+              description: Management cluster name (auto-populated if not provided)
               example: management-cluster-us-east-1
-          additionalProperties: true
-
     ClusterUpdateRequest:
       type: object
       description: Request body for updating a cluster
@@ -2602,9 +2561,30 @@ components:
       properties:
         spec:
           type: object
-          description: Cluster specification
+          description: Cluster specification (mutable fields only)
           additionalProperties: true
-
+          properties:
+            deleteProtection:
+              description: DeleteProtection prevents accidental deletion when enabled
+              type: boolean
+            displayName:
+              description: DisplayName is a human-readable name for the cluster
+              type: string
+            expirationTimestamp:
+              description: ExpirationTimestamp marks when this cluster should be automatically deleted
+              type: object
+            properties:
+              description: Properties are arbitrary key-value pairs for customer metadata
+              type: object
+              additionalProperties:
+                type: string
+            tags:
+              description: |-
+                Tags are customer-defined labels for organizational purposes
+                This is a TechPreview feature
+              type: object
+              additionalProperties:
+                type: string
     ClusterStatusInfo:
       type: object
       description: Kubernetes-like aggregated status for clusters
@@ -2632,7 +2612,6 @@ components:
           type: string
           format: date-time
           description: When status was last calculated
-
     Condition:
       type: object
       description: Status condition
@@ -2654,7 +2633,6 @@ components:
         message:
           type: string
           description: Human-readable message
-
     ClusterControllerStatus:
       type: object
       description: Controller-specific status for a cluster
@@ -2686,7 +2664,6 @@ components:
           type: string
           format: date-time
           description: When this controller last updated
-
     ClusterStatusResponse:
       type: object
       description: Response for cluster status endpoint
@@ -2701,7 +2678,6 @@ components:
           description: Individual controller status reports
           items:
             $ref: '#/components/schemas/ClusterControllerStatus'
-
     ClusterList:
       type: object
       description: Paginated list of clusters
@@ -2724,7 +2700,6 @@ components:
         offset:
           type: integer
           description: Number of items skipped
-
     # NodePool Schemas
     NodePool:
       type: object
@@ -2771,7 +2746,6 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
-
     NodePoolCreateRequest:
       type: object
       description: Request body for creating a nodepool
@@ -2791,7 +2765,6 @@ components:
           description: DNS-compatible nodepool name
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
-
     NodePoolUpdateRequest:
       type: object
       description: Request body for updating a nodepool
@@ -2800,31 +2773,36 @@ components:
       properties:
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
-
     NodePoolSpec:
       type: object
       description: NodePool specification defining desired state
+      additionalProperties: true
       properties:
-        replicas:
-          type: integer
-          format: int32
-          description: Number of worker nodes in the pool
-        management:
+        autoRepair:
+          description: AutoRepair enables automatic repair of unhealthy nodes
+          type: boolean
+        clusterRef:
+          description: ClusterReference identifies the parent cluster
           type: object
-          description: Node pool management configuration
-          additionalProperties: true
-        platform:
-          type: object
-          description: Platform-specific configuration
-          additionalProperties: true
-        release:
-          type: object
-          description: Release/version configuration
-          additionalProperties: true
-        nodeDrainTimeout:
+          required:
+            - name
+          properties:
+            name:
+              description: Name is the name of the Cluster resource
+              type: string
+            namespace:
+              description: |-
+                Namespace is the namespace of the Cluster resource
+                If empty, defaults to the same namespace as this NodePool
+              type: string
+        displayName:
+          description: DisplayName is a human-readable name for the node pool
           type: string
-          description: Timeout for draining nodes
-
+        labels:
+          description: Labels to apply to nodes in this pool
+          type: object
+          additionalProperties:
+            type: string
     NodePoolStatusInfo:
       type: object
       description: Kubernetes-like aggregated status for nodepools
@@ -2852,7 +2830,6 @@ components:
           type: string
           format: date-time
           description: When status was last calculated
-
     NodePoolControllerStatus:
       type: object
       description: Controller-specific status for a nodepool
@@ -2884,7 +2861,6 @@ components:
           type: string
           format: date-time
           description: When this controller last updated
-
     NodePoolStatusResponse:
       type: object
       description: Response for nodepool status endpoint
@@ -2899,7 +2875,6 @@ components:
           description: Individual controller status reports
           items:
             $ref: '#/components/schemas/NodePoolControllerStatus'
-
     NodePoolList:
       type: object
       description: Paginated list of nodepools
@@ -2922,7 +2897,6 @@ components:
         offset:
           type: integer
           description: Number of items skipped
-
   responses:
     BadRequest:
       description: Bad request
