@@ -2830,6 +2830,21 @@ components:
     HostedClusterSpecPassthrough:
       description: HostedClusterSpecPassthrough mirrors HostedClusterSpec from upstream HyperShift
       type: object
+      required:
+        - autoNode
+      properties:
+        autoNode:
+          description: |-
+            autoNode specifies the configuration for automatic node provisioning and lifecycle management.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: object
+        configuration:
+          description: |-
+            configuration specifies configuration for individual OCP components in the
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          $ref: '#/components/schemas/ClusterConfiguration'
     ImageConfiguration:
       type: object
     IngressConfiguration:

@@ -194,7 +194,20 @@
     },
     "HostedClusterSpecPassthrough": {
       "description": "HostedClusterSpecPassthrough mirrors HostedClusterSpec from upstream HyperShift",
-      "type": "object"
+      "type": "object",
+      "required": [
+        "autoNode"
+      ],
+      "properties": {
+        "autoNode": {
+          "description": "autoNode specifies the configuration for automatic node provisioning and lifecycle management.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "object"
+        },
+        "configuration": {
+          "description": "configuration specifies configuration for individual OCP components in the\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "$ref": "#/definitions/ClusterConfiguration"
+        }
+      }
     },
     "ImageConfiguration": {
       "type": "object"
