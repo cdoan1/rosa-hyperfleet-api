@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-openapi codegen-verify get-hypershift-version
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-openapi codegen-verify get-hypershift-version swagger-ui-serve swagger-ui-open
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -409,6 +409,18 @@ get-hypershift-version: ## Show current HyperShift version in go.mod
 	else \
 		echo "  Tag: $$TAG"; \
 	fi
+
+swagger-ui-serve: ## Serve Swagger UI locally (requires Python 3)
+	@command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required"; exit 1; }
+	@echo "Swagger UI: http://localhost:8080/openapi/swagger-ui/"
+	@echo "OpenAPI spec: http://localhost:8080/openapi/openapi.yaml"
+	@echo "Press Ctrl+C to stop"
+	@python3 -m http.server 8080 --directory .
+
+swagger-ui-open: ## Open Swagger UI in browser (requires swagger-ui-serve running)
+	@command -v open >/dev/null 2>&1 && open http://localhost:8080/openapi/swagger-ui/ || \
+	command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080/openapi/swagger-ui/ || \
+	echo "Open http://localhost:8080/openapi/swagger-ui/ in your browser"
 
 # All checks
 all: deps fmt vet lint test build
