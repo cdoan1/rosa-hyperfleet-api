@@ -288,6 +288,10 @@
     "writeMode": "mutable"
   },
   {
+    "fieldPath": "spec.cloudUrl",
+    "writeMode": "service-set"
+  },
+  {
     "fieldPath": "spec.creatorARN",
     "writeMode": "service-set",
     "hidden": true
@@ -552,6 +556,10 @@
     "fieldPath": "spec.nodePool.tuningConfig",
     "writeMode": "service-set",
     "hidden": true
+  },
+  {
+    "fieldPath": "spec.placement",
+    "writeMode": "mutable"
   },
   {
     "fieldPath": "spec.properties",

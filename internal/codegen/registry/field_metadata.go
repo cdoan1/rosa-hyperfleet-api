@@ -333,6 +333,10 @@ var FieldRegistry = map[string]FieldMeta{
 		FieldPath: "spec.autoRepair",
 		WriteMode: Mutable,
 	},
+	"spec.cloudUrl": {
+		FieldPath: "spec.cloudUrl",
+		WriteMode: ServiceSet,
+	},
 	"spec.creatorARN": {
 		FieldPath: "spec.creatorARN",
 		WriteMode: ServiceSet,
@@ -598,6 +602,10 @@ var FieldRegistry = map[string]FieldMeta{
 		FieldPath: "spec.nodePool.tuningConfig",
 		WriteMode: ServiceSet,
 		Hidden:    true,
+	},
+	"spec.placement": {
+		FieldPath: "spec.placement",
+		WriteMode: Mutable,
 	},
 	"spec.properties": {
 		FieldPath: "spec.properties",
