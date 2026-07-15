@@ -10,19 +10,24 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/maestro"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
+
+	"github.com/cdoan1/hyperfleet-api-codegen/pkg/featuregate"
+	"github.com/cdoan1/hyperfleet-api-codegen/pkg/validation"
 )
 
 // NodePoolHandler handles nodepool-related HTTP requests
 type NodePoolHandler struct {
-	maestroClient *maestro.Client
-	logger        *slog.Logger
+	maestroClient  *maestro.Client
+	fieldValidator *middleware.FieldValidator
+	logger         *slog.Logger
 }
 
 // NewNodePoolHandler creates a new nodepool handler
-func NewNodePoolHandler(maestroClient *maestro.Client, logger *slog.Logger) *NodePoolHandler {
+func NewNodePoolHandler(maestroClient *maestro.Client, fieldValidator *middleware.FieldValidator, logger *slog.Logger) *NodePoolHandler {
 	return &NodePoolHandler{
-		maestroClient: maestroClient,
-		logger:        logger,
+		maestroClient:  maestroClient,
+		fieldValidator: fieldValidator,
+		logger:         logger,
 	}
 }
 
@@ -89,6 +94,14 @@ func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.fieldValidator != nil {
+		specMap := nodePoolSpecToMap(req.Spec)
+		if err := h.fieldValidator.ValidateCreate(specMap, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
+	}
+
 	h.logger.Info("creating nodepool", "account_id", accountID, "cluster_id", req.ClusterID, "nodepool_name", req.Name)
 
 	nodepool, err := h.maestroClient.CreateNodePool(ctx, accountID, userEmail, &req)
@@ -140,6 +153,14 @@ func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Spec == nil {
 		h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-UPDATE-002", "Missing required field: spec")
 		return
+	}
+
+	if h.fieldValidator != nil {
+		specMap := nodePoolSpecToMap(req.Spec)
+		if err := h.fieldValidator.ValidateUpdate(specMap, nil, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
 	}
 
 	h.logger.Info("updating nodepool", "account_id", accountID, "nodepool_id", nodepoolID)
@@ -214,6 +235,50 @@ func (h *NodePoolHandler) writeJSON(w http.ResponseWriter, status int, data inte
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (h *NodePoolHandler) writeValidationError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	resp := map[string]interface{}{
+		"kind":   "Error",
+		"code":   "NODEPOOLS-MGMT-VALIDATE-001",
+		"reason": "Validation failed",
+	}
+	if valErrs, ok := err.(validation.ValidationErrors); ok {
+		details := make([]map[string]string, 0, len(valErrs))
+		for _, ve := range valErrs {
+			details = append(details, map[string]string{
+				"field":  ve.FieldPath,
+				"reason": ve.Reason,
+			})
+		}
+		resp["details"] = details
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func nodePoolSpecToMap(spec *types.NodePoolSpec) map[string]interface{} {
+	if spec == nil {
+		return nil
+	}
+	m := make(map[string]interface{})
+	if spec.Replicas != 0 {
+		m["replicas"] = spec.Replicas
+	}
+	if spec.NodeDrainTimeout != "" {
+		m["nodeDrainTimeout"] = spec.NodeDrainTimeout
+	}
+	if spec.Management != nil {
+		m["management"] = spec.Management
+	}
+	if spec.Platform != nil {
+		m["platform"] = spec.Platform
+	}
+	if spec.Release != nil {
+		m["release"] = spec.Release
+	}
+	return m
 }
 
 func (h *NodePoolHandler) writeError(w http.ResponseWriter, status int, code, reason string) {

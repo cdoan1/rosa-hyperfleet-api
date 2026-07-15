@@ -578,5 +578,3 @@ func (c *Client) GetNodePoolStatus(ctx context.Context, accountID, nodePoolID st
 	c.logger.Debug("getting nodepool status", "account_id", accountID, "nodepool_id", nodePoolID)
 	return nil, fmt.Errorf("not implemented")
 }
-
-

@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-bump codegen-verify
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -76,11 +76,15 @@ help:
 	@echo "  image-e2e-push-multiarch - Build and push E2E test container (multiarch)"
 	@echo ""
 	@echo "Code Generation:"
-	@echo "  deps           - Download and tidy dependencies"
-	@echo "  generate       - Generate OpenAPI code"
+	@echo "  deps             - Download and tidy dependencies"
+	@echo "  generate         - Generate OpenAPI code"
 	@echo "  generate-swagger - Regenerate swagger-ui.html"
 	@echo ""
-	@echo "  all            - Run all checks (deps, fmt, vet, lint, test, build)"
+	@echo "Codegen Integration:"
+	@echo "  codegen-bump     - Update hyperfleet-api-codegen dependency (CODEGEN_VERSION=v0.1.7)"
+	@echo "  codegen-verify   - Verify codegen-dependent packages compile"
+	@echo ""
+	@echo "  all              - Run all checks (deps, fmt, vet, lint, test, build)"
 
 # Build the binary
 build:
@@ -339,6 +343,19 @@ generate-swagger:
 verify:
 	go mod tidy
 	git diff --exit-code go.mod go.sum
+
+# --- Codegen integration ---
+
+CODEGEN_VERSION ?= v0.1.7
+
+codegen-bump:
+	go get github.com/cdoan1/hyperfleet-api-codegen@$(CODEGEN_VERSION)
+	go mod tidy
+
+codegen-verify:
+	@echo "Verifying codegen dependency compiles..."
+	go build ./pkg/middleware/...
+	go build ./pkg/handlers/...
 
 # All checks
 all: deps fmt vet lint test build

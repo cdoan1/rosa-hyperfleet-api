@@ -12,20 +12,25 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/maestro"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
+
+	"github.com/cdoan1/hyperfleet-api-codegen/pkg/featuregate"
+	"github.com/cdoan1/hyperfleet-api-codegen/pkg/validation"
 )
 
 // ClusterHandler handles cluster-related HTTP requests
 type ClusterHandler struct {
 	hyperfleetClient *hyperfleet.Client
 	maestroClient    *maestro.Client
+	fieldValidator   *middleware.FieldValidator
 	logger           *slog.Logger
 }
 
 // NewClusterHandler creates a new cluster handler
-func NewClusterHandler(hyperfleetClient *hyperfleet.Client, maestroClient *maestro.Client, logger *slog.Logger) *ClusterHandler {
+func NewClusterHandler(hyperfleetClient *hyperfleet.Client, maestroClient *maestro.Client, fieldValidator *middleware.FieldValidator, logger *slog.Logger) *ClusterHandler {
 	return &ClusterHandler{
 		hyperfleetClient: hyperfleetClient,
 		maestroClient:    maestroClient,
+		fieldValidator:   fieldValidator,
 		logger:           logger,
 	}
 }
@@ -91,6 +96,13 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" || req.Spec == nil {
 		h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-CREATE-002", "Missing required fields: name and spec")
 		return
+	}
+
+	if h.fieldValidator != nil {
+		if err := h.fieldValidator.ValidateCreate(req.Spec, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
 	}
 
 	// Get CloudFront URL from the first management cluster before creating the cluster
@@ -211,6 +223,23 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.fieldValidator != nil {
+		existing, err := h.hyperfleetClient.GetCluster(ctx, accountID, clusterID)
+		if err != nil {
+			if hyperfleet.IsNotFound(err) {
+				h.writeError(w, http.StatusNotFound, "CLUSTERS-MGMT-UPDATE-003", "Cluster not found")
+				return
+			}
+			h.logger.Error("failed to get cluster for validation", "error", err)
+			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-UPDATE-005", "Failed to validate update")
+			return
+		}
+		if err := h.fieldValidator.ValidateUpdate(req.Spec, existing.Spec, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
+	}
+
 	h.logger.Info("updating cluster", "account_id", accountID, "cluster_id", clusterID)
 
 	cluster, err := h.hyperfleetClient.UpdateCluster(ctx, accountID, clusterID, &req)
@@ -286,6 +315,27 @@ func (h *ClusterHandler) writeJSON(w http.ResponseWriter, status int, data inter
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (h *ClusterHandler) writeValidationError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	resp := map[string]interface{}{
+		"kind":   "Error",
+		"code":   "CLUSTERS-MGMT-VALIDATE-001",
+		"reason": "Validation failed",
+	}
+	if valErrs, ok := err.(validation.ValidationErrors); ok {
+		details := make([]map[string]string, 0, len(valErrs))
+		for _, ve := range valErrs {
+			details = append(details, map[string]string{
+				"field":  ve.FieldPath,
+				"reason": ve.Reason,
+			})
+		}
+		resp["details"] = details
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *ClusterHandler) writeError(w http.ResponseWriter, status int, code, reason string) {

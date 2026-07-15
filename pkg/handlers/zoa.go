@@ -710,4 +710,3 @@ func (h *ZoaHandler) AuditList(w http.ResponseWriter, r *http.Request) {
 		"total": len(entries),
 	})
 }
-

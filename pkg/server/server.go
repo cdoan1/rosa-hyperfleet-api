@@ -24,13 +24,13 @@ import (
 
 // Server represents the API server
 type Server struct {
-	cfg            *config.Config
-	logger         *slog.Logger
-	apiServer      *http.Server
-	healthServer   *http.Server
-	metricsServer  *http.Server
-	healthHandler  *apphandlers.HealthHandler
-	zoaReconciler  *zoa.Reconciler
+	cfg           *config.Config
+	logger        *slog.Logger
+	apiServer     *http.Server
+	healthServer  *http.Server
+	metricsServer *http.Server
+	healthHandler *apphandlers.HealthHandler
+	zoaReconciler *zoa.Reconciler
 }
 
 // New creates a new Server instance
@@ -49,8 +49,9 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	mgmtClusterHandler := apphandlers.NewManagementClusterHandler(maestroClient, logger)
 	resourceBundleHandler := apphandlers.NewResourceBundleHandler(maestroClient, logger)
 	workHandler := apphandlers.NewWorkHandler(maestroClient, logger)
-	clusterHandler := apphandlers.NewClusterHandler(hyperfleetClient, maestroClient, logger)
-	nodePoolHandler := apphandlers.NewNodePoolHandler(maestroClient, logger)
+	fieldValidator := middleware.NewFieldValidator()
+	clusterHandler := apphandlers.NewClusterHandler(hyperfleetClient, maestroClient, fieldValidator, logger)
+	nodePoolHandler := apphandlers.NewNodePoolHandler(maestroClient, fieldValidator, logger)
 
 	// Create legacy authorization middleware (for non-authz routes)
 	authMiddleware := middleware.NewAuthorization(cfg.AllowedAccounts, logger)
