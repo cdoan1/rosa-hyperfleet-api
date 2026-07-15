@@ -2425,83 +2425,19 @@ components:
             $ref: '#/components/schemas/Admin'
     # Cluster Schemas
     Cluster:
+      description: |-
+        Cluster represents a HyperFleet managed OpenShift cluster
+        +kubebuilder:object:root=true
+        +kubebuilder:subresource:status
+        +kubebuilder:resource:scope=Namespaced
       type: object
-      description: A user cluster resource
       required:
-        - id
-        - name
-        - target_project_id
-        - created_by
-        - generation
-        - resource_version
         - spec
-        - created_at
-        - updated_at
       properties:
-        id:
-          type: string
-          description: Unique identifier for the cluster
-        name:
-          type: string
-          description: Cluster name
-        target_project_id:
-          type: string
-          description: Target project ID
-        created_by:
-          type: string
-          description: Email of the user who created this cluster
-        generation:
-          type: integer
-          format: int64
-          description: Generation number for optimistic concurrency control
-        resource_version:
-          type: string
-          description: Resource version for optimistic concurrency control
         spec:
-          type: object
-          description: Cluster specification
-          additionalProperties: true
-          properties:
-            deleteProtection:
-              description: DeleteProtection prevents accidental deletion when enabled
-              type: boolean
-            displayName:
-              description: DisplayName is a human-readable name for the cluster
-              type: string
-            expirationTimestamp:
-              description: ExpirationTimestamp marks when this cluster should be automatically deleted
-              type: object
-            properties:
-              description: Properties are arbitrary key-value pairs for customer metadata
-              type: object
-              additionalProperties:
-                type: string
-            tags:
-              description: |-
-                Tags are customer-defined labels for organizational purposes
-                This is a TechPreview feature
-              type: object
-              additionalProperties:
-                type: string
-            cloudUrl:
-              type: string
-              readOnly: true
-              description: CloudFront URL with cluster ID (auto-populated by server)
-              example: https://doku78iof5s87.cloudfront.net/cluster-123
-            placement:
-              type: string
-              description: Management cluster name (auto-populated if not provided)
-              example: management-cluster-us-east-1
+          $ref: '#/components/schemas/ClusterSpec'
         status:
-          $ref: '#/components/schemas/ClusterStatusInfo'
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp
+          $ref: '#/components/schemas/ClusterStatus'
     ClusterCreateRequest:
       type: object
       description: |
@@ -2524,35 +2460,9 @@ components:
           type: string
           description: Target project ID
         spec:
-          type: object
-          description: Cluster specification
-          additionalProperties: true
-          properties:
-            deleteProtection:
-              description: DeleteProtection prevents accidental deletion when enabled
-              type: boolean
-            displayName:
-              description: DisplayName is a human-readable name for the cluster
-              type: string
-            expirationTimestamp:
-              description: ExpirationTimestamp marks when this cluster should be automatically deleted
-              type: object
-            properties:
-              description: Properties are arbitrary key-value pairs for customer metadata
-              type: object
-              additionalProperties:
-                type: string
-            tags:
-              description: |-
-                Tags are customer-defined labels for organizational purposes
-                This is a TechPreview feature
-              type: object
-              additionalProperties:
-                type: string
-            placement:
-              type: string
-              description: Management cluster name (auto-populated if not provided)
-              example: management-cluster-us-east-1
+          allOf:
+            - $ref: '#/components/schemas/ClusterSpec'
+          description: Cluster specification (cloudUrl is server-populated and ignored on create)
     ClusterUpdateRequest:
       type: object
       description: Request body for updating a cluster
@@ -2560,31 +2470,9 @@ components:
         - spec
       properties:
         spec:
-          type: object
+          allOf:
+            - $ref: '#/components/schemas/ClusterSpec'
           description: Cluster specification (mutable fields only)
-          additionalProperties: true
-          properties:
-            deleteProtection:
-              description: DeleteProtection prevents accidental deletion when enabled
-              type: boolean
-            displayName:
-              description: DisplayName is a human-readable name for the cluster
-              type: string
-            expirationTimestamp:
-              description: ExpirationTimestamp marks when this cluster should be automatically deleted
-              type: object
-            properties:
-              description: Properties are arbitrary key-value pairs for customer metadata
-              type: object
-              additionalProperties:
-                type: string
-            tags:
-              description: |-
-                Tags are customer-defined labels for organizational purposes
-                This is a TechPreview feature
-              type: object
-              additionalProperties:
-                type: string
     ClusterStatusInfo:
       type: object
       description: Kubernetes-like aggregated status for clusters
@@ -2679,73 +2567,32 @@ components:
           items:
             $ref: '#/components/schemas/ClusterControllerStatus'
     ClusterList:
+      description: |-
+        ClusterList contains a list of Clusters
+        +kubebuilder:object:root=true
       type: object
-      description: Paginated list of clusters
       required:
         - items
-        - total
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Cluster'
-        total:
-          type: integer
-          description: Total number of clusters
-        limit:
-          type: integer
-          description: Number of items per page
-        offset:
-          type: integer
-          description: Number of items skipped
+            type: object
     # NodePool Schemas
     NodePool:
+      description: |-
+        NodePool represents a HyperFleet managed NodePool for a cluster
+        +kubebuilder:object:root=true
+        +kubebuilder:subresource:status
+        +kubebuilder:resource:scope=Namespaced
       type: object
-      description: A nodepool resource
       required:
-        - id
-        - cluster_id
-        - name
-        - created_by
-        - generation
-        - resource_version
         - spec
-        - created_at
-        - updated_at
       properties:
-        id:
-          type: string
-          description: Unique identifier for the nodepool
-        cluster_id:
-          type: string
-          description: Parent cluster ID
-        name:
-          type: string
-          description: NodePool name
-        created_by:
-          type: string
-          description: Email of the user who created this nodepool
-        generation:
-          type: integer
-          format: int64
-          description: Generation number for optimistic concurrency control
-        resource_version:
-          type: string
-          description: Resource version for optimistic concurrency control
         spec:
           $ref: '#/components/schemas/NodePoolSpec'
         status:
-          $ref: '#/components/schemas/NodePoolStatusInfo'
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp
+          $ref: '#/components/schemas/NodePoolStatus'
     NodePoolCreateRequest:
       type: object
       description: Request body for creating a nodepool
@@ -2779,7 +2626,9 @@ components:
       additionalProperties: true
       properties:
         autoRepair:
-          description: AutoRepair enables automatic repair of unhealthy nodes
+          description: |-
+            AutoRepair enables automatic repair of unhealthy nodes
+            +hyperfleet:write-mode=mutable
           type: boolean
         clusterRef:
           description: ClusterReference identifies the parent cluster
@@ -2788,7 +2637,9 @@ components:
             - name
           properties:
             name:
-              description: Name is the name of the Cluster resource
+              description: |-
+                Name is the name of the Cluster resource
+                +kubebuilder:validation:Required
               type: string
             namespace:
               description: |-
@@ -2796,13 +2647,23 @@ components:
                 If empty, defaults to the same namespace as this NodePool
               type: string
         displayName:
-          description: DisplayName is a human-readable name for the node pool
+          description: |-
+            DisplayName is a human-readable name for the node pool
+            +hyperfleet:write-mode=mutable
           type: string
         labels:
-          description: Labels to apply to nodes in this pool
+          description: |-
+            Labels to apply to nodes in this pool
+            +hyperfleet:write-mode=mutable
           type: object
           additionalProperties:
             type: string
+        nodePool:
+          description: |-
+            NodePool contains the full HyperShift NodePool configuration
+            All fields are generated from upstream and have safe defaults (hidden + service-set)
+            +kubebuilder:validation:Required
+          $ref: '#/components/schemas/NodePoolSpecPassthrough'
     NodePoolStatusInfo:
       type: object
       description: Kubernetes-like aggregated status for nodepools
@@ -2876,27 +2737,339 @@ components:
           items:
             $ref: '#/components/schemas/NodePoolControllerStatus'
     NodePoolList:
+      description: |-
+        NodePoolList contains a list of NodePools
+        +kubebuilder:object:root=true
       type: object
-      description: Paginated list of nodepools
       required:
         - items
-        - total
-        - limit
-        - offset
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/NodePool'
-        total:
+            type: object
+    APIServerNetworkConfiguration:
+      type: object
+    ClusterAuthentication:
+      type: object
+    ClusterConfiguration:
+      description: |-
+        ClusterConfiguration specifies configuration for individual OCP components in the cluster.
+        This is a HyperFleet-owned mirror of hypershiftv1beta1.ClusterConfiguration that allows
+        us to add granular markers to nested fields like kubelet config.
+      type: object
+      properties:
+        kubelet:
+          description: |-
+            kubelet contains the configuration for kubelet on nodes.
+            This is where we can add granular control over kubelet fields.
+            +hyperfleet:write-mode=service-set
+          $ref: '#/components/schemas/KubeletConfig'
+        machineConfig:
+          description: |-
+            machineConfig contains the configuration for machine-level settings (kernel params, systemd, files).
+            Granular markers allow safe subset exposure while hiding dangerous operations.
+            +hyperfleet:write-mode=service-set
+          $ref: '#/components/schemas/MachineConfigSpec'
+    ClusterStatus:
+      description: ClusterStatus defines the observed state of a Cluster
+      type: object
+      properties:
+        apiEndpoint:
+          description: APIEndpoint is the cluster API server endpoint
+          type: string
+        conditions:
+          description: Conditions represent detailed cluster status
+          type: array
+          items:
+            type: object
+        consoleUrl:
+          description: ConsoleURL is the web console URL
+          type: string
+        provisionStartTime:
+          description: ProvisionStartTime is when provisioning began
+          type: object
+        readyTime:
+          description: ReadyTime is when the cluster became ready
+          type: object
+        state:
+          description: |-
+            State represents the high-level cluster state
+            +kubebuilder:validation:Enum=pending;provisioning;ready;degraded;deleting;failed
+          type: string
+        version:
+          description: Version is the observed OpenShift version
+          type: string
+    FeatureGateConfiguration:
+      type: object
+    FileSpec:
+      description: FileSpec represents a file to write to nodes.
+      type: object
+      required:
+        - path
+      properties:
+        contents:
+          description: contents is the file contents
+          type: string
+        group:
+          description: group is the file owner group
+          type: string
+        mode:
+          description: mode is the file permissions (e.g., 0644)
           type: integer
-          description: Total number of nodepools
-        limit:
+          format: int32
+        overwrite:
+          description: overwrite specifies whether to overwrite existing files
+          type: boolean
+        path:
+          description: path is the absolute path where the file should be written
+          type: string
+        user:
+          description: user is the file owner user
+          type: string
+    HostedClusterSpecPassthrough:
+      description: HostedClusterSpecPassthrough mirrors HostedClusterSpec from upstream HyperShift
+      type: object
+    ImageConfiguration:
+      type: object
+    IngressConfiguration:
+      type: object
+    KubeletConfig:
+      description: |-
+        KubeletConfig specifies kubelet configuration.
+        This is a HyperFleet-owned type that mirrors hypershiftv1beta1.KubeletConfig
+        with granular markers for customer control.
+      type: object
+      properties:
+        containerLogMaxFiles:
+          description: |-
+            containerLogMaxFiles is the maximum number of container log files.
+            +hyperfleet:write-mode=mutable
           type: integer
-          description: Number of items per page
-        offset:
+          format: int32
+        containerLogMaxSize:
+          description: |-
+            containerLogMaxSize is the maximum size of container log file before it is rotated.
+            +hyperfleet:write-mode=mutable
+          type: string
+        imageGCHighThresholdPercent:
+          description: |-
+            imageGCHighThresholdPercent is the disk usage percent triggering image GC.
+            +hyperfleet:write-mode=mutable
           type: integer
-          description: Number of items skipped
+          format: int32
+        imageGCLowThresholdPercent:
+          description: |-
+            imageGCLowThresholdPercent is the disk usage percent to gc to.
+            +hyperfleet:write-mode=mutable
+          type: integer
+          format: int32
+        imageMinimumGCAge:
+          description: |-
+            imageMinimumGCAge is the minimum age for an unused image before it is garbage collected.
+            +hyperfleet:write-mode=mutable
+          type: object
+        kubeReserved:
+          description: |-
+            kubeReserved specifies resources reserved for Kubernetes system components.
+            +hyperfleet:write-mode=immutable
+          type: object
+          additionalProperties:
+            type: string
+        maxPods:
+          description: |-
+            maxPods is the maximum number of pods per node.
+            Customers can set this to optimize for high-density workloads.
+            +hyperfleet:write-mode=mutable
+          type: integer
+          format: int32
+        podPidsLimit:
+          description: |-
+            podPidsLimit is the maximum number of PIDs allowed per pod.
+            Customers can increase this for applications that spawn many processes.
+            +hyperfleet:write-mode=mutable
+          type: integer
+          format: int64
+        registryBurst:
+          description: |-
+            registryBurst is the maximum size of bursty pulls, temporarily allows pulls to burst.
+            +openshift:enable:FeatureGate=HyperFleetKubeletAdvanced
+            +hyperfleet:write-mode=mutable
+          type: integer
+          format: int32
+        registryPullQPS:
+          description: |-
+            registryPullQPS is the limit of registry pulls per second.
+            +openshift:enable:FeatureGate=HyperFleetKubeletAdvanced
+            +hyperfleet:write-mode=mutable
+          type: integer
+          format: int32
+        serializeImagePulls:
+          description: |-
+            serializeImagePulls when enabled, tells kubelet to pull images one at a time.
+            Tech preview feature for optimizing image pull performance.
+            +openshift:enable:FeatureGate=HyperFleetKubeletAdvanced
+            +hyperfleet:write-mode=mutable
+          type: boolean
+        streamingConnectionIdleTimeout:
+          description: |-
+            streamingConnectionIdleTimeout is the maximum time a streaming connection can be idle.
+            +hyperfleet:write-mode=mutable
+          type: object
+        systemReserved:
+          description: |-
+            systemReserved specifies resources reserved for system daemons.
+            Customers can set this on cluster creation but cannot change it later.
+            +hyperfleet:write-mode=immutable
+          type: object
+          additionalProperties:
+            type: string
+    MachineConfigSpec:
+      description: |-
+        MachineConfigSpec specifies machine-level configuration.
+        This controls kernel parameters, systemd units, and file writes.
+        Most fields are platform-managed for security and stability.
+      type: object
+      properties:
+        allowedKernelArguments:
+          description: |-
+            allowedKernelArguments specifies kernel parameters customers can request.
+            This is a WHITELIST approach - customers can only request known-safe parameters.
+            Platform validates against an allowlist and applies approved parameters.
+            Tech Preview feature requiring explicit enablement.
+            +openshift:enable:FeatureGate=HyperFleetMachineConfig
+            +hyperfleet:write-mode=immutable
+          type: array
+          items:
+            type: string
+        fips:
+          description: |-
+            fips enables FIPS mode on nodes.
+            Immutable - must be set at cluster creation, cannot be changed.
+            +hyperfleet:write-mode=immutable
+          type: boolean
+    NetworkConfiguration:
+      type: object
+    NodePoolSpecPassthrough:
+      description: NodePoolSpecPassthrough mirrors NodePoolSpec from upstream HyperShift
+      type: object
+    NodePoolStatus:
+      description: NodePoolStatus defines the observed state of a NodePool
+      type: object
+      properties:
+        availableReplicas:
+          description: AvailableReplicas is the number of available nodes
+          type: integer
+          format: int32
+        conditions:
+          description: Conditions represent detailed node pool status
+          type: array
+          items:
+            type: object
+        readyReplicas:
+          description: ReadyReplicas is the number of ready nodes
+          type: integer
+          format: int32
+        replicas:
+          description: Replicas is the current number of nodes
+          type: integer
+          format: int32
+        state:
+          description: |-
+            State represents the high-level node pool state
+            +kubebuilder:validation:Enum=pending;scaling;ready;degraded;deleting;failed
+          type: string
+    OAuthConfiguration:
+      type: object
+    ProxyConfiguration:
+      type: object
+    SchedulerConfiguration:
+      type: object
+    SystemdDropin:
+      description: SystemdDropin represents a systemd drop-in configuration.
+      type: object
+      required:
+        - name
+      properties:
+        contents:
+          description: contents is the drop-in file contents
+          type: string
+        name:
+          description: name is the name of the drop-in file
+          type: string
+    SystemdUnit:
+      description: SystemdUnit represents a systemd unit configuration.
+      type: object
+      required:
+        - name
+      properties:
+        contents:
+          description: contents is the full systemd unit file contents
+          type: string
+        dropins:
+          description: dropins are drop-in configurations for the unit
+          type: array
+          items:
+            type: object
+        enabled:
+          description: enabled specifies whether the unit is enabled
+          type: boolean
+        name:
+          description: name is the name of the systemd unit (e.g., "custom.service")
+          type: string
+    ClusterSpec:
+      type: object
+      description: Cluster specification defining desired state
+      additionalProperties: true
+      properties:
+        deleteProtection:
+          description: |-
+            DeleteProtection prevents accidental deletion when enabled
+            +hyperfleet:write-mode=mutable
+          type: boolean
+        displayName:
+          description: |-
+            DisplayName is a human-readable name for the cluster
+            +hyperfleet:write-mode=mutable
+            +kubebuilder:validation:MaxLength=256
+          type: string
+        expirationTimestamp:
+          description: |-
+            ExpirationTimestamp marks when this cluster should be automatically deleted
+            +hyperfleet:write-mode=mutable
+          type: object
+        hostedCluster:
+          description: |-
+            HostedCluster contains the full HyperShift HostedCluster configuration
+            All fields are generated from upstream and have safe defaults (hidden + service-set)
+            until explicitly reviewed and exposed
+            +kubebuilder:validation:Required
+          $ref: '#/components/schemas/HostedClusterSpecPassthrough'
+        properties:
+          description: |-
+            Properties are arbitrary key-value pairs for customer metadata
+            +hyperfleet:write-mode=mutable
+          type: object
+          additionalProperties:
+            type: string
+        tags:
+          description: |-
+            Tags are customer-defined labels for organizational purposes
+            This is a TechPreview feature
+            +hyperfleet:write-mode=mutable
+            +openshift:enable:FeatureGate=HyperFleetAutoScaling
+          type: object
+          additionalProperties:
+            type: string
+        cloudUrl:
+          type: string
+          readOnly: true
+          description: CloudFront URL with cluster ID (auto-populated by server)
+          example: https://doku78iof5s87.cloudfront.net/cluster-123
+        placement:
+          type: string
+          description: Management cluster name (auto-populated if not provided)
+          example: management-cluster-us-east-1
   responses:
     BadRequest:
       description: Bad request

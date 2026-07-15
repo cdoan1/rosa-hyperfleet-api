@@ -81,10 +81,16 @@ help:
 	@echo "  generate-swagger - Regenerate swagger-ui.html"
 	@echo ""
 	@echo "Codegen Integration:"
-	@echo "  codegen-install-tools - Install passthrough-gen and marker-scanner binaries"
+	@echo "  codegen-install-tools - Install passthrough-gen, marker-scanner, and openapi-gen binaries"
 	@echo "  codegen-passthrough  - Regenerate passthrough types from HyperShift CRDs"
 	@echo "  codegen-registry     - Regenerate field metadata registry from annotated types"
+	@echo "  codegen-openapi      - Generate OpenAPI schemas from Go types and merge into openapi.yaml"
 	@echo "  codegen-verify       - Verify codegen and dependent packages compile"
+	@echo "  get-hypershift-version - Show current HyperShift version in go.mod"
+	@echo ""
+	@echo "API Documentation:"
+	@echo "  swagger-ui-serve     - Serve Swagger UI locally (requires Python 3)"
+	@echo "  swagger-ui-open      - Open Swagger UI in browser (requires swagger-ui-serve running)"
 	@echo ""
 	@echo "  all              - Run all checks (deps, fmt, vet, lint, test, build)"
 
@@ -374,11 +380,16 @@ codegen-passthrough: codegen-install-tools
 	fi
 	@echo "Done. Edit api/v2alpha1/hostedclusterspec.passthrough.go to curate field markers."
 
+VERBOSE ?=
+
 codegen-registry: codegen-install-tools
 	@echo "Generating field metadata registry from api/v2alpha1/..."
 	bin/marker-scanner \
 		--input-dirs=api/v2alpha1 \
-		--output-file=internal/codegen/registry/field_metadata.go
+		--output-file=internal/codegen/registry/field_metadata.go \
+		$(if $(VERBOSE),--verbose)
+
+KEEP_MARKERS ?=
 
 codegen-openapi: codegen-install-tools
 	@echo "Generating OpenAPI schemas from api/v2alpha1/..."
@@ -388,7 +399,7 @@ codegen-openapi: codegen-install-tools
 		--title="ROSA Regional Platform API" \
 		--version=v2alpha1
 	@echo "Merging generated schemas into openapi/openapi.yaml..."
-	hack/merge-openapi.sh openapi/generated-schemas.json openapi/openapi.yaml
+	hack/merge-openapi.sh $(if $(KEEP_MARKERS),--keep-markers) openapi/generated-schemas.json openapi/openapi.yaml
 
 codegen-verify:
 	@echo "Verifying codegen packages compile..."
