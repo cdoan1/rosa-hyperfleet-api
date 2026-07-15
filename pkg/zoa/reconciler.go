@@ -313,10 +313,28 @@ func (jr *jobResult) computeUploadSeconds() int {
 // partialJobStatus mirrors the subset of batch/v1 Job.Status we need.
 // ResourceStatus.Status contains the .status sub-object directly (not the full Job).
 type partialJobStatus struct {
-	Succeeded      int32  `json:"succeeded,omitempty"`
-	Failed         int32  `json:"failed,omitempty"`
-	StartTime      string `json:"startTime,omitempty"`
-	CompletionTime string `json:"completionTime,omitempty"`
+	Succeeded      int32          `json:"succeeded,omitempty"`
+	StartTime      string         `json:"startTime,omitempty"`
+	CompletionTime string         `json:"completionTime,omitempty"`
+	Conditions     []jobCondition `json:"conditions,omitempty"`
+}
+
+// jobCondition mirrors batch/v1 JobCondition (type + status only).
+type jobCondition struct {
+	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
+// isTerminalFailure returns true when Kubernetes has given up on the Job
+// (backoffLimit exceeded or deadline exceeded). The .status.failed counter
+// alone is unreliable — it increments on every pod failure including retries.
+func (s *partialJobStatus) isTerminalFailure() bool {
+	for _, c := range s.Conditions {
+		if c.Type == "Failed" && c.Status == "True" {
+			return true
+		}
+	}
+	return false
 }
 
 // parseManifestStatus extracts Job status from the HFM's resource statuses.
@@ -347,12 +365,8 @@ func (r *Reconciler) parseManifestStatus(hfm *hyperfleetv1alpha1.Manifest, execI
 
 		switch rs.Name {
 		case runnerJobName:
-			if job.Succeeded > 0 {
-				result.taSucceeded = true
-			}
-			if job.Failed > 0 {
-				result.taFailed = true
-			}
+			result.taSucceeded = job.Succeeded > 0
+			result.taFailed = job.isTerminalFailure()
 			if job.StartTime != "" {
 				result.runnerStartTime = job.StartTime
 			}
@@ -360,12 +374,8 @@ func (r *Reconciler) parseManifestStatus(hfm *hyperfleetv1alpha1.Manifest, execI
 				result.runnerCompletionTime = job.CompletionTime
 			}
 		case uploadJobName:
-			if job.Succeeded > 0 {
-				result.uploadSucceeded = true
-			}
-			if job.Failed > 0 {
-				result.uploadFailed = true
-			}
+			result.uploadSucceeded = job.Succeeded > 0
+			result.uploadFailed = job.isTerminalFailure()
 			if job.CompletionTime != "" {
 				result.uploadCompletionTime = job.CompletionTime
 			}
@@ -374,10 +384,6 @@ func (r *Reconciler) parseManifestStatus(hfm *hyperfleetv1alpha1.Manifest, execI
 
 	if hfm.Status.Phase == hyperfleetv1alpha1.ManifestPhaseApplied {
 		result.applied = true
-	}
-
-	if result.taCompleted() || result.uploadCompleted() {
-		return result
 	}
 
 	return result

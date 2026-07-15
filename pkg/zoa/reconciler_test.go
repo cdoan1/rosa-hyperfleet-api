@@ -121,6 +121,19 @@ func jobStatus(t *testing.T, succeeded, failed int32, startTime, completionTime 
 	return runtime.RawExtension{Raw: raw}
 }
 
+func jobStatusTerminalFailure(t *testing.T, failed int32) runtime.RawExtension {
+	t.Helper()
+	status := map[string]interface{}{
+		"failed": failed,
+		"conditions": []map[string]string{
+			{"type": "Failed", "status": "True"},
+		},
+	}
+	raw, err := json.Marshal(status)
+	require.NoError(t, err)
+	return runtime.RawExtension{Raw: raw}
+}
+
 func TestReconcileExecution_PendingToRunning(t *testing.T) {
 	var updatedStatus ExecutionStatus
 	store := &mockExecutionStore{
@@ -385,7 +398,7 @@ func TestParseManifestStatus_TAFailedUploadSucceeded(t *testing.T) {
 		Status: hyperfleetv1alpha1.ManifestStatus{
 			Phase: hyperfleetv1alpha1.ManifestPhaseApplied,
 			ResourceStatuses: []hyperfleetv1alpha1.ResourceStatus{
-				{Resource: "jobs", Name: "zoa-exec-1", Status: jobStatus(t, 0, 1, "", "")},
+				{Resource: "jobs", Name: "zoa-exec-1", Status: jobStatusTerminalFailure(t, 6)},
 				{Resource: "jobs", Name: "zoa-exec-1-upload", Status: jobStatus(t, 1, 0, "", "")},
 			},
 		},
@@ -399,6 +412,49 @@ func TestParseManifestStatus_TAFailedUploadSucceeded(t *testing.T) {
 	assert.True(t, result.fullyCompleted())
 	assert.Equal(t, StatusFailed, result.taStatus())
 	assert.Equal(t, OutputStatusUploaded, result.outputStatus())
+}
+
+func TestParseManifestStatus_SucceededWithPriorPodFailures(t *testing.T) {
+	// Regression: a Job that retried and succeeded (succeeded:1, failed:1)
+	// must be treated as succeeded, not failed.
+	hfm := &hyperfleetv1alpha1.Manifest{
+		Status: hyperfleetv1alpha1.ManifestStatus{
+			Phase: hyperfleetv1alpha1.ManifestPhaseApplied,
+			ResourceStatuses: []hyperfleetv1alpha1.ResourceStatus{
+				{Resource: "jobs", Name: "zoa-exec-1", Status: jobStatus(t, 1, 1, "2026-06-01T10:00:00Z", "2026-06-01T10:00:25Z")},
+				{Resource: "jobs", Name: "zoa-exec-1-upload", Status: jobStatus(t, 1, 0, "", "2026-06-01T10:00:35Z")},
+			},
+		},
+	}
+
+	r := &Reconciler{logger: reconcilerLogger()}
+	result := r.parseManifestStatus(hfm, "exec-1")
+
+	assert.True(t, result.taSucceeded)
+	assert.False(t, result.taFailed, "failed counter without Failed condition must not mark TA as failed")
+	assert.True(t, result.fullyCompleted())
+	assert.Equal(t, StatusSucceeded, result.taStatus())
+}
+
+func TestParseManifestStatus_PodFailuresDuringRetry(t *testing.T) {
+	// A Job with failed pods but no Failed condition is still retrying —
+	// must not be treated as completed.
+	hfm := &hyperfleetv1alpha1.Manifest{
+		Status: hyperfleetv1alpha1.ManifestStatus{
+			Phase: hyperfleetv1alpha1.ManifestPhaseApplied,
+			ResourceStatuses: []hyperfleetv1alpha1.ResourceStatus{
+				{Resource: "jobs", Name: "zoa-exec-1", Status: jobStatus(t, 0, 2, "2026-06-01T10:00:00Z", "")},
+				{Resource: "jobs", Name: "zoa-exec-1-upload", Status: jobStatus(t, 0, 0, "", "")},
+			},
+		},
+	}
+
+	r := &Reconciler{logger: reconcilerLogger()}
+	result := r.parseManifestStatus(hfm, "exec-1")
+
+	assert.False(t, result.taSucceeded)
+	assert.False(t, result.taFailed, "retrying Job must not be treated as terminal failure")
+	assert.False(t, result.fullyCompleted(), "retrying Job must not trigger completion")
 }
 
 func TestParseManifestStatus_AppliedOnly(t *testing.T) {
