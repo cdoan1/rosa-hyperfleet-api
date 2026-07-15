@@ -3022,6 +3022,11 @@ components:
       description: Cluster specification defining desired state
       additionalProperties: true
       properties:
+        cloudUrl:
+          type: string
+          readOnly: true
+          description: CloudFront URL with cluster ID (auto-populated by server)
+          example: https://doku78iof5s87.cloudfront.net/cluster-123
         deleteProtection:
           description: |-
             DeleteProtection prevents accidental deletion when enabled
@@ -3043,8 +3048,11 @@ components:
             HostedCluster contains the full HyperShift HostedCluster configuration
             All fields are generated from upstream and have safe defaults (hidden + service-set)
             until explicitly reviewed and exposed
-            +kubebuilder:validation:Required
           $ref: '#/components/schemas/HostedClusterSpecPassthrough'
+        placement:
+          type: string
+          description: Management cluster name (auto-populated if not provided)
+          example: management-cluster-us-east-1
         properties:
           description: |-
             Properties are arbitrary key-value pairs for customer metadata
@@ -3061,15 +3069,6 @@ components:
           type: object
           additionalProperties:
             type: string
-        cloudUrl:
-          type: string
-          readOnly: true
-          description: CloudFront URL with cluster ID (auto-populated by server)
-          example: https://doku78iof5s87.cloudfront.net/cluster-123
-        placement:
-          type: string
-          description: Management cluster name (auto-populated if not provided)
-          example: management-cluster-us-east-1
   responses:
     BadRequest:
       description: Bad request

@@ -77,10 +77,11 @@
     "ClusterSpec": {
       "description": "ClusterSpec defines the desired state of a Cluster",
       "type": "object",
-      "required": [
-        "hostedCluster"
-      ],
       "properties": {
+        "cloudUrl": {
+          "description": "CloudUrl is the CloudFront URL for accessing the cluster console (auto-populated by server)\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "string"
+        },
         "deleteProtection": {
           "description": "DeleteProtection prevents accidental deletion when enabled\n+hyperfleet:write-mode=mutable",
           "type": "boolean"
@@ -94,8 +95,12 @@
           "type": "object"
         },
         "hostedCluster": {
-          "description": "HostedCluster contains the full HyperShift HostedCluster configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)\nuntil explicitly reviewed and exposed\n+kubebuilder:validation:Required",
+          "description": "HostedCluster contains the full HyperShift HostedCluster configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)\nuntil explicitly reviewed and exposed",
           "$ref": "#/definitions/HostedClusterSpecPassthrough"
+        },
+        "placement": {
+          "description": "Placement is the management cluster name (auto-populated if not provided)\n+hyperfleet:write-mode=mutable",
+          "type": "string"
         },
         "properties": {
           "description": "Properties are arbitrary key-value pairs for customer metadata\n+hyperfleet:write-mode=mutable",
