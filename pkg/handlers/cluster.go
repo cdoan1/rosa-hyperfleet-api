@@ -13,8 +13,8 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 
-	"github.com/cdoan1/hyperfleet-api-codegen/pkg/featuregate"
-	"github.com/cdoan1/hyperfleet-api-codegen/pkg/validation"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 )
 
 // ClusterHandler handles cluster-related HTTP requests

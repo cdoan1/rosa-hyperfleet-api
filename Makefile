@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-bump codegen-verify
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-verify get-hypershift-version
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -81,8 +81,10 @@ help:
 	@echo "  generate-swagger - Regenerate swagger-ui.html"
 	@echo ""
 	@echo "Codegen Integration:"
-	@echo "  codegen-bump     - Update hyperfleet-api-codegen dependency (CODEGEN_VERSION=v0.1.7)"
-	@echo "  codegen-verify   - Verify codegen-dependent packages compile"
+	@echo "  codegen-install-tools - Install passthrough-gen and marker-scanner binaries"
+	@echo "  codegen-passthrough  - Regenerate passthrough types from HyperShift CRDs"
+	@echo "  codegen-registry     - Regenerate field metadata registry from annotated types"
+	@echo "  codegen-verify       - Verify codegen and dependent packages compile"
 	@echo ""
 	@echo "  all              - Run all checks (deps, fmt, vet, lint, test, build)"
 
@@ -345,17 +347,57 @@ verify:
 	git diff --exit-code go.mod go.sum
 
 # --- Codegen integration ---
+# API types with markers live in api/v2alpha1/ (checked in).
+# Runtime libraries (registry, featuregate, validation) live in internal/codegen/.
+# Generator tools are installed as binaries from the codegen repo.
 
-CODEGEN_VERSION ?= v0.1.7
+CODEGEN_TOOLS_MODULE ?= github.com/cdoan1/hyperfleet-api-codegen
+CODEGEN_TOOLS_VERSION ?= v0.1.7
+HYPERSHIFT_IMPORT_PATH ?= github.com/openshift/hypershift/api/hypershift/v1beta1
+HYPERSHIFT_TYPES ?= HostedClusterSpec,NodePoolSpec
 
-codegen-bump:
-	go get github.com/cdoan1/hyperfleet-api-codegen@$(CODEGEN_VERSION)
-	go mod tidy
+codegen-install-tools:
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/passthrough-gen@$(CODEGEN_TOOLS_VERSION)
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/marker-scanner@$(CODEGEN_TOOLS_VERSION)
+
+codegen-passthrough: codegen-install-tools
+	@echo "Generating passthrough types from $(HYPERSHIFT_IMPORT_PATH)..."
+	bin/passthrough-gen \
+		--import-path=$(HYPERSHIFT_IMPORT_PATH) \
+		--types=$(HYPERSHIFT_TYPES) \
+		--output-dir=api/v2alpha1 \
+		--package=v2alpha1
+	@if [ -f api/v2alpha1/zz_generated.passthrough.go ]; then \
+		cp api/v2alpha1/zz_generated.passthrough.go api/v2alpha1/hostedclusterspec.passthrough.go; \
+		rm api/v2alpha1/zz_generated.passthrough.go; \
+	fi
+	@echo "Done. Edit api/v2alpha1/hostedclusterspec.passthrough.go to curate field markers."
+
+codegen-registry: codegen-install-tools
+	@echo "Generating field metadata registry from api/v2alpha1/..."
+	bin/marker-scanner \
+		--input-dirs=api/v2alpha1 \
+		--output-file=internal/codegen/registry/field_metadata.go
 
 codegen-verify:
-	@echo "Verifying codegen dependency compiles..."
+	@echo "Verifying codegen packages compile..."
+	go build ./api/v2alpha1/...
+	go build ./internal/codegen/...
 	go build ./pkg/middleware/...
 	go build ./pkg/handlers/...
+
+get-hypershift-version: ## Show current HyperShift version in go.mod
+	@PSEUDO_VERSION=$$(grep "github.com/openshift/hypershift/api" go.mod | awk '{print $$2}'); \
+	COMMIT=$$(echo $$PSEUDO_VERSION | rev | cut -d'-' -f1 | rev); \
+	echo "Current HyperShift in go.mod:"; \
+	echo "  Pseudo-version: $$PSEUDO_VERSION"; \
+	echo "  Commit: $$COMMIT"; \
+	TAG=$$(curl -s https://api.github.com/repos/openshift/hypershift/tags | jq -r ".[] | select(.commit.sha | startswith(\"$$COMMIT\")) | .name" | head -1); \
+	if [ -z "$$TAG" ]; then \
+		echo "  Tag: (no tag found - using commit)"; \
+	else \
+		echo "  Tag: $$TAG"; \
+	fi
 
 # All checks
 all: deps fmt vet lint test build

@@ -476,7 +476,7 @@ func (h *ZoaHandler) fetchS3Content(ctx context.Context, s3URI string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 	return io.ReadAll(result.Body)
 }
 
