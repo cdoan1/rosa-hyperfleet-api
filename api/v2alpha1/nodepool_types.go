@@ -50,8 +50,7 @@ type NodePoolSpec struct {
 
 	// NodePool contains the full HyperShift NodePool configuration
 	// All fields are generated from upstream and have safe defaults (hidden + service-set)
-	// +kubebuilder:validation:Required
-	NodePool NodePoolSpecPassthrough `json:"nodePool"`
+	NodePool *NodePoolSpecPassthrough `json:"nodePool,omitempty"`
 }
 
 // ClusterReference identifies the parent cluster

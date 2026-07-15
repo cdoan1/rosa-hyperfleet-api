@@ -11,6 +11,7 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 )
@@ -95,7 +96,11 @@ func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap := nodePoolSpecToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusInternalServerError, "NODEPOOLS-MGMT-CREATE-004", "Failed to process nodepool spec")
+			return
+		}
 		if err := h.fieldValidator.ValidateCreate(specMap, featuregate.Default, nil); err != nil {
 			h.writeValidationError(w, err)
 			return
@@ -156,7 +161,11 @@ func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap := nodePoolSpecToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusInternalServerError, "NODEPOOLS-MGMT-UPDATE-005", "Failed to process nodepool spec")
+			return
+		}
 		if err := h.fieldValidator.ValidateUpdate(specMap, nil, featuregate.Default, nil); err != nil {
 			h.writeValidationError(w, err)
 			return
@@ -258,28 +267,6 @@ func (h *NodePoolHandler) writeValidationError(w http.ResponseWriter, err error)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func nodePoolSpecToMap(spec *types.NodePoolSpec) map[string]interface{} {
-	if spec == nil {
-		return nil
-	}
-	m := make(map[string]interface{})
-	if spec.Replicas != 0 {
-		m["replicas"] = spec.Replicas
-	}
-	if spec.NodeDrainTimeout != "" {
-		m["nodeDrainTimeout"] = spec.NodeDrainTimeout
-	}
-	if spec.Management != nil {
-		m["management"] = spec.Management
-	}
-	if spec.Platform != nil {
-		m["platform"] = spec.Platform
-	}
-	if spec.Release != nil {
-		m["release"] = spec.Release
-	}
-	return m
-}
 
 func (h *NodePoolHandler) writeError(w http.ResponseWriter, status int, code, reason string) {
 	w.Header().Set("Content-Type", "application/json")
