@@ -320,8 +320,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.autoNode",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.autoscaling",
@@ -345,8 +344,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.configuration",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.controlPlaneRelease",
