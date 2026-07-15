@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 )
@@ -126,24 +126,19 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add cloudUrl (CloudFront URL only) to the spec before creating the cluster
-	req.Spec["cloudUrl"] = cloudfrontURL
-
-	// Auto-populate placement from management cluster if not provided by the client
-	if req.Spec["placement"] == nil || req.Spec["placement"] == "" {
-		placementName := managementClusters.Items[0].Name
-		if placementName == "" {
-			h.logger.Error("management cluster has no name for placement", "cluster_id", managementClusters.Items[0].ID)
-			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-CREATE-007", "Management cluster name not available for placement")
-			return
-		}
-		req.Spec["placement"] = placementName
-		h.logger.Info("auto-assigned placement", "placement", placementName)
+	// Validate placement availability before injecting service-set fields
+	placementName := managementClusters.Items[0].Name
+	if placementName == "" && (req.Spec["placement"] == nil || req.Spec["placement"] == "") {
+		h.logger.Error("management cluster has no name for placement", "cluster_id", managementClusters.Items[0].ID)
+		h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-CREATE-007", "Management cluster name not available for placement")
+		return
 	}
 
-	if callerARN := middleware.GetCallerARN(ctx); callerARN != "" {
-		req.Spec["creatorARN"] = callerARN
-	}
+	conversion.InjectClusterServiceSet(req.Spec, conversion.ClusterServiceSetFields{
+		CloudURL:   cloudfrontURL,
+		Placement:  placementName,
+		CreatorARN: middleware.GetCallerARN(ctx),
+	})
 
 	h.logger.Info("creating cluster", "account_id", accountID, "cluster_name", req.Name)
 
@@ -175,7 +170,7 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if cluster.Spec == nil {
 		cluster.Spec = make(map[string]interface{})
 	}
-	cluster.Spec["cloudUrl"] = fmt.Sprintf("%s/%s", cloudfrontURL, cluster.ID)
+	conversion.RewriteCloudURLWithID(cluster.Spec, cloudfrontURL, cluster.ID)
 
 	h.logger.Info("cluster created with cloudUrl", "cluster_id", cluster.ID, "cloudUrl", cluster.Spec["cloudUrl"])
 
