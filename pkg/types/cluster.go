@@ -1,31 +1,35 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	v2alpha1 "github.com/openshift/rosa-regional-platform-api/api/v2alpha1"
+)
 
 // Cluster represents a cluster resource
 type Cluster struct {
-	ID              string                 `json:"id"`
-	Name            string                 `json:"name"`
-	TargetProjectID string                 `json:"target_project_id"`
-	CreatedBy       string                 `json:"created_by"`
-	Generation      int64                  `json:"generation"`
-	ResourceVersion string                 `json:"resource_version"`
-	Spec            map[string]interface{} `json:"spec"`
-	Status          *ClusterStatusInfo     `json:"status,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	ID              string                `json:"id"`
+	Name            string                `json:"name"`
+	TargetProjectID string                `json:"target_project_id"`
+	CreatedBy       string                `json:"created_by"`
+	Generation      int64                 `json:"generation"`
+	ResourceVersion string                `json:"resource_version"`
+	Spec            *v2alpha1.ClusterSpec `json:"spec,omitempty"`
+	Status          *ClusterStatusInfo    `json:"status,omitempty"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
 }
 
 // ClusterCreateRequest represents a request to create a cluster
 type ClusterCreateRequest struct {
-	Name            string                 `json:"name"`
-	TargetProjectID string                 `json:"target_project_id,omitempty"`
-	Spec            map[string]interface{} `json:"spec"`
+	Name            string                `json:"name"`
+	TargetProjectID string                `json:"target_project_id,omitempty"`
+	Spec            *v2alpha1.ClusterSpec `json:"spec,omitempty"`
 }
 
 // ClusterUpdateRequest represents a request to update a cluster
 type ClusterUpdateRequest struct {
-	Spec map[string]interface{} `json:"spec"`
+	Spec *v2alpha1.ClusterSpec `json:"spec,omitempty"`
 }
 
 // ClusterStatusInfo represents the status of a cluster

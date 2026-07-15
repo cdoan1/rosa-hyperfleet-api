@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 
+	v2alpha1 "github.com/openshift/rosa-regional-platform-api/api/v2alpha1"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/pkg/config"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
@@ -128,7 +130,11 @@ func (c *Client) ListClusters(ctx context.Context, accountID string, limit, offs
 	// Transform Hyperfleet clusters to platform clusters
 	clusters := make([]*types.Cluster, 0, len(hfList.Items))
 	for i := range hfList.Items {
-		clusters = append(clusters, hyperfleetToPlatformCluster(&hfList.Items[i]))
+		cluster, err := hyperfleetToPlatformCluster(&hfList.Items[i])
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to convert cluster %s: %w", hfList.Items[i].ID, err)
+		}
+		clusters = append(clusters, cluster)
 	}
 
 	c.logger.Debug("clusters listed from Hyperfleet", "total", hfList.TotalCount, "returned", len(clusters))
@@ -139,7 +145,10 @@ func (c *Client) ListClusters(ctx context.Context, accountID string, limit, offs
 // CreateCluster creates a new cluster in Hyperfleet
 func (c *Client) CreateCluster(ctx context.Context, accountID, userEmail string, req *types.ClusterCreateRequest) (*types.Cluster, error) {
 	// Transform platform request to Hyperfleet request
-	hfReq := platformToHyperfleetCreate(req, userEmail)
+	hfReq, err := platformToHyperfleetCreate(req, userEmail)
+	if err != nil {
+		return nil, err
+	}
 
 	body, err := json.Marshal(hfReq)
 	if err != nil {
@@ -178,7 +187,7 @@ func (c *Client) CreateCluster(ctx context.Context, accountID, userEmail string,
 
 	c.logger.Debug("cluster created in Hyperfleet", "id", hfCluster.ID, "name", hfCluster.Name)
 
-	return hyperfleetToPlatformCluster(&hfCluster), nil
+	return hyperfleetToPlatformCluster(&hfCluster)
 }
 
 // GetCluster retrieves a cluster by ID from Hyperfleet
@@ -215,13 +224,16 @@ func (c *Client) GetCluster(ctx context.Context, accountID, clusterID string) (*
 
 	c.logger.Debug("cluster retrieved from Hyperfleet", "id", hfCluster.ID, "name", hfCluster.Name)
 
-	return hyperfleetToPlatformCluster(&hfCluster), nil
+	return hyperfleetToPlatformCluster(&hfCluster)
 }
 
 // UpdateCluster updates a cluster in Hyperfleet
 func (c *Client) UpdateCluster(ctx context.Context, accountID, clusterID string, req *types.ClusterUpdateRequest) (*types.Cluster, error) {
 	// Transform platform request to Hyperfleet request
-	hfReq := platformToHyperfleetUpdate(req)
+	hfReq, err := platformToHyperfleetUpdate(req)
+	if err != nil {
+		return nil, err
+	}
 
 	body, err := json.Marshal(hfReq)
 	if err != nil {
@@ -269,7 +281,7 @@ func (c *Client) UpdateCluster(ctx context.Context, accountID, clusterID string,
 
 	c.logger.Debug("cluster updated in Hyperfleet", "id", hfCluster.ID, "name", hfCluster.Name)
 
-	return hyperfleetToPlatformCluster(&hfCluster), nil
+	return hyperfleetToPlatformCluster(&hfCluster)
 }
 
 // DeleteCluster deletes a cluster in Hyperfleet
@@ -372,7 +384,12 @@ func (c *Client) GetClusterStatus(ctx context.Context, accountID, clusterID stri
 // Transformation functions
 
 // platformToHyperfleetCreate transforms platform ClusterCreateRequest to Hyperfleet format
-func platformToHyperfleetCreate(req *types.ClusterCreateRequest, userEmail string) *HFClusterCreateRequest {
+func platformToHyperfleetCreate(req *types.ClusterCreateRequest, userEmail string) (*HFClusterCreateRequest, error) {
+	specMap, err := conversion.SpecToMap(req.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert cluster spec: %w", err)
+	}
+
 	labels := make(map[string]string)
 	if req.TargetProjectID != "" {
 		labels["target_project_id"] = req.TargetProjectID
@@ -382,20 +399,29 @@ func platformToHyperfleetCreate(req *types.ClusterCreateRequest, userEmail strin
 		Kind:      ClusterKind,
 		Name:      req.Name,
 		Labels:    labels,
-		Spec:      req.Spec,
+		Spec:      specMap,
 		CreatedBy: userEmail,
-	}
+	}, nil
 }
 
 // platformToHyperfleetUpdate transforms platform ClusterUpdateRequest to Hyperfleet format
-func platformToHyperfleetUpdate(req *types.ClusterUpdateRequest) *HFClusterUpdateRequest {
-	return &HFClusterUpdateRequest{
-		Spec: req.Spec,
+func platformToHyperfleetUpdate(req *types.ClusterUpdateRequest) (*HFClusterUpdateRequest, error) {
+	specMap, err := conversion.SpecToMap(req.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert cluster spec: %w", err)
 	}
+	return &HFClusterUpdateRequest{
+		Spec: specMap,
+	}, nil
 }
 
 // hyperfleetToPlatformCluster transforms Hyperfleet cluster to platform format
-func hyperfleetToPlatformCluster(hfCluster *HFCluster) *types.Cluster {
+func hyperfleetToPlatformCluster(hfCluster *HFCluster) (*types.Cluster, error) {
+	spec, err := conversion.MapToSpec[v2alpha1.ClusterSpec](hfCluster.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert cluster spec from hyperfleet: %w", err)
+	}
+
 	cluster := &types.Cluster{
 		ID:              hfCluster.ID,
 		Name:            hfCluster.Name,
@@ -403,7 +429,7 @@ func hyperfleetToPlatformCluster(hfCluster *HFCluster) *types.Cluster {
 		CreatedBy:       hfCluster.CreatedBy,
 		Generation:      hfCluster.Generation,
 		ResourceVersion: fmt.Sprintf("%d", hfCluster.Generation),
-		Spec:            hfCluster.Spec,
+		Spec:            spec,
 		CreatedAt:       hfCluster.CreatedAt,
 		UpdatedAt:       hfCluster.UpdatedAt,
 	}
@@ -433,7 +459,7 @@ func hyperfleetToPlatformCluster(hfCluster *HFCluster) *types.Cluster {
 		}
 	}
 
-	return cluster
+	return cluster, nil
 }
 
 // adapterStatusesToControllerStatuses transforms Hyperfleet adapter statuses to platform controller statuses

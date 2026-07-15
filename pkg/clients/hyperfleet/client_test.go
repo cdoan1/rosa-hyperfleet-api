@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	v2alpha1 "github.com/openshift/rosa-regional-platform-api/api/v2alpha1"
 	"github.com/openshift/rosa-regional-platform-api/pkg/config"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
@@ -95,7 +96,7 @@ func TestCreateCluster(t *testing.T) {
 		assert.Equal(t, "Cluster", req.Kind)
 		assert.Equal(t, "test-cluster", req.Name)
 		assert.Equal(t, "project-1", req.Labels["target_project_id"])
-		assert.Equal(t, "aws", req.Spec["provider"])
+		assert.Equal(t, "test-display", req.Spec["displayName"])
 		assert.Equal(t, "test@example.com", req.CreatedBy)
 
 		// Return mock response
@@ -126,7 +127,7 @@ func TestCreateCluster(t *testing.T) {
 	req := &types.ClusterCreateRequest{
 		Name:            "test-cluster",
 		TargetProjectID: "project-1",
-		Spec:            map[string]interface{}{"provider": "aws"},
+		Spec:            &v2alpha1.ClusterSpec{DisplayName: "test-display"},
 	}
 
 	cluster, err := client.CreateCluster(ctx, "123456789012", "test@example.com", req)
@@ -235,7 +236,7 @@ func TestUpdateCluster(t *testing.T) {
 		var req HFClusterUpdateRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
 		require.NoError(t, err)
-		assert.Equal(t, "gcp", req.Spec["provider"])
+		assert.Equal(t, "updated-display", req.Spec["displayName"])
 
 		// Return mock response
 		resp := HFCluster{
@@ -261,7 +262,7 @@ func TestUpdateCluster(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.ContextKeyAccountID, "123456789012")
 
 	req := &types.ClusterUpdateRequest{
-		Spec: map[string]interface{}{"provider": "gcp"},
+		Spec: &v2alpha1.ClusterSpec{DisplayName: "updated-display"},
 	}
 
 	cluster, err := client.UpdateCluster(ctx, "123456789012", "cluster-1", req)
@@ -269,7 +270,7 @@ func TestUpdateCluster(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "cluster-1", cluster.ID)
 	assert.Equal(t, int64(2), cluster.Generation)
-	assert.Equal(t, "gcp", cluster.Spec["provider"])
+	assert.Equal(t, "updated-display", cluster.Spec.DisplayName)
 }
 
 func TestDeleteCluster(t *testing.T) {

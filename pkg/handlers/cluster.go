@@ -12,6 +12,7 @@ import (
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 
+	v2alpha1 "github.com/openshift/rosa-regional-platform-api/api/v2alpha1"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
@@ -99,7 +100,12 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		if err := h.fieldValidator.ValidateCreate(req.Spec, featuregate.Default, nil); err != nil {
+		specMap, err := conversion.SpecToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-CREATE-008", "Failed to process cluster spec")
+			return
+		}
+		if err := h.fieldValidator.ValidateCreate(specMap, featuregate.Default, nil); err != nil {
 			h.writeValidationError(w, err)
 			return
 		}
@@ -128,7 +134,7 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Validate placement availability before injecting service-set fields
 	placementName := managementClusters.Items[0].Name
-	if placementName == "" && (req.Spec["placement"] == nil || req.Spec["placement"] == "") {
+	if placementName == "" && req.Spec.Placement == "" {
 		h.logger.Error("management cluster has no name for placement", "cluster_id", managementClusters.Items[0].ID)
 		h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-CREATE-007", "Management cluster name not available for placement")
 		return
@@ -168,11 +174,11 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Append cluster ID to cloudUrl in the response (but not in hyperfleet)
 	if cluster.Spec == nil {
-		cluster.Spec = make(map[string]interface{})
+		cluster.Spec = &v2alpha1.ClusterSpec{}
 	}
 	conversion.RewriteCloudURLWithID(cluster.Spec, cloudfrontURL, cluster.ID)
 
-	h.logger.Info("cluster created with cloudUrl", "cluster_id", cluster.ID, "cloudUrl", cluster.Spec["cloudUrl"])
+	h.logger.Info("cluster created with cloudUrl", "cluster_id", cluster.ID, "cloudUrl", cluster.Spec.CloudUrl)
 
 	h.writeJSON(w, http.StatusCreated, cluster)
 }
@@ -229,7 +235,17 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-UPDATE-005", "Failed to validate update")
 			return
 		}
-		if err := h.fieldValidator.ValidateUpdate(req.Spec, existing.Spec, featuregate.Default, nil); err != nil {
+		specMap, err := conversion.SpecToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-UPDATE-006", "Failed to process cluster spec")
+			return
+		}
+		existingSpecMap, err := conversion.SpecToMap(existing.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusInternalServerError, "CLUSTERS-MGMT-UPDATE-006", "Failed to process existing cluster spec")
+			return
+		}
+		if err := h.fieldValidator.ValidateUpdate(specMap, existingSpecMap, featuregate.Default, nil); err != nil {
 			h.writeValidationError(w, err)
 			return
 		}
