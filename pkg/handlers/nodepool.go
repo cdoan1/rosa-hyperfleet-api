@@ -267,7 +267,6 @@ func (h *NodePoolHandler) writeValidationError(w http.ResponseWriter, err error)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-
 func (h *NodePoolHandler) writeError(w http.ResponseWriter, status int, code, reason string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
