@@ -7,20 +7,24 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 )
 
 type NodePoolHandler struct {
-	db     *hyperfleetdb.Client
-	logger *slog.Logger
+	db             *hyperfleetdb.Client
+	fieldValidator *middleware.FieldValidator
+	logger         *slog.Logger
 }
 
-func NewNodePoolHandler(db *hyperfleetdb.Client, logger *slog.Logger) *NodePoolHandler {
+func NewNodePoolHandler(db *hyperfleetdb.Client, fieldValidator *middleware.FieldValidator, logger *slog.Logger) *NodePoolHandler {
 	return &NodePoolHandler{
-		db:     db,
-		logger: logger,
+		db:             db,
+		fieldValidator: fieldValidator,
+		logger:         logger,
 	}
 }
 
@@ -98,6 +102,18 @@ func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.fieldValidator != nil {
+		specMap, err := specToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-CREATE-002", "Invalid nodepool spec")
+			return
+		}
+		if err := h.fieldValidator.ValidateCreate(specMap, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
+	}
+
 	if _, err := h.db.GetCluster(ctx, accountID, req.ClusterID); err != nil {
 		if hyperfleetdb.IsNotFound(err) {
 			h.writeError(w, http.StatusNotFound, "NODEPOOLS-MGMT-CREATE-004", "Referenced cluster not found")
@@ -167,6 +183,18 @@ func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Spec == nil {
 		h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-UPDATE-002", "Missing required field: spec")
 		return
+	}
+
+	if h.fieldValidator != nil {
+		specMap, err := specToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-UPDATE-002", "Invalid nodepool spec")
+			return
+		}
+		if err := h.fieldValidator.ValidateUpdate(specMap, nil, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
 	}
 
 	h.logger.Info("updating nodepool", "account_id", accountID, "nodepool_id", nodepoolID)
@@ -259,6 +287,27 @@ func (h *NodePoolHandler) writeError(w http.ResponseWriter, status int, code, re
 		"kind":   "Error",
 		"code":   code,
 		"reason": reason,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *NodePoolHandler) writeValidationError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	resp := map[string]interface{}{
+		"kind":   "Error",
+		"code":   "NODEPOOLS-MGMT-VALIDATE-001",
+		"reason": "Validation failed",
+	}
+	if valErrs, ok := err.(validation.ValidationErrors); ok {
+		details := make([]map[string]string, 0, len(valErrs))
+		for _, ve := range valErrs {
+			details = append(details, map[string]string{
+				"field":  ve.FieldPath,
+				"reason": ve.Reason,
+			})
+		}
+		resp["details"] = details
 	}
 	_ = json.NewEncoder(w).Encode(resp)
 }

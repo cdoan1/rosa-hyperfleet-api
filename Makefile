@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet
+.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet codegen-install-tools codegen-passthrough codegen-registry codegen-openapi codegen-verify get-hypershift-version swagger-ui-serve swagger-ui-open
 
 BINARY_NAME := rosa-regional-platform-api
 IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
@@ -76,11 +76,23 @@ help:
 	@echo "  image-e2e-push-multiarch - Build and push E2E test container (multiarch)"
 	@echo ""
 	@echo "Code Generation:"
-	@echo "  deps           - Download and tidy dependencies"
-	@echo "  generate       - Generate OpenAPI code"
+	@echo "  deps             - Download and tidy dependencies"
+	@echo "  generate         - Generate OpenAPI code"
 	@echo "  generate-swagger - Regenerate swagger-ui.html"
 	@echo ""
-	@echo "  all            - Run all checks (deps, fmt, vet, lint, test, build)"
+	@echo "Codegen Integration:"
+	@echo "  codegen-install-tools - Install passthrough-gen, marker-scanner, and openapi-gen binaries"
+	@echo "  codegen-passthrough  - Regenerate passthrough types from HyperShift CRDs"
+	@echo "  codegen-registry     - Regenerate field metadata registry from annotated types"
+	@echo "  codegen-openapi      - Generate OpenAPI schemas from Go types and merge into openapi.yaml"
+	@echo "  codegen-verify       - Verify codegen and dependent packages compile"
+	@echo "  get-hypershift-version - Show current HyperShift version in go.mod"
+	@echo ""
+	@echo "API Documentation:"
+	@echo "  swagger-ui-serve     - Serve Swagger UI locally (requires Python 3)"
+	@echo "  swagger-ui-open      - Open Swagger UI in browser (requires swagger-ui-serve running)"
+	@echo ""
+	@echo "  all              - Run all checks (deps, fmt, vet, lint, test, build)"
 
 # Build the binary
 build:
@@ -339,6 +351,87 @@ generate-swagger:
 verify:
 	go mod tidy
 	git diff --exit-code go.mod go.sum
+
+# --- Codegen integration ---
+# API types with markers live in api/v2alpha1/ (checked in).
+# Runtime libraries (registry, featuregate, validation) live in internal/codegen/.
+# Generator tools are installed as binaries from the codegen repo.
+
+CODEGEN_TOOLS_MODULE ?= github.com/cdoan1/hyperfleet-api-codegen
+CODEGEN_TOOLS_VERSION ?= v0.1.7
+HYPERSHIFT_IMPORT_PATH ?= github.com/openshift/hypershift/api/hypershift/v1beta1
+HYPERSHIFT_TYPES ?= HostedClusterSpec,NodePoolSpec
+
+codegen-install-tools:
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/passthrough-gen@$(CODEGEN_TOOLS_VERSION)
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/marker-scanner@$(CODEGEN_TOOLS_VERSION)
+	GOBIN=$(PWD)/bin go install $(CODEGEN_TOOLS_MODULE)/cmd/openapi-gen@$(CODEGEN_TOOLS_VERSION)
+
+codegen-passthrough: codegen-install-tools
+	@echo "Generating passthrough types from $(HYPERSHIFT_IMPORT_PATH)..."
+	bin/passthrough-gen \
+		--import-path=$(HYPERSHIFT_IMPORT_PATH) \
+		--types=$(HYPERSHIFT_TYPES) \
+		--output-dir=api/v2alpha1 \
+		--package=v2alpha1
+	@if [ -f api/v2alpha1/zz_generated.passthrough.go ]; then \
+		cp api/v2alpha1/zz_generated.passthrough.go api/v2alpha1/hostedclusterspec.passthrough.go; \
+		rm api/v2alpha1/zz_generated.passthrough.go; \
+	fi
+	@echo "Done. Edit api/v2alpha1/hostedclusterspec.passthrough.go to curate field markers."
+
+VERBOSE ?=
+
+codegen-registry: codegen-install-tools
+	@echo "Generating field metadata registry from api/v2alpha1/..."
+	bin/marker-scanner \
+		--input-dirs=api/v2alpha1 \
+		--output-file=internal/codegen/registry/field_metadata.go \
+		$(if $(VERBOSE),--verbose)
+
+KEEP_MARKERS ?=
+
+codegen-openapi: codegen-install-tools
+	@echo "Generating OpenAPI schemas from api/v2alpha1/..."
+	bin/openapi-gen \
+		--input-dirs=api/v2alpha1 \
+		--output-file=openapi/generated-schemas.json \
+		--title="ROSA Regional Platform API" \
+		--version=v2alpha1
+	@echo "Merging generated schemas into openapi/openapi.yaml..."
+	hack/merge-openapi.sh $(if $(KEEP_MARKERS),--keep-markers) openapi/generated-schemas.json openapi/openapi.yaml
+
+codegen-verify:
+	@echo "Verifying codegen packages compile..."
+	go build ./api/v2alpha1/...
+	go build ./internal/codegen/...
+	go build ./pkg/middleware/...
+	go build ./pkg/handlers/...
+
+get-hypershift-version: ## Show current HyperShift version in go.mod
+	@PSEUDO_VERSION=$$(grep "github.com/openshift/hypershift/api" go.mod | awk '{print $$2}'); \
+	COMMIT=$$(echo $$PSEUDO_VERSION | rev | cut -d'-' -f1 | rev); \
+	echo "Current HyperShift in go.mod:"; \
+	echo "  Pseudo-version: $$PSEUDO_VERSION"; \
+	echo "  Commit: $$COMMIT"; \
+	TAG=$$(curl -s https://api.github.com/repos/openshift/hypershift/tags | jq -r ".[] | select(.commit.sha | startswith(\"$$COMMIT\")) | .name" | head -1); \
+	if [ -z "$$TAG" ]; then \
+		echo "  Tag: (no tag found - using commit)"; \
+	else \
+		echo "  Tag: $$TAG"; \
+	fi
+
+swagger-ui-serve: ## Serve Swagger UI locally (requires Python 3)
+	@command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required"; exit 1; }
+	@echo "Swagger UI: http://localhost:8080/openapi/swagger-ui/"
+	@echo "OpenAPI spec: http://localhost:8080/openapi/openapi.yaml"
+	@echo "Press Ctrl+C to stop"
+	@python3 -m http.server 8080 --directory .
+
+swagger-ui-open: ## Open Swagger UI in browser (requires swagger-ui-serve running)
+	@command -v open >/dev/null 2>&1 && open http://localhost:8080/openapi/swagger-ui/ || \
+	command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080/openapi/swagger-ui/ || \
+	echo "Open http://localhost:8080/openapi/swagger-ui/ in your browser"
 
 # All checks
 all: deps fmt vet lint test build

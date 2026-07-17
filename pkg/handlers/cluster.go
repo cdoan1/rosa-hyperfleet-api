@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
 	"github.com/openshift/rosa-regional-platform-api/pkg/types"
@@ -18,14 +20,16 @@ import (
 type ClusterHandler struct {
 	db                *hyperfleetdb.Client
 	oidcIssuerBaseURL string
+	fieldValidator    *middleware.FieldValidator
 	logger            *slog.Logger
 }
 
 // NewClusterHandler creates a new cluster handler
-func NewClusterHandler(db *hyperfleetdb.Client, oidcIssuerBaseURL string, logger *slog.Logger) *ClusterHandler {
+func NewClusterHandler(db *hyperfleetdb.Client, oidcIssuerBaseURL string, fieldValidator *middleware.FieldValidator, logger *slog.Logger) *ClusterHandler {
 	return &ClusterHandler{
 		db:                db,
 		oidcIssuerBaseURL: oidcIssuerBaseURL,
+		fieldValidator:    fieldValidator,
 		logger:            logger,
 	}
 }
@@ -104,6 +108,18 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" || req.Spec == nil {
 		h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-CREATE-002", "Missing required fields: name and spec")
 		return
+	}
+
+	if h.fieldValidator != nil {
+		specMap, err := specToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-CREATE-002", "Invalid cluster spec")
+			return
+		}
+		if err := h.fieldValidator.ValidateCreate(specMap, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
 	}
 
 	existing, err := h.db.ListClusters(ctx, accountID)
@@ -207,6 +223,19 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.fieldValidator != nil {
+		specMap, err := specToMap(req.Spec)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-UPDATE-002", "Invalid cluster spec")
+			return
+		}
+		existingMap, _ := specToMap(&cr.Spec.HostedCluster)
+		if err := h.fieldValidator.ValidateUpdate(specMap, existingMap, featuregate.Default, nil); err != nil {
+			h.writeValidationError(w, err)
+			return
+		}
+	}
+
 	existingIssuerURL := cr.Spec.HostedCluster.IssuerURL
 
 	if err := hyperfleetdb.ApplyPlatformUpdateToClusterCR(cr, &req); err != nil {
@@ -293,4 +322,37 @@ func (h *ClusterHandler) writeError(w http.ResponseWriter, status int, code, rea
 		"reason": reason,
 	}
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *ClusterHandler) writeValidationError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	resp := map[string]interface{}{
+		"kind":   "Error",
+		"code":   "CLUSTERS-MGMT-VALIDATE-001",
+		"reason": "Validation failed",
+	}
+	if valErrs, ok := err.(validation.ValidationErrors); ok {
+		details := make([]map[string]string, 0, len(valErrs))
+		for _, ve := range valErrs {
+			details = append(details, map[string]string{
+				"field":  ve.FieldPath,
+				"reason": ve.Reason,
+			})
+		}
+		resp["details"] = details
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func specToMap(v interface{}) (map[string]interface{}, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }

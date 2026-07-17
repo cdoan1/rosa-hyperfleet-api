@@ -23,6 +23,7 @@ import (
 
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
 	"github.com/openshift/rosa-regional-platform-api/pkg/middleware"
+	"github.com/openshift/rosa-regional-platform-api/pkg/types"
 )
 
 const testAccountID = "123456789012"
@@ -70,7 +71,7 @@ func TestClusterHandler_List_Success(t *testing.T) {
 		testClusterCR("uuid-2", "cluster-2", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -98,7 +99,7 @@ func TestClusterHandler_List_Empty(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -126,7 +127,7 @@ func TestClusterHandler_List_Pagination(t *testing.T) {
 		testClusterCR("uuid-c3", "c3", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters?limit=2&offset=1", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -154,7 +155,7 @@ func TestClusterHandler_Create_Success(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name": "my-cluster",
@@ -192,7 +193,7 @@ func TestClusterHandler_Create_SetsCreatorARN(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name": "my-cluster",
@@ -221,7 +222,7 @@ func TestClusterHandler_Create_InvalidJSON(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v0/clusters", bytes.NewReader([]byte("not json")))
 	req = req.WithContext(testContext(testAccountID))
@@ -249,7 +250,7 @@ func TestClusterHandler_Create_MissingFields(t *testing.T) {
 			scheme := newTestScheme()
 			fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-			handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+			handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 			body, _ := json.Marshal(tt.body)
 			req := httptest.NewRequest(http.MethodPost, "/api/v0/clusters", bytes.NewReader(body))
@@ -271,7 +272,7 @@ func TestClusterHandler_Get_Success(t *testing.T) {
 		testClusterCR("cluster-123", "test-cluster", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters/cluster-123", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -299,7 +300,7 @@ func TestClusterHandler_Get_NotFound(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters/no-such-cluster", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -325,7 +326,7 @@ func TestClusterHandler_Delete_Success(t *testing.T) {
 		testClusterCR("cluster-123", "test-cluster", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v0/clusters/cluster-123", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -349,7 +350,7 @@ func TestClusterHandler_Delete_NotFound(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v0/clusters/no-such-cluster", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -381,7 +382,7 @@ func TestClusterHandler_GetStatus_Success(t *testing.T) {
 	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cr).
 		WithStatusSubresource(cr).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters/cluster-123/statuses", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -406,7 +407,7 @@ func TestClusterHandler_GetStatus_NotFound(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/clusters/no-such/statuses", nil)
 	req = req.WithContext(testContext(testAccountID))
@@ -426,7 +427,7 @@ func TestClusterHandler_Update_Success(t *testing.T) {
 		testClusterCR("cluster-123", "test-cluster", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"spec": map[string]interface{}{
@@ -457,7 +458,7 @@ func TestClusterHandler_Update_NotFound(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"spec": map[string]interface{}{"name": "x"},
@@ -479,7 +480,7 @@ func TestClusterHandler_Update_MissingSpec(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{})
 
@@ -501,7 +502,7 @@ func TestClusterHandler_Create_DuplicateName(t *testing.T) {
 		testClusterCR("existing-id", "test-cluster", testAccountID),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name": "test-cluster",
@@ -532,7 +533,7 @@ func TestClusterHandler_Create_SameNameDifferentAccount(t *testing.T) {
 		testClusterCR("existing-id", "test-cluster", otherAccount),
 	).Build()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", logger)
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name": "test-cluster",
@@ -547,5 +548,86 @@ func TestClusterHandler_Create_SameNameDifferentAccount(t *testing.T) {
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201 (same name in different account is allowed), got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestClusterHandler_Create_ValidationRejectsServiceSetField tests that the validator
+// rejects service-set fields (like creatorARN) in the create request spec.
+// On pgruntime, specs are strongly-typed so only fields present on ClusterSpec
+// can be tested here (creatorARN is service-set and exists on the struct).
+func TestClusterHandler_Create_ValidationRejectsServiceSetField(t *testing.T) {
+	scheme := newTestScheme()
+	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	fv := middleware.NewFieldValidator()
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", fv, logger)
+
+	reqBody := types.ClusterCreateRequest{
+		Name: "test-cluster",
+		Spec: &hyperfleetv1alpha1.ClusterSpec{
+			CreatorARN: "arn:aws:iam::123456789012:user/test",
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/clusters", bytes.NewReader(body))
+	req = req.WithContext(testContext(testAccountID))
+
+	w := httptest.NewRecorder()
+	handler.Create(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d (body: %s)", w.Code, w.Body.String())
+	}
+
+	var errorResp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&errorResp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	if errorResp["code"] != "CLUSTERS-MGMT-VALIDATE-001" {
+		t.Errorf("expected code CLUSTERS-MGMT-VALIDATE-001, got %v", errorResp["code"])
+	}
+
+	details, ok := errorResp["details"].([]interface{})
+	if !ok || len(details) == 0 {
+		t.Fatal("expected details with at least one validation error")
+	}
+	found := false
+	for _, d := range details {
+		if dm, ok := d.(map[string]interface{}); ok && dm["field"] == "spec.creatorARN" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected validation error for spec.creatorARN, got %v", details)
+	}
+}
+
+// TestClusterHandler_Create_NilValidatorBypasses verifies that when fieldValidator
+// is nil, validation is skipped and the request proceeds to the normal create flow.
+func TestClusterHandler_Create_NilValidatorBypasses(t *testing.T) {
+	scheme := newTestScheme()
+	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "https://oidc.example.com", nil, logger)
+
+	reqBody := types.ClusterCreateRequest{
+		Name: "test-cluster",
+		Spec: &hyperfleetv1alpha1.ClusterSpec{
+			CreatorARN: "arn:aws:iam::123456789012:user/test",
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/clusters", bytes.NewReader(body))
+	req = req.WithContext(testContext(testAccountID))
+
+	w := httptest.NewRecorder()
+	handler.Create(w, req)
+
+	// With nil validator, the request should NOT get 422 — it should proceed
+	// past validation to the create flow (which succeeds or fails for other reasons)
+	if w.Code == http.StatusUnprocessableEntity {
+		t.Errorf("expected validation to be bypassed with nil validator, but got 422")
 	}
 }
