@@ -381,7 +381,6 @@ var FieldRegistry = map[string]FieldMeta{
 	"spec.hostedCluster.channel": {
 		FieldPath: "spec.hostedCluster.channel",
 		WriteMode: ServiceSet,
-		Hidden:    true,
 	},
 	"spec.hostedCluster.clusterID": {
 		FieldPath: "spec.hostedCluster.clusterID",
@@ -415,7 +414,6 @@ var FieldRegistry = map[string]FieldMeta{
 	"spec.hostedCluster.fips": {
 		FieldPath: "spec.hostedCluster.fips",
 		WriteMode: ServiceSet,
-		Hidden:    true,
 	},
 	"spec.hostedCluster.imageContentSources": {
 		FieldPath: "spec.hostedCluster.imageContentSources",
@@ -465,12 +463,10 @@ var FieldRegistry = map[string]FieldMeta{
 	"spec.hostedCluster.operatorConfiguration": {
 		FieldPath: "spec.hostedCluster.operatorConfiguration",
 		WriteMode: ServiceSet,
-		Hidden:    true,
 	},
 	"spec.hostedCluster.pausedUntil": {
 		FieldPath: "spec.hostedCluster.pausedUntil",
 		WriteMode: ServiceSet,
-		Hidden:    true,
 	},
 	"spec.hostedCluster.platform": {
 		FieldPath: "spec.hostedCluster.platform",
@@ -579,7 +575,6 @@ var FieldRegistry = map[string]FieldMeta{
 	"spec.nodePool.pausedUntil": {
 		FieldPath: "spec.nodePool.pausedUntil",
 		WriteMode: ServiceSet,
-		Hidden:    true,
 	},
 	"spec.nodePool.platform": {
 		FieldPath: "spec.nodePool.platform",

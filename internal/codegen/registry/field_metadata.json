@@ -334,8 +334,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.channel",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.clusterID",
@@ -368,8 +367,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.fips",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.imageContentSources",
@@ -418,13 +416,11 @@
   },
   {
     "fieldPath": "spec.hostedCluster.operatorConfiguration",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.pausedUntil",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.platform",
@@ -532,8 +528,7 @@
   },
   {
     "fieldPath": "spec.nodePool.pausedUntil",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.nodePool.platform",
