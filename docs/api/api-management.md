@@ -57,7 +57,17 @@ A code generator keeps the passthrough types in sync with upstream HyperShift:
 4. **Removed upstream fields** are dropped from the passthrough types
 5. **Developer reviews** the diff, sets the appropriate boundary 2 markers on new fields, and runs `make manifests openapi`
 
-CI verifies that every passthrough field has an explicit visibility and write-mode annotation.
+#### Idempotency of curated markers
+
+Regeneration **must be idempotent with respect to curated markers**. This is a hard requirement, not an optimization: the workflow above only holds if a re-run preserves the markers a developer has already set. Otherwise step 3 could not single out genuinely new fields, and every HyperShift bump would reset all curation to defaults and bury the real diff in noise.
+
+The [field metadata registry](#runtime-enforcement) is the **durable source of truth** for curated markers, not the generated `.go` structs. Because the generator regenerates those structs from upstream on every run, it must read the previously curated markers back from the registry and reapply them, so that:
+
+- **Existing fields** keep their curated visibility, write-mode, and feature-gate markers across regeneration.
+- **Only new or removed fields** produce a diff — new fields with safe defaults (step 3), removed fields dropped (step 4).
+- **Running the generator twice with no upstream change produces no diff** (clean working tree). CI enforces this as the idempotency check.
+
+CI verifies that every passthrough field has an explicit visibility and write-mode annotation, and that regeneration is a no-op when upstream is unchanged.
 
 ## Boundary 2: HyperFleet CRD → Platform API OpenAPI
 
