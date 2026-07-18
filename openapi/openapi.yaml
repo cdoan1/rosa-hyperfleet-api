@@ -2907,6 +2907,7 @@ components:
       type: object
       required:
         - autoNode
+        - fips
       properties:
         autoNode:
           description: |-
@@ -2914,12 +2915,36 @@ components:
             +k8s:openapi-gen=true
             +hyperfleet:write-mode=service-set
           type: object
+        channel:
+          description: |-
+            channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: string
         configuration:
           description: |-
             configuration specifies configuration for individual OCP components in the
             +k8s:openapi-gen=true
             +hyperfleet:write-mode=service-set
           $ref: '#/components/schemas/ClusterConfiguration'
+        fips:
+          description: |-
+            fips indicates whether this cluster's nodes will be running in FIPS mode.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: boolean
+        operatorConfiguration:
+          description: |-
+            operatorConfiguration specifies configuration for individual OCP operators in the cluster.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: object
+        pausedUntil:
+          description: |-
+            pausedUntil is a field that can be used to pause reconciliation on the HostedCluster controller, resulting in any change to the HostedCluster being ignored.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: string
     ImageConfiguration:
       type: object
     IngressConfiguration:
@@ -3043,6 +3068,13 @@ components:
     NodePoolSpecPassthrough:
       description: NodePoolSpecPassthrough mirrors NodePoolSpec from upstream HyperShift
       type: object
+      properties:
+        pausedUntil:
+          description: |-
+            pausedUntil is a field that can be used to pause reconciliation on the NodePool controller. Resulting in any change to the NodePool being ignored.
+            +k8s:openapi-gen=true
+            +hyperfleet:write-mode=service-set
+          type: string
     NodePoolStatus:
       description: NodePoolStatus defines the observed state of a NodePool
       type: object

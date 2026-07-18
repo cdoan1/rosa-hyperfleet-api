@@ -196,16 +196,33 @@
       "description": "HostedClusterSpecPassthrough mirrors HostedClusterSpec from upstream HyperShift",
       "type": "object",
       "required": [
-        "autoNode"
+        "autoNode",
+        "fips"
       ],
       "properties": {
         "autoNode": {
           "description": "autoNode specifies the configuration for automatic node provisioning and lifecycle management.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
           "type": "object"
         },
+        "channel": {
+          "description": "channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "string"
+        },
         "configuration": {
           "description": "configuration specifies configuration for individual OCP components in the\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
           "$ref": "#/definitions/ClusterConfiguration"
+        },
+        "fips": {
+          "description": "fips indicates whether this cluster's nodes will be running in FIPS mode.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "boolean"
+        },
+        "operatorConfiguration": {
+          "description": "operatorConfiguration specifies configuration for individual OCP operators in the cluster.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "object"
+        },
+        "pausedUntil": {
+          "description": "pausedUntil is a field that can be used to pause reconciliation on the HostedCluster controller, resulting in any change to the HostedCluster being ignored.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "string"
         }
       }
     },
@@ -370,7 +387,13 @@
     },
     "NodePoolSpecPassthrough": {
       "description": "NodePoolSpecPassthrough mirrors NodePoolSpec from upstream HyperShift",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "pausedUntil": {
+          "description": "pausedUntil is a field that can be used to pause reconciliation on the NodePool controller. Resulting in any change to the NodePool being ignored.\n+k8s:openapi-gen=true\n+hyperfleet:write-mode=service-set",
+          "type": "string"
+        }
+      }
     },
     "NodePoolStatus": {
       "description": "NodePoolStatus defines the observed state of a NodePool",
