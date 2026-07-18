@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
@@ -111,7 +112,7 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap, err := specToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
 		if err != nil {
 			h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-CREATE-002", "Invalid cluster spec")
 			return
@@ -224,12 +225,12 @@ func (h *ClusterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap, err := specToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
 		if err != nil {
 			h.writeError(w, http.StatusBadRequest, "CLUSTERS-MGMT-UPDATE-002", "Invalid cluster spec")
 			return
 		}
-		existingMap, _ := specToMap(&cr.Spec.HostedCluster)
+		existingMap, _ := conversion.SpecToMap(&cr.Spec.HostedCluster)
 		if err := h.fieldValidator.ValidateUpdate(specMap, existingMap, featuregate.Default, nil); err != nil {
 			h.writeValidationError(w, err)
 			return
@@ -343,16 +344,4 @@ func (h *ClusterHandler) writeValidationError(w http.ResponseWriter, err error) 
 		resp["details"] = details
 	}
 	_ = json.NewEncoder(w).Encode(resp)
-}
-
-func specToMap(v interface{}) (map[string]interface{}, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }

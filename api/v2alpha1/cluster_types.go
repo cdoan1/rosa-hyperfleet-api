@@ -44,6 +44,15 @@ type ClusterSpec struct {
 	// +openshift:enable:FeatureGate=HyperFleetAutoScaling
 	Tags map[string]string `json:"tags,omitempty"`
 
+	// CloudUrl is the CloudFront URL for accessing the cluster console (auto-populated by server)
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=service-set
+	CloudUrl string `json:"cloudUrl,omitempty"`
+
+	// Placement is the management cluster name (auto-populated if not provided)
+	// +hyperfleet:write-mode=mutable
+	Placement string `json:"placement,omitempty"`
+
 	// AccountID identifies the customer account (platform-managed, hidden from API)
 	// +k8s:openapi-gen=false
 	// +hyperfleet:write-mode=service-set
@@ -65,8 +74,7 @@ type ClusterSpec struct {
 	// HostedCluster contains the full HyperShift HostedCluster configuration
 	// All fields are generated from upstream and have safe defaults (hidden + service-set)
 	// until explicitly reviewed and exposed
-	// +kubebuilder:validation:Required
-	HostedCluster HostedClusterSpecPassthrough `json:"hostedCluster"`
+	HostedCluster *HostedClusterSpecPassthrough `json:"hostedCluster,omitempty"`
 }
 
 // ClusterStatus defines the observed state of a Cluster

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/featuregate"
 	"github.com/openshift/rosa-regional-platform-api/internal/codegen/validation"
 	"github.com/openshift/rosa-regional-platform-api/pkg/clients/hyperfleetdb"
@@ -103,7 +104,7 @@ func (h *NodePoolHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap, err := specToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
 		if err != nil {
 			h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-CREATE-002", "Invalid nodepool spec")
 			return
@@ -186,7 +187,7 @@ func (h *NodePoolHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.fieldValidator != nil {
-		specMap, err := specToMap(req.Spec)
+		specMap, err := conversion.SpecToMap(req.Spec)
 		if err != nil {
 			h.writeError(w, http.StatusBadRequest, "NODEPOOLS-MGMT-UPDATE-002", "Invalid nodepool spec")
 			return

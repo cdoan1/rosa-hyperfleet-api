@@ -477,3 +477,199 @@ make lint           # must pass (0 issues)
 make codegen-verify # must pass (all packages compile)
 ```
 ````
+
+---
+
+## PR #149 Port: Conversion Helpers, New Fields, and Expanded Docs
+
+### Context
+
+PR #149 ([ROSAENG-61804](https://redhat.atlassian.net/browse/ROSAENG-61804)) builds on PRs #148 and #150 by:
+- Exporting the `specToMap` helper as `conversion.SpecToMap` (plus a generic reverse helper `MapToSpec[T]`)
+- Adding `CloudUrl` (service-set) and `Placement` (mutable) fields to `ClusterSpec`
+- Changing passthrough embeds from value types to pointers (allowing minimal API requests)
+- Exposing previously hidden passthrough fields (`autoNode`, `configuration`) in the registry
+- Replacing `docs/codegen.md` with a comprehensive pipeline reference
+
+### What Was Ported
+
+#### 1. Exported Conversion Helpers (`internal/codegen/conversion/specmap.go`)
+
+The local `specToMap` function (previously defined in `pkg/handlers/cluster.go` and shared across the handlers package) was extracted into `internal/codegen/conversion/specmap.go` as two exported functions:
+
+| Function | Direction | Signature |
+|----------|-----------|-----------|
+| `SpecToMap` | Typed struct → map | `func SpecToMap(spec any) (map[string]any, error)` |
+| `MapToSpec[T]` | Map → typed struct | `func MapToSpec[T any](m map[string]any) (*T, error)` |
+
+Both use JSON round-trip (`json.Marshal` → `json.Unmarshal`). `SpecToMap` replaces the per-handler local function. `MapToSpec` is available for future use (e.g., converting stored maps back to typed specs).
+
+**Handler refactor:** Both `pkg/handlers/cluster.go` and `pkg/handlers/nodepool.go` now import `"github.com/openshift/rosa-regional-platform-api/internal/codegen/conversion"` and call `conversion.SpecToMap()` instead of the local `specToMap()`. The local function was removed from `cluster.go`.
+
+#### 2. New Fields on `api/v2alpha1/cluster_types.go`
+
+| Field | JSON Tag | Write Mode | Purpose |
+|-------|----------|------------|---------|
+| `CloudUrl string` | `cloudUrl,omitempty` | `service-set` | CloudFront URL for cluster console (auto-populated by server) |
+| `Placement string` | `placement,omitempty` | `mutable` | Management cluster name (auto-populated if not provided) |
+
+Both fields have `+k8s:openapi-gen=true` (CloudUrl) or no visibility marker (Placement, defaults to visible), so they appear in generated OpenAPI schemas.
+
+#### 3. Pointer Types for Passthrough Embeds
+
+| Type File | Before | After | Why |
+|-----------|--------|-------|-----|
+| `cluster_types.go` | `HostedCluster HostedClusterSpecPassthrough` + `+kubebuilder:validation:Required` | `HostedCluster *HostedClusterSpecPassthrough` + `json:"hostedCluster,omitempty"` | Allows create/update requests to omit the `hostedCluster` block entirely |
+| `nodepool_types.go` | `NodePool NodePoolSpecPassthrough` + `+kubebuilder:validation:Required` | `NodePool *NodePoolSpecPassthrough` + `json:"nodePool,omitempty"` | Same — allows minimal nodepool requests |
+
+This is a codegen-input-only change. The runtime types (`hyperfleetv1alpha1`) are unchanged. The pointer types prevent the zero-value problem documented in the PR #148 port section: with a value type, a zero `HostedClusterSpecPassthrough{}` always serialized all its fields (including zero values), causing false service-set rejections during validation. With a pointer, omitting `hostedCluster` in the request means the field is `nil` and doesn't appear in the `SpecToMap` output.
+
+#### 4. Field Registry Updates (`internal/codegen/registry/field_metadata.go`)
+
+| Change | Field Path | Effect |
+|--------|-----------|--------|
+| Added | `spec.cloudUrl` | `WriteMode: ServiceSet` (customer cannot set) |
+| Added | `spec.placement` | `WriteMode: Mutable` (customer can set/update) |
+| Unhidden | `spec.hostedCluster.autoNode` | Removed `Hidden: true` — now visible in OpenAPI |
+| Unhidden | `spec.hostedCluster.configuration` | Removed `Hidden: true` — now visible in OpenAPI |
+
+#### 5. Regenerated OpenAPI Schemas
+
+`openapi/generated-schemas.json` was updated from PR #149's version (includes `cloudUrl`, `placement`, and the newly exposed `autoNode`/`configuration` passthrough fields). `hack/merge-openapi.sh` was re-run to patch these into `openapi/openapi.yaml`.
+
+#### 6. Expanded `docs/codegen.md`
+
+Replaced the 163-line `docs/codegen.md` with a comprehensive 370-line version adapted from PR #149. Key additions:
+- Full ASCII pipeline diagram showing the codegen flow
+- Complete marker annotation reference (`+hyperfleet:write-mode`, `+k8s:openapi-gen`, `+openshift:enable:FeatureGate`)
+- Type system documentation (envelope fields, passthrough embeds, configuration types)
+- Feature gate system documentation (maturity stages, feature sets, registered gates)
+- Validation flow documentation adapted for pgruntime (typed specs → `SpecToMap` → validator)
+- Conversion layer boundary diagram for pgruntime
+- OpenAPI `--keep-markers` development mode documentation
+- Complete workflow guides (HyperShift bump, field markers, envelope fields, feature gates, full regen)
+
+Pgruntime-specific adaptations:
+- Boundary diagram shows `hyperfleetv1alpha1.ClusterSpec` → `SpecToMap` → validator (not Hyperfleet REST wire protocol)
+- `cluster.go` conversion functions documented as "no call sites on pgruntime"
+- `MapToSpec` documented as "available for future use" (currently unused)
+
+### What Was NOT Ported (And Why)
+
+| PR #149 Change | Why It Was Skipped |
+|---|---|
+| `pkg/types/cluster.go` — change `Spec` to `*v2alpha1.ClusterSpec` | Incompatible with pgruntime's `*hyperfleetv1alpha1.ClusterSpec`. The runtime types are the operator CRD types, not the codegen annotation types. |
+| `pkg/types/nodepool.go` — same pattern | Same reason. |
+| `pkg/clients/hyperfleet/client.go` — adds `SpecToMap`/`MapToSpec` calls | The Hyperfleet REST client doesn't exist on pgruntime (replaced by `hyperfleetdb`). |
+| `pkg/clients/hyperfleet/client_test.go` — tests for the above | Same reason. |
+| `pkg/handlers/cluster.go` — `v2alpha1.ClusterSpec` type assertions | pgruntime handlers use `hyperfleetv1alpha1.ClusterSpec`, not `v2alpha1.ClusterSpec`. The `conversion.SpecToMap` refactor was applied instead. |
+| `internal/codegen/conversion/cluster.go` call-site wiring | `InjectClusterServiceSet` and `RewriteCloudURLWithID` operate on `v2alpha1.ClusterSpec` maps for the Hyperfleet REST wire protocol, which doesn't exist on pgruntime. |
+
+### Key Design Decisions
+
+1. **`SpecToMap` is validation-only on pgruntime.** Unlike `main` where `SpecToMap` also produces wire-protocol maps for the Hyperfleet REST client, on pgruntime it is used exclusively at the validator boundary. All storage operations go through `hyperfleetdb.Client` with typed CRD structs.
+
+2. **`MapToSpec[T]` is unused but included.** The generic reverse helper is available if pgruntime ever needs to reconstruct typed specs from map data (e.g., from external APIs). It was included for completeness with the `specmap.go` package.
+
+3. **Pointer passthrough types reduce zero-value noise.** The change from value to pointer for `HostedCluster` and `NodePool` embeds in `api/v2alpha1/` is a codegen-input concern only — it doesn't affect runtime types. But it documents the design intent: API requests should be able to omit entire passthrough blocks.
+
+---
+
+## PR #149 Generation Prompt
+
+The prompt below was used to port PR #149 onto the `pgruntime-codegen` branch. If this work needs to be redone (e.g., after rebasing pgruntime, or when a new codegen PR lands on main), edit and re-run this prompt.
+
+````
+Review the changes from PR #149 (https://github.com/openshift-online/rosa-hyperfleet-api/pull/149,
+branch ROSAENG-61804) and apply the applicable changes onto the current pgruntime-codegen branch.
+
+### Background
+
+This branch (`pgruntime-codegen`) is based on the `pgruntime` branch, which replaces the old
+Maestro + Hyperfleet REST client architecture with a single PostgreSQL-backed `hyperfleetdb.Client`
+using typed CRD specs (`hyperfleetv1alpha1.ClusterSpec` / `NodePoolSpec`).
+
+PR #150's codegen field validation and PR #148's OpenAPI codegen have already been ported onto
+this branch. That work added:
+- `api/v2alpha1/` — annotated type mirrors for codegen input (NOT runtime types)
+- `internal/codegen/` — registry, featuregate, validation, conversion packages
+- `pkg/middleware/field_validation.go` — FieldValidator wrapping the codegen Validator
+- `hack/merge-openapi.sh`, `openapi/generated-schemas.json`, `openapi/swagger-ui/`
+- Handler modifications using a local `specToMap` JSON round-trip bridge
+- Makefile targets: codegen-install-tools, codegen-passthrough, codegen-registry, codegen-openapi
+
+PR #149 builds on these with: exported conversion helpers, new ClusterSpec fields, pointer
+passthrough types, registry updates, and expanded documentation.
+
+### Design decisions to respect
+
+1. Keep `api/v2alpha1/` as-is — markers live in the platform API repo, not the operator repo.
+2. Runtime types are `hyperfleetv1alpha1.ClusterSpec` / `NodePoolSpec` from the operator repo.
+   The `api/v2alpha1/` types are codegen input only — never used for storage or serialization.
+3. `internal/codegen/conversion/cluster.go` has no call sites on pgruntime because cloudUrl,
+   placement, and creatorARN are set directly on typed struct fields.
+4. `pkg/types/cluster.go` uses `*hyperfleetv1alpha1.ClusterSpec`, NOT `*v2alpha1.ClusterSpec`.
+5. Handler tests use `fake.NewClientBuilder().WithScheme(scheme).Build()` +
+   `hyperfleetdb.NewClientFrom(fc, logger)` — NOT the old `hyperfleet.NewClient(config...)`.
+
+### What to apply from PR #149
+
+1. **Create `internal/codegen/conversion/specmap.go`**:
+   - Copy `SpecToMap(spec any) (map[string]any, error)` and
+     `MapToSpec[T any](m map[string]any) (*T, error)` from PR #149
+   - Both use JSON round-trip (Marshal → Unmarshal)
+
+2. **Refactor handlers to use `conversion.SpecToMap`**:
+   - In `pkg/handlers/cluster.go`: add `conversion` import, replace all `specToMap(` calls
+     with `conversion.SpecToMap(`, then REMOVE the local `specToMap` function
+   - In `pkg/handlers/nodepool.go`: add `conversion` import, replace all `specToMap(` calls
+     with `conversion.SpecToMap(`
+
+3. **Update `api/v2alpha1/cluster_types.go`**:
+   - Add `CloudUrl string` field with markers:
+     `// +k8s:openapi-gen=true` and `// +hyperfleet:write-mode=service-set`
+   - Add `Placement string` field with marker: `// +hyperfleet:write-mode=mutable`
+   - Change `HostedCluster` from `HostedClusterSpecPassthrough` to
+     `*HostedClusterSpecPassthrough` with `json:"hostedCluster,omitempty"`
+   - Remove `// +kubebuilder:validation:Required` from HostedCluster
+
+4. **Update `api/v2alpha1/nodepool_types.go`**:
+   - Change `NodePool` from `NodePoolSpecPassthrough` to `*NodePoolSpecPassthrough`
+     with `json:"nodePool,omitempty"`
+   - Remove `// +kubebuilder:validation:Required` from NodePool
+
+5. **Update `internal/codegen/registry/field_metadata.go`**:
+   - Add `spec.cloudUrl` entry: `WriteMode: ServiceSet` (no Hidden flag)
+   - Add `spec.placement` entry: `WriteMode: Mutable`
+   - Remove `Hidden: true` from `spec.hostedCluster.autoNode`
+   - Remove `Hidden: true` from `spec.hostedCluster.configuration`
+
+6. **Update OpenAPI schemas**:
+   - Copy `openapi/generated-schemas.json` from PR #149 (includes cloudUrl, placement,
+     and newly visible autoNode/configuration)
+   - Run `hack/merge-openapi.sh openapi/generated-schemas.json openapi/openapi.yaml`
+
+7. **Replace `docs/codegen.md`** with PR #149's expanded version (~368 lines), adapted:
+   - Validation flow uses `hyperfleetv1alpha1.ClusterSpec` (not `v2alpha1.ClusterSpec`)
+   - Boundary diagram shows pgruntime path (SpecToMap → validator only, not REST wire)
+   - Conversion functions documented as "no call sites on pgruntime"
+   - `MapToSpec` documented as "available for future use"
+
+### What to skip from PR #149
+
+- `pkg/types/cluster.go` / `nodepool.go` — these change Spec to `*v2alpha1.ClusterSpec` which
+  is incompatible with pgruntime's `*hyperfleetv1alpha1.ClusterSpec`
+- `pkg/clients/hyperfleet/client.go` and `client_test.go` — REST client doesn't exist on pgruntime
+- `pkg/handlers/cluster.go` type assertion changes — pgruntime uses different runtime types
+- `internal/codegen/conversion/cluster.go` call-site wiring — not applicable on pgruntime
+
+### Verification
+
+After applying, run:
+```
+make build          # must pass
+make test           # must pass (0 failures)
+make lint           # must pass (0 issues)
+make codegen-verify # must pass (all packages compile)
+```
+````
