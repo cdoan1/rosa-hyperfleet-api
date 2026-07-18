@@ -288,6 +288,10 @@
     "writeMode": "mutable"
   },
   {
+    "fieldPath": "spec.cloudUrl",
+    "writeMode": "service-set"
+  },
+  {
     "fieldPath": "spec.creatorARN",
     "writeMode": "service-set",
     "hidden": true
@@ -316,8 +320,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.autoNode",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.autoscaling",
@@ -341,8 +344,7 @@
   },
   {
     "fieldPath": "spec.hostedCluster.configuration",
-    "writeMode": "service-set",
-    "hidden": true
+    "writeMode": "service-set"
   },
   {
     "fieldPath": "spec.hostedCluster.controlPlaneRelease",
@@ -557,6 +559,10 @@
     "fieldPath": "spec.nodePool.tuningConfig",
     "writeMode": "service-set",
     "hidden": true
+  },
+  {
+    "fieldPath": "spec.placement",
+    "writeMode": "mutable"
   },
   {
     "fieldPath": "spec.properties",

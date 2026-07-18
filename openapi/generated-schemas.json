@@ -340,8 +340,7 @@
       "description": "NodePoolSpec defines the desired state of a NodePool",
       "type": "object",
       "required": [
-        "clusterRef",
-        "nodePool"
+        "clusterRef"
       ],
       "properties": {
         "autoRepair": {
@@ -364,7 +363,7 @@
           }
         },
         "nodePool": {
-          "description": "NodePool contains the full HyperShift NodePool configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)\n+kubebuilder:validation:Required",
+          "description": "NodePool contains the full HyperShift NodePool configuration\nAll fields are generated from upstream and have safe defaults (hidden + service-set)",
           "$ref": "#/definitions/NodePoolSpecPassthrough"
         }
       }
