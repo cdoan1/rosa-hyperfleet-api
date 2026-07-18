@@ -32,7 +32,7 @@ type HostedClusterSpecPassthrough struct {
 	// +hyperfleet:write-mode=service-set
 	UpdateService configv1.URL `json:"updateService,omitempty"`
 	// channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	Channel string `json:"channel,omitempty"`
 	// platform specifies the underlying infrastructure provider for the cluster
@@ -96,7 +96,7 @@ type HostedClusterSpecPassthrough struct {
 	// +hyperfleet:write-mode=service-set
 	Configuration *hypershiftv1beta1.ClusterConfiguration `json:"configuration,omitempty"`
 	// operatorConfiguration specifies configuration for individual OCP operators in the cluster.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	OperatorConfiguration *hypershiftv1beta1.OperatorConfiguration `json:"operatorConfiguration,omitempty"`
 	// auditWebhook contains metadata for configuring an audit webhook endpoint
@@ -116,11 +116,11 @@ type HostedClusterSpecPassthrough struct {
 	// +hyperfleet:write-mode=service-set
 	SecretEncryption *hypershiftv1beta1.SecretEncryptionSpec `json:"secretEncryption,omitempty"`
 	// fips indicates whether this cluster's nodes will be running in FIPS mode.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	FIPS bool `json:"fips"`
 	// pausedUntil is a field that can be used to pause reconciliation on the HostedCluster controller, resulting in any change to the HostedCluster being ignored.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	PausedUntil *string `json:"pausedUntil,omitempty"`
 	// olmCatalogPlacement specifies the placement of OLM catalog components. By default,
@@ -192,7 +192,7 @@ type NodePoolSpecPassthrough struct {
 	// +hyperfleet:write-mode=service-set
 	Taints []hypershiftv1beta1.Taint `json:"taints,omitempty"`
 	// pausedUntil is a field that can be used to pause reconciliation on the NodePool controller. Resulting in any change to the NodePool being ignored.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	PausedUntil *string `json:"pausedUntil,omitempty"`
 	// tuningConfig is a list of references to ConfigMaps containing serialized

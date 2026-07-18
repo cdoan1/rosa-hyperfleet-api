@@ -358,7 +358,7 @@ verify:
 # Generator tools are installed as binaries from the codegen repo.
 
 CODEGEN_TOOLS_MODULE ?= github.com/cdoan1/hyperfleet-api-codegen
-CODEGEN_TOOLS_VERSION ?= v0.1.7
+CODEGEN_TOOLS_VERSION ?= v0.1.9
 HYPERSHIFT_IMPORT_PATH ?= github.com/openshift/hypershift/api/hypershift/v1beta1
 HYPERSHIFT_TYPES ?= HostedClusterSpec,NodePoolSpec
 
@@ -378,7 +378,7 @@ codegen-passthrough: codegen-install-tools
 		cp api/v2alpha1/zz_generated.passthrough.go api/v2alpha1/hostedclusterspec.passthrough.go; \
 		rm api/v2alpha1/zz_generated.passthrough.go; \
 	fi
-	@echo "Done. Edit api/v2alpha1/hostedclusterspec.passthrough.go to curate field markers."
+	@echo "Done. Field markers are driven by the embedded registry."
 
 VERBOSE ?=
 
