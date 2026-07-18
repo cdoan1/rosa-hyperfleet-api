@@ -60,6 +60,9 @@ go.work.sum
 Thumbs.db
 Desktop.ini
 
+# Generated intermediates
+api/v2alpha1/zz_generated.passthrough.go.raw
+
 # Build output
 /bin/
 /dist/
