@@ -63,10 +63,10 @@ var _ = Describe("ZOA Trusted Actions", Ordered, func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 			var desc struct {
-				Name           string `json:"name"`
-				Scope          string `json:"scope"`
-				Type           string `json:"type"`
-				Description    string `json:"description"`
+				Name           string   `json:"name"`
+				Scope          string   `json:"scope"`
+				Type           string   `json:"type"`
+				Description    string   `json:"description"`
 				RequiredFields []string `json:"required_fields"`
 				Params         []struct {
 					Name     string `json:"name"`

@@ -12,11 +12,40 @@ servers:
     description: API v0
 
 paths:
+  /info:
+    get:
+      summary: Get regional info
+      description: |
+        Returns the ARN of the IAM role used to invoke Lambda functions in this
+        regional account. The account ID is derived from the TARGET_GROUP_ARN
+        environment variable.
+      operationId: getInfo
+      tags:
+        - Info
+      responses:
+        "200":
+          description: Regional info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  arn:
+                    type: string
+                    description: ARN of the regional LambdaExecutor IAM role
+                    example: "arn:aws:iam::123456789012:role/LambdaExecutor"
+        "503":
+          description: Regional account not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /management_clusters:
     post:
       summary: Create a new management cluster
       description: |
-        Creates a new management cluster by registering a consumer in Maestro.
+        Creates a new management cluster by storing a ManagementCluster custom resource.
         Requires privileged access (admin AWS account).
       operationId: createManagementCluster
       tags:
@@ -26,76 +55,68 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ManagementClusterRequest'
+              $ref: "#/components/schemas/ManagementClusterRequest"
       responses:
-        '201':
+        "201":
           description: Management cluster created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManagementCluster'
-        '400':
+                $ref: "#/components/schemas/ManagementCluster"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden - account not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Management cluster already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     get:
       summary: List all management clusters
       description: |
-        Returns a list of all management clusters (consumers in Maestro).
+        Returns a list of all management clusters.
         Requires privileged access (admin AWS account).
+        Note: pagination parameters are not currently implemented; all clusters
+        are returned in a single response.
       operationId: listManagementClusters
       tags:
         - ManagementClusters
-      parameters:
-        - name: page
-          in: query
-          description: Page number (1-indexed)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          description: Number of items per page
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of management clusters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManagementClusterList'
-        '403':
+                $ref: "#/components/schemas/ManagementClusterList"
+        "403":
           description: Forbidden - account not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /management_clusters/{id}:
     get:
@@ -114,159 +135,30 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Management cluster details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManagementCluster'
-        '403':
+                $ref: "#/components/schemas/ManagementCluster"
+        "403":
           description: Forbidden - account not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Management cluster not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-
-  /resource_bundles:
-    get:
-      summary: List all resource bundles
-      description: |
-        Returns a paginated list of resource bundles.
-        Supports filtering via search query and custom field selection.
-      operationId: listResourceBundles
-      tags:
-        - ResourceBundles
-      parameters:
-        - name: page
-          in: query
-          description: Page number (1-indexed)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          description: Number of items per page
-          schema:
-            type: integer
-            minimum: 0
-            default: 100
-        - name: search
-          in: query
-          description: SQL-like filter criteria on resource attributes
-          schema:
-            type: string
-        - name: orderBy
-          in: query
-          description: SQL-like ordering (e.g., "name asc")
-          schema:
-            type: string
-        - name: fields
-          in: query
-          description: Comma-separated list of fields to return
-          schema:
-            type: string
-        - name: X-Operation-ID
-          in: header
-          description: Optional operation ID for tracking
-          schema:
-            type: string
-      responses:
-        '200':
-          description: List of resource bundles
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResourceBundleList'
-        '401':
-          description: Invalid authentication token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden - user lacks required permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /work:
-    post:
-      summary: Create manifestwork for a cluster
-      description: |
-        Creates manifestwork for the specified cluster identified by cluster_id.
-        This endpoint creates the necessary work manifest for the target cluster.
-      operationId: createWork
-      tags:
-        - Work
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WorkRequest'
-      responses:
-        '201':
-          description: Manifestwork created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Work'
-        '400':
-          description: Bad request - invalid cluster_id or payload
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Invalid authentication token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden - user lacks required permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Cluster not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '502':
-          description: Bad Gateway - Maestro error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Cluster Management Endpoints
   /clusters:
@@ -292,25 +184,19 @@ paths:
             minimum: 0
             default: 0
           description: Number of clusters to skip (pagination)
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [Pending, Progressing, Ready, Failed]
-          description: Filter by cluster status
       responses:
-        '200':
+        "200":
           description: List of user's clusters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterList'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/ClusterList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     post:
       summary: Create cluster
@@ -318,17 +204,16 @@ paths:
         Create a new cluster for the authenticated user.
 
         The API automatically enriches the cluster spec with:
-        - cloudUrl: Auto-populated from the management cluster's cloudfront_url label
-        - placement: Auto-populated from the management cluster's name (if not provided by client)
+        - hostedCluster.issuerURL: Auto-populated from the regional OIDC CloudFront distribution
+        - hostedCluster.release.image: Defaulted if not provided
+        - hostedCluster.networking: Default CIDR ranges applied if not provided
 
         Possible error codes:
         - CLUSTERS-MGMT-CREATE-001: Invalid request body
-        - CLUSTERS-MGMT-CREATE-002: Missing required fields (name or spec)
-        - CLUSTERS-MGMT-CREATE-003: Failed to create cluster in hyperfleet
-        - CLUSTERS-MGMT-CREATE-004: Failed to retrieve CloudFront URL
-        - CLUSTERS-MGMT-CREATE-005: No management clusters found
-        - CLUSTERS-MGMT-CREATE-006: CloudFront URL not configured
-        - CLUSTERS-MGMT-CREATE-007: Management cluster name not available for placement
+        - CLUSTERS-MGMT-CREATE-002: Invalid cluster spec
+        - CLUSTERS-MGMT-CREATE-003: Failed to create cluster
+        - CLUSTERS-MGMT-CREATE-004: Failed to validate cluster name
+        - CLUSTERS-MGMT-CREATE-005: Duplicate cluster name
       operationId: createUserCluster
       tags:
         - Clusters
@@ -337,22 +222,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClusterCreateRequest'
+              $ref: "#/components/schemas/ClusterCreateRequest"
       responses:
-        '201':
+        "201":
           description: Cluster created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cluster'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/Cluster"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{id}:
     parameters:
@@ -370,26 +255,26 @@ paths:
       tags:
         - Clusters
       responses:
-        '200':
+        "200":
           description: Cluster details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cluster'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/Cluster"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     patch:
       summary: Update cluster
-      description: Partially update cluster (user must own the cluster)
+      description: Update cluster spec (user must own the cluster)
       operationId: patchUserCluster
       tags:
         - Clusters
@@ -398,30 +283,29 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClusterUpdateRequest'
+              $ref: "#/components/schemas/ClusterUpdateRequest"
       responses:
-        '200':
+        "200":
           description: Cluster updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cluster'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/Cluster"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     put:
-      summary: Update cluster (deprecated)
-      description: Update cluster (user must own the cluster). Deprecated - use PATCH instead for partial updates.
+      summary: Update cluster
+      description: Update cluster spec (user must own the cluster). Same behavior as PATCH.
       operationId: updateUserCluster
-      deprecated: true
       tags:
         - Clusters
       requestBody:
@@ -429,24 +313,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClusterUpdateRequest'
+              $ref: "#/components/schemas/ClusterUpdateRequest"
       responses:
-        '200':
+        "200":
           description: Cluster updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cluster'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/Cluster"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     delete:
       summary: Delete cluster
@@ -454,15 +338,8 @@ paths:
       operationId: deleteUserCluster
       tags:
         - Clusters
-      parameters:
-        - name: force
-          in: query
-          schema:
-            type: boolean
-            default: false
-          description: Force delete even if cluster has active resources
       responses:
-        '202':
+        "202":
           description: Cluster deletion initiated
           content:
             application/json:
@@ -473,16 +350,16 @@ paths:
                     type: string
                   cluster_id:
                     type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{id}/statuses:
     parameters:
@@ -500,22 +377,22 @@ paths:
       tags:
         - Clusters
       responses:
-        '200':
+        "200":
           description: Cluster status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterStatusResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/ClusterStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   # NodePool Management Endpoints
   /nodepools:
@@ -547,18 +424,18 @@ paths:
             default: 0
           description: Number of nodepools to skip (pagination)
       responses:
-        '200':
+        "200":
           description: List of nodepools
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodePoolList'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/NodePoolList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     post:
       summary: Create nodepool
@@ -571,24 +448,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NodePoolCreateRequest'
+              $ref: "#/components/schemas/NodePoolCreateRequest"
       responses:
-        '201':
+        "201":
           description: NodePool created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodePool'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/NodePool"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /nodepools/{id}:
     parameters:
@@ -606,22 +483,22 @@ paths:
       tags:
         - NodePools
       responses:
-        '200':
+        "200":
           description: NodePool details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodePool'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/NodePool"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     put:
       summary: Update nodepool
@@ -634,24 +511,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NodePoolUpdateRequest'
+              $ref: "#/components/schemas/NodePoolUpdateRequest"
       responses:
-        '200':
+        "200":
           description: NodePool updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodePool'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/NodePool"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     delete:
       summary: Delete nodepool
@@ -660,7 +537,7 @@ paths:
       tags:
         - NodePools
       responses:
-        '202':
+        "202":
           description: NodePool deletion initiated
           content:
             application/json:
@@ -671,16 +548,16 @@ paths:
                     type: string
                   nodepool_id:
                     type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /nodepools/{id}/status:
     parameters:
@@ -698,22 +575,22 @@ paths:
       tags:
         - NodePools
       responses:
-        '200':
+        "200":
           description: NodePool status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodePoolStatusResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/NodePoolStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /live:
     get:
@@ -723,12 +600,12 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Service is alive
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthStatus'
+                $ref: "#/components/schemas/HealthStatus"
 
   /ready:
     get:
@@ -738,18 +615,18 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Service is ready
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthStatus'
-        '503':
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
           description: Service is not ready
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthStatus'
+                $ref: "#/components/schemas/HealthStatus"
 
   # Authorization - Account Management
   /accounts:
@@ -767,38 +644,38 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/EnableAccountRequest'
+              $ref: "#/components/schemas/EnableAccountRequest"
       responses:
-        '201':
+        "201":
           description: Account enabled successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
-        '400':
+                $ref: "#/components/schemas/Account"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden - caller is not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
+                $ref: "#/components/schemas/Error"
+        "409":
           description: Account already enabled
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     get:
       summary: List accounts
       description: |
@@ -808,24 +685,24 @@ paths:
       tags:
         - Authorization
       responses:
-        '200':
+        "200":
           description: List of accounts
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountList'
-        '403':
+                $ref: "#/components/schemas/AccountList"
+        "403":
           description: Forbidden - caller is not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /accounts/{id}:
     get:
@@ -844,30 +721,30 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Account details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
-        '403':
+                $ref: "#/components/schemas/Account"
+        "403":
           description: Forbidden - caller is not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Account not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Disable an account
       description: |
@@ -885,20 +762,20 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        "204":
           description: Account disabled successfully
-        '403':
+        "403":
           description: Forbidden - caller is not privileged
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Authorization - Check
   /authz/check:
@@ -915,40 +792,40 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckAuthorizationRequest'
+              $ref: "#/components/schemas/CheckAuthorizationRequest"
       responses:
-        '200':
+        "200":
           description: Authorization decision
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CheckAuthorizationResponse'
-        '400':
+                $ref: "#/components/schemas/CheckAuthorizationResponse"
+        "400":
           description: Bad request - missing required fields
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden - account not provisioned
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Authorization - Policy Management
   /authz/policies:
     post:
       summary: Create a policy
       description: |
-        Creates a new policy template. Policies define permissions using an IAM-like
-        format with statements containing effects, actions, resources, and conditions.
+        Creates a new Cedar policy. The policy body is raw Cedar policy text,
+        not a structured object.
         Policies must be attached to users or groups to take effect.
       operationId: createPolicy
       tags:
@@ -958,71 +835,57 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePolicyRequest'
+              $ref: "#/components/schemas/CreatePolicyRequest"
       responses:
-        '201':
+        "201":
           description: Policy created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Policy'
-        '400':
+                $ref: "#/components/schemas/Policy"
+        "400":
           description: Bad request - invalid policy format
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden - account not provisioned or caller not admin
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     get:
       summary: List policies
       description: Returns a list of all policies for the account.
       operationId: listPolicies
       tags:
         - Authorization
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of policies
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PolicyList'
-        '403':
+                $ref: "#/components/schemas/PolicyList"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /authz/policies/{id}:
     get:
@@ -1040,30 +903,30 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Policy details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Policy'
-        '403':
+                $ref: "#/components/schemas/Policy"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Policy not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     put:
       summary: Update a policy
       description: |
@@ -1085,42 +948,42 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePolicyRequest'
+              $ref: "#/components/schemas/UpdatePolicyRequest"
       responses:
-        '200':
+        "200":
           description: Policy updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Policy'
-        '400':
+                $ref: "#/components/schemas/Policy"
+        "400":
           description: Bad request - invalid policy format
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Policy not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Delete a policy
       description: |
-        Deletes a policy. All attachments using this policy will also be deleted.
+        Deletes a policy. Returns 409 if the policy has existing attachments.
       operationId: deletePolicy
       tags:
         - Authorization
@@ -1133,26 +996,32 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Policy deleted successfully
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Policy not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Policy has existing attachments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Authorization - Group Management
   /authz/groups:
@@ -1167,77 +1036,57 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateGroupRequest'
+              $ref: "#/components/schemas/CreateGroupRequest"
       responses:
-        '201':
+        "201":
           description: Group created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Group'
-        '400':
+                $ref: "#/components/schemas/Group"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Group with this name already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     get:
       summary: List groups
       description: Returns a list of all groups for the account.
       operationId: listGroups
       tags:
         - Authorization
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of groups
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupList'
-        '403':
+                $ref: "#/components/schemas/GroupList"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /authz/groups/{id}:
     get:
@@ -1255,30 +1104,30 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Group details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Group'
-        '403':
+                $ref: "#/components/schemas/Group"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Group not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Delete a group
       description: |
@@ -1296,31 +1145,31 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Group deleted successfully
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Group not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /authz/groups/{id}/members:
     get:
       summary: List group members
-      description: Returns a list of all members in a group.
+      description: Returns a list of all member ARNs in a group.
       operationId: listGroupMembers
       tags:
         - Authorization
@@ -1332,47 +1181,34 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of group members
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupMemberList'
-        '403':
+                $ref: "#/components/schemas/MemberList"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Group not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-    patch:
+                $ref: "#/components/schemas/Error"
+    put:
       summary: Update group members
-      description: Add or remove members from a group.
+      description: Add or remove members from a group. Returns the updated member list.
       operationId: updateGroupMembers
       tags:
         - Authorization
@@ -1389,38 +1225,38 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateGroupMembersRequest'
+              $ref: "#/components/schemas/UpdateGroupMembersRequest"
       responses:
-        '200':
+        "200":
           description: Group members updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Group'
-        '400':
+                $ref: "#/components/schemas/MemberList"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Group not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Authorization - Attachment Management
   /authz/attachments:
@@ -1437,44 +1273,38 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAttachmentRequest'
+              $ref: "#/components/schemas/CreateAttachmentRequest"
       responses:
-        '201':
+        "201":
           description: Attachment created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Attachment'
-        '400':
+                $ref: "#/components/schemas/Attachment"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Policy or target not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Attachment already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     get:
       summary: List attachments
       description: |
@@ -1501,38 +1331,25 @@ paths:
           description: Filter by target ID (ARN for user, groupId for group)
           schema:
             type: string
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of attachments
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AttachmentList'
-        '403':
+                $ref: "#/components/schemas/AttachmentList"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /authz/attachments/{id}:
     delete:
@@ -1552,26 +1369,26 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Attachment deleted successfully
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Attachment not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # Authorization - Admin Management
   /authz/admins:
@@ -1588,77 +1405,57 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddAdminRequest'
+              $ref: "#/components/schemas/AddAdminRequest"
       responses:
-        '201':
+        "201":
           description: Admin added successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Admin'
-        '400':
+                $ref: "#/components/schemas/Admin"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Forbidden - caller is not an admin
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Admin already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     get:
       summary: List admins
-      description: Returns a list of all admins for the account.
+      description: Returns a list of all admin ARNs for the account.
       operationId: listAdmins
       tags:
         - Authorization
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 100
       responses:
-        '200':
+        "200":
           description: List of admins
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AdminList'
-        '403':
+                $ref: "#/components/schemas/AdminList"
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /authz/admins/{arn}:
     delete:
@@ -1675,283 +1472,394 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        "204":
           description: Admin removed successfully
-        '403':
+        "403":
           description: Forbidden - caller is not an admin
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Admin not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+
+  # ZOA Trusted Actions
+  /trusted-actions:
+    get:
+      summary: List trusted action catalog
+      description: Returns a catalog of all registered trusted actions.
+      operationId: listTrustedActions
+      tags:
+        - TrustedActions
+      responses:
+        "200":
+          description: Trusted action catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedActionCatalog"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /trusted-actions/{action}:
+    get:
+      summary: Describe a trusted action
+      description: Returns detailed metadata for a specific trusted action.
+      operationId: describeTrustedAction
+      tags:
+        - TrustedActions
+      parameters:
+        - name: action
+          in: path
+          required: true
+          description: Trusted action name
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trusted action details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedActionDescribe"
+        "404":
+          description: Trusted action not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /trusted-actions/{action}/run:
+    post:
+      summary: Execute a trusted action
+      description: |
+        Dispatches a trusted action execution. The execution runs
+        asynchronously; use the returned ID to poll for status.
+      operationId: runTrustedAction
+      tags:
+        - TrustedActions
+      parameters:
+        - name: action
+          in: path
+          required: true
+          description: Trusted action name
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrustedActionCreateRequest"
+      responses:
+        "202":
+          description: Execution dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+        "400":
+          description: Bad request (missing fields, invalid params)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Trusted action not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Write cooldown or max concurrent limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Failed to dispatch to management cluster
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /trusted-actions/runs:
+    get:
+      summary: List executions
+      description: Returns a list of trusted action executions for the account.
+      operationId: listExecutions
+      tags:
+        - TrustedActions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, succeeded, failed, timed_out]
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: target
+          in: query
+          description: Filter by target cluster
+          schema:
+            type: string
+        - name: operator
+          in: query
+          schema:
+            type: string
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: output_status
+          in: query
+          schema:
+            type: string
+            enum: [pending, uploaded, failed]
+        - name: approval_state
+          in: query
+          schema:
+            type: string
+        - name: dry_run
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: force
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: since
+          in: query
+          description: "Duration shorthand (e.g. 1h, 24h, 7d) or RFC3339 timestamp"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionList"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /trusted-actions/runs/{id}:
+    get:
+      summary: Get execution details
+      description: |
+        Returns details of a specific execution. Use the `include` query
+        parameter to fetch output and/or logs from S3.
+      operationId: getExecution
+      tags:
+        - TrustedActions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Execution ID
+          schema:
+            type: string
+            format: uuid
+        - name: include
+          in: query
+          description: "Comma-separated list of extra fields: output, logs"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Execution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionResponse"
+        "404":
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /trusted-actions/audit:
+    get:
+      summary: List audit log
+      description: Returns audit log entries for trusted action API calls.
+      operationId: listAuditLog
+      tags:
+        - TrustedActions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: since
+          in: query
+          description: "Duration shorthand (e.g. 1h, 24h, 7d) or RFC3339 timestamp"
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: operator
+          in: query
+          schema:
+            type: string
+        - name: target
+          in: query
+          description: Filter by target cluster
+          schema:
+            type: string
+        - name: method
+          in: query
+          description: HTTP method filter
+          schema:
+            type: string
+        - name: approval_state
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditList"
+        "404":
+          description: Audit logging not enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   schemas:
     ManagementClusterRequest:
       type: object
       description: Request body for creating a management cluster
-      properties:
-        name:
-          type: string
-          description: |
-            Optional name for the management cluster.
-            Must follow RFC 1123 format (like Kubernetes namespace).
-            If not provided, defaults to the generated ID.
-          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
-          maxLength: 63
-        labels:
-          type: object
-          description: Key-value labels for the management cluster
-          additionalProperties:
-            type: string
-
-    ManagementCluster:
-      type: object
-      description: A management cluster (passthrough from Maestro consumer)
       required:
         - id
-        - kind
-        - href
-        - name
+        - region
+        - accountId
       properties:
         id:
           type: string
           description: Unique identifier for the management cluster
-        kind:
+        region:
           type: string
-          description: Resource kind
-          example: Consumer
-        href:
+          description: AWS region of the management cluster
+        accountId:
           type: string
-          description: API href reference
-        name:
+          description: AWS account ID that owns the management cluster
+
+    ManagementCluster:
+      type: object
+      description: A management cluster registered on hyperfleet-db
+      required:
+        - id
+      properties:
+        id:
           type: string
-          description: Unique name of the management cluster
-        labels:
-          type: object
-          description: Key-value labels
-          additionalProperties:
-            type: string
-        created_at:
+          description: Unique identifier for the management cluster
+        region:
           type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
+          description: AWS region of the management cluster
+        accountId:
           type: string
-          format: date-time
-          description: Last update timestamp
+          description: AWS account ID that owns the management cluster
 
     ManagementClusterList:
       type: object
-      description: Paginated list of management clusters
+      description: List of management clusters
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
           description: Resource kind
-          example: ConsumerList
-        page:
-          type: integer
-          description: Current page number
-        size:
-          type: integer
-          description: Number of items per page
+          example: ManagementClusterList
         total:
           type: integer
           description: Total number of items
         items:
           type: array
           items:
-            $ref: '#/components/schemas/ManagementCluster'
-
-    ResourceBundle:
-      type: object
-      description: A resource bundle containing manifests for deployment
-      required:
-        - id
-        - kind
-        - href
-        - name
-      properties:
-        id:
-          type: string
-          description: Unique identifier for the resource bundle
-        kind:
-          type: string
-          description: Resource kind
-          example: ResourceBundle
-        href:
-          type: string
-          description: API href reference
-        name:
-          type: string
-          description: Name of the resource bundle
-        consumer_name:
-          type: string
-          description: Name of the consumer this bundle is associated with
-        version:
-          type: integer
-          description: Version number of the resource bundle
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp
-        deleted_at:
-          type: string
-          format: date-time
-          description: Deletion timestamp (if soft-deleted)
-        metadata:
-          type: object
-          description: Additional metadata
-          additionalProperties:
-            type: string
-        manifests:
-          type: array
-          description: Array of Kubernetes manifests
-          items:
-            type: object
-        delete_option:
-          type: object
-          description: Deletion strategy for the resource bundle
-        manifest_configs:
-          type: array
-          description: Configuration for manifests
-          items:
-            type: object
-        status:
-          type: object
-          description: Status of the resource bundle
-
-    ResourceBundleList:
-      type: object
-      description: Paginated list of resource bundles
-      required:
-        - kind
-        - page
-        - size
-        - total
-        - items
-      properties:
-        kind:
-          type: string
-          description: Resource kind
-          example: ResourceBundleList
-        page:
-          type: integer
-          description: Current page number
-        size:
-          type: integer
-          description: Number of items per page
-        total:
-          type: integer
-          description: Total number of items
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceBundle'
-
-    WorkRequest:
-      type: object
-      description: Request body for creating manifestwork
-      required:
-        - cluster_id
-        - data
-      properties:
-        cluster_id:
-          type: string
-          description: Unique identifier of the target cluster
-        data:
-          type: object
-          description: |
-            Payload data to be passed to Maestro gRPC for creating the manifestwork.
-            This should contain the ManifestWork specification including manifests.
-          additionalProperties: true
-
-    Work:
-      type: object
-      description: A manifestwork resource created for a cluster
-      required:
-        - id
-        - kind
-        - href
-        - cluster_id
-        - name
-      properties:
-        id:
-          type: string
-          description: Unique identifier for the manifestwork
-        kind:
-          type: string
-          description: Resource kind
-          example: ManifestWork
-        href:
-          type: string
-          description: API href reference
-        cluster_id:
-          type: string
-          description: Cluster ID this work is associated with
-        name:
-          type: string
-          description: Name of the manifestwork resource
-          example: rosa-work-cluster-123
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp
-        status:
-          type: object
-          description: Status of the manifestwork
+            $ref: "#/components/schemas/ManagementCluster"
 
     Error:
       type: object
       description: Error response
       required:
+        - kind
         - code
         - reason
       properties:
-        id:
-          type: string
-          description: Error ID
         kind:
           type: string
           description: Resource kind
           example: Error
-        href:
-          type: string
-          description: API href reference
         code:
           type: string
           description: Error code
         reason:
           type: string
           description: Human-readable error message
-        operation_id:
-          type: string
-          description: Request operation ID for tracing
 
     HealthStatus:
       type: object
@@ -2017,7 +1925,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Account'
+            $ref: "#/components/schemas/Account"
         total:
           type: integer
           description: Total number of accounts
@@ -2035,10 +1943,10 @@ components:
           description: Principal ARN making the request
         action:
           type: string
-          description: Action being performed (e.g., rosa:CreateCluster)
+          description: "Action being performed (e.g., rosa:CreateCluster)"
         resource:
           type: string
-          description: Resource ARN (e.g., arn:aws:rosa:us-west-2:123456789012:cluster/*)
+          description: "Resource ARN (e.g., arn:aws:rosa:us-west-2:123456789012:cluster/*)"
         context:
           type: object
           description: Additional context for the authorization decision
@@ -2077,14 +1985,12 @@ components:
         name:
           type: string
           description: Policy name
-          minLength: 1
-          maxLength: 255
         description:
           type: string
           description: Optional policy description
-          maxLength: 1024
         policy:
-          $ref: '#/components/schemas/V0Policy'
+          type: string
+          description: Native Cedar policy text
 
     UpdatePolicyRequest:
       type: object
@@ -2093,138 +1999,56 @@ components:
         name:
           type: string
           description: Policy name
-          minLength: 1
-          maxLength: 255
         description:
           type: string
           description: Optional policy description
-          maxLength: 1024
         policy:
-          $ref: '#/components/schemas/V0Policy'
-
-    V0Policy:
-      type: object
-      description: IAM-like policy in v0 format
-      required:
-        - version
-        - statements
-      properties:
-        version:
           type: string
-          description: Policy format version
-          enum: [v0]
-        statements:
-          type: array
-          description: List of policy statements
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/PolicyStatement'
-
-    PolicyStatement:
-      type: object
-      description: A single statement in a policy
-      required:
-        - effect
-        - actions
-        - resources
-      properties:
-        sid:
-          type: string
-          description: Optional statement ID
-        effect:
-          type: string
-          description: Allow or Deny
-          enum: [Allow, Deny]
-        actions:
-          type: array
-          description: List of actions (e.g., rosa:CreateCluster)
-          items:
-            type: string
-        resources:
-          type: array
-          description: List of resources (* for all)
-          items:
-            type: string
-        conditions:
-          type: object
-          description: Optional conditions (operator -> key -> value)
-          additionalProperties:
-            $ref: '#/components/schemas/PolicyCondition'
-
-    PolicyCondition:
-      type: object
-      description: Condition key-value pairs
-      additionalProperties:
-        oneOf:
-          - type: string
-          - type: boolean
-          - type: number
-          - type: array
-            items:
-              type: string
+          description: Native Cedar policy text
 
     Policy:
       type: object
-      description: A policy template
+      description: A Cedar policy
       required:
-        - id
         - kind
-        - href
+        - policyId
         - name
-        - policy
         - createdAt
       properties:
-        id:
+        kind:
+          type: string
+          example: Policy
+        policyId:
           type: string
           format: uuid
           description: Policy ID
-        kind:
-          type: string
-          description: Resource kind
-          example: Policy
-        href:
-          type: string
-          description: API href reference
         name:
           type: string
           description: Policy name
         description:
           type: string
           description: Policy description
-        policy:
-          $ref: '#/components/schemas/V0Policy'
         createdAt:
           type: string
-          format: date-time
           description: Creation timestamp
-        updatedAt:
-          type: string
-          format: date-time
-          description: Last update timestamp
 
     PolicyList:
       type: object
-      description: Paginated list of policies
+      description: List of policies
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
           example: PolicyList
-        page:
-          type: integer
-        size:
-          type: integer
         total:
           type: integer
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Policy'
+            $ref: "#/components/schemas/Policy"
 
     CreateGroupRequest:
       type: object
@@ -2235,109 +2059,72 @@ components:
         name:
           type: string
           description: Group name
-          minLength: 1
-          maxLength: 255
         description:
           type: string
           description: Optional group description
-          maxLength: 1024
 
     Group:
       type: object
       description: A group of users
       required:
-        - id
         - kind
-        - href
+        - groupId
         - name
         - createdAt
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Group ID
         kind:
           type: string
           example: Group
-        href:
+        groupId:
           type: string
-          description: API href reference
+          format: uuid
+          description: Group ID
         name:
           type: string
           description: Group name
         description:
           type: string
           description: Group description
-        memberCount:
-          type: integer
-          description: Number of members in the group
         createdAt:
           type: string
-          format: date-time
           description: Creation timestamp
 
     GroupList:
       type: object
-      description: Paginated list of groups
+      description: List of groups
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
           example: GroupList
-        page:
-          type: integer
-        size:
-          type: integer
         total:
           type: integer
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Group'
+            $ref: "#/components/schemas/Group"
 
-    GroupMember:
+    MemberList:
       type: object
-      description: A member of a group
-      required:
-        - memberArn
-        - addedAt
-      properties:
-        memberArn:
-          type: string
-          description: Member's AWS ARN
-        addedAt:
-          type: string
-          format: date-time
-          description: When the member was added
-
-    GroupMemberList:
-      type: object
-      description: Paginated list of group members
+      description: List of group member ARNs
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
-          example: GroupMemberList
-        page:
-          type: integer
-        size:
-          type: integer
+          example: MemberList
         total:
           type: integer
         items:
           type: array
+          description: Member ARNs
           items:
-            $ref: '#/components/schemas/GroupMember'
+            type: string
 
     UpdateGroupMembersRequest:
       type: object
@@ -2378,31 +2165,24 @@ components:
       type: object
       description: A policy attachment to a user or group
       required:
-        - id
         - kind
-        - href
+        - attachmentId
         - policyId
         - targetType
         - targetId
         - createdAt
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Attachment ID
         kind:
           type: string
           example: Attachment
-        href:
+        attachmentId:
           type: string
-          description: API href reference
+          format: uuid
+          description: Attachment ID
         policyId:
           type: string
           format: uuid
           description: Attached policy ID
-        policyName:
-          type: string
-          description: Attached policy name
         targetType:
           type: string
           description: Target type
@@ -2410,37 +2190,27 @@ components:
         targetId:
           type: string
           description: Target ID
-        avpPolicyId:
-          type: string
-          description: Policy ID in Amazon Verified Permissions
         createdAt:
           type: string
-          format: date-time
           description: Creation timestamp
 
     AttachmentList:
       type: object
-      description: Paginated list of attachments
+      description: List of attachments
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
           example: AttachmentList
-        page:
-          type: integer
-        size:
-          type: integer
         total:
           type: integer
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Attachment'
+            $ref: "#/components/schemas/Attachment"
 
     AddAdminRequest:
       type: object
@@ -2456,45 +2226,73 @@ components:
       type: object
       description: An admin for the account
       required:
+        - kind
         - principalArn
-        - createdAt
       properties:
+        kind:
+          type: string
+          example: Admin
         principalArn:
           type: string
           description: Admin's AWS ARN
-        createdAt:
-          type: string
-          format: date-time
-          description: When the admin was added
-        createdBy:
-          type: string
-          description: ARN of who added this admin
 
     AdminList:
       type: object
-      description: Paginated list of admins
+      description: List of admin ARNs
       required:
         - kind
-        - page
-        - size
         - total
         - items
       properties:
         kind:
           type: string
           example: AdminList
-        page:
-          type: integer
-        size:
-          type: integer
         total:
           type: integer
         items:
           type: array
+          description: Admin principal ARNs
           items:
-            $ref: '#/components/schemas/Admin'
+            type: string
 
     # Cluster Schemas
+    ClusterSpec:
+      type: object
+      description: |
+        Cluster specification following the hyperfleet-operator v1alpha1.ClusterSpec
+        type. Contains a `creatorARN` and a nested `hostedCluster` field that follows
+        the HyperShift v1beta1 HostedClusterSpec schema.
+      properties:
+        creatorARN:
+          type: string
+          description: ARN of the user who created this cluster (auto-populated by the API)
+        hostedCluster:
+          type: object
+          description: |
+            HyperShift v1beta1 HostedClusterSpec. Key fields include:
+            - platform: Cloud provider configuration (type, aws)
+            - networking: Cluster/service/machine network CIDRs
+            - release: OpenShift release image
+            - issuerURL: OIDC issuer URL (auto-populated)
+          additionalProperties: true
+
+    NodePoolSpec:
+      type: object
+      description: |
+        NodePool specification following the hyperfleet-operator v1alpha1.NodePoolSpec
+        type. Contains a nested `nodePool` field that follows the HyperShift v1beta1
+        NodePoolSpec schema.
+      properties:
+        nodePool:
+          type: object
+          description: |
+            HyperShift v1beta1 NodePoolSpec. Key fields include:
+            - platform: Cloud provider configuration (type, aws with instanceType, rootVolume)
+            - replicas: Number of worker nodes (default: 2)
+            - release: OpenShift release image
+            - management: Upgrade and repair configuration
+          additionalProperties: true
+
     Cluster:
       type: object
       description: A user cluster resource
@@ -2517,10 +2315,14 @@ components:
           description: Cluster name
         target_project_id:
           type: string
-          description: Target project ID
+          description: Target project ID (AWS account ID)
         created_by:
           type: string
-          description: Email of the user who created this cluster
+          description: ARN of the user who created this cluster
+        oidc_issuer_url:
+          type: string
+          description: OIDC issuer URL for this cluster
+          example: https://doku78iof5s87.cloudfront.net/cluster-123
         generation:
           type: integer
           format: int64
@@ -2529,26 +2331,9 @@ components:
           type: string
           description: Resource version for optimistic concurrency control
         spec:
-          type: object
-          description: |
-            Cluster specification. When a cluster is created, the response includes
-            auto-populated fields like cloudUrl and placement.
-          properties:
-            cloudUrl:
-              type: string
-              description: |
-                CloudFront URL with cluster ID appended (format: {cloudfront_url}/{cluster_id}).
-                This field is automatically added to the response when creating a cluster.
-              example: https://doku78iof5s87.cloudfront.net/cluster-123
-            placement:
-              type: string
-              description: |
-                Management cluster name where the cluster is deployed.
-                Auto-populated from the first management cluster if not provided during creation.
-              example: management-cluster-us-east-1
-          additionalProperties: true
+          $ref: "#/components/schemas/ClusterSpec"
         status:
-          $ref: '#/components/schemas/ClusterStatusInfo'
+          $ref: "#/components/schemas/ClusterStatusInfo"
         created_at:
           type: string
           format: date-time
@@ -2563,16 +2348,18 @@ components:
       description: |
         Request body for creating a cluster.
 
-        The API automatically enriches the cluster spec with the following fields:
-        - cloudUrl: Auto-populated from the first management cluster's cloudfront_url label
-        - placement: Auto-populated from the first management cluster's name if not provided by the client
+        The API automatically enriches the cluster spec with:
+        - hostedCluster.issuerURL: Auto-populated from the regional OIDC CloudFront distribution
+        - hostedCluster.release.image: Defaulted if not provided
+        - hostedCluster.networking: Default CIDR ranges applied if not provided
+        - creatorARN: Set from the caller's IAM identity
       required:
         - name
         - spec
       properties:
         name:
           type: string
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'
+          pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
           minLength: 3
           maxLength: 63
           description: DNS-compatible cluster name
@@ -2580,19 +2367,7 @@ components:
           type: string
           description: Target project ID
         spec:
-          type: object
-          description: |
-            Cluster specification. The following fields are auto-populated if not provided:
-            - placement: Management cluster name where the cluster will be deployed (optional, auto-assigned if omitted)
-            - cloudUrl: CloudFront URL (always auto-populated from management cluster)
-          properties:
-            placement:
-              type: string
-              description: |
-                Management cluster name where the cluster will be deployed.
-                If not provided, will be auto-populated from the first available management cluster.
-              example: management-cluster-us-east-1
-          additionalProperties: true
+          $ref: "#/components/schemas/ClusterSpec"
 
     ClusterUpdateRequest:
       type: object
@@ -2601,13 +2376,11 @@ components:
         - spec
       properties:
         spec:
-          type: object
-          description: Cluster specification
-          additionalProperties: true
+          $ref: "#/components/schemas/ClusterSpec"
 
     ClusterStatusInfo:
       type: object
-      description: Kubernetes-like aggregated status for clusters
+      description: Aggregated status for clusters
       properties:
         observedGeneration:
           type: integer
@@ -2617,11 +2390,18 @@ components:
           type: array
           description: Status conditions
           items:
-            $ref: '#/components/schemas/Condition'
+            $ref: "#/components/schemas/Condition"
         phase:
           type: string
-          enum: [Pending, Progressing, Ready, Failed]
+          enum: [WaitingForPlacement, Provisioning, Ready, Deleting]
           description: High-level cluster phase
+        controlPlaneEndpoint:
+          $ref: "#/components/schemas/APIEndpoint"
+        version:
+          type: string
+          description: Current cluster version
+        placementRef:
+          $ref: "#/components/schemas/PlacementReference"
         message:
           type: string
           description: Human-readable status message
@@ -2633,6 +2413,27 @@ components:
           format: date-time
           description: When status was last calculated
 
+    APIEndpoint:
+      type: object
+      description: Control plane API endpoint
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          format: int32
+
+    PlacementReference:
+      type: object
+      description: Management cluster assignment
+      properties:
+        name:
+          type: string
+          description: Placement name
+        managementCluster:
+          type: string
+          description: Management cluster name
+
     Condition:
       type: object
       description: Status condition
@@ -2642,7 +2443,7 @@ components:
           description: Condition type
         status:
           type: string
-          enum: [True, False, Unknown]
+          enum: ["True", "False", Unknown]
           description: Condition status
         lastTransitionTime:
           type: string
@@ -2673,7 +2474,7 @@ components:
           type: array
           description: Controller-specific conditions
           items:
-            $ref: '#/components/schemas/Condition'
+            $ref: "#/components/schemas/Condition"
         metadata:
           type: object
           description: Controller-specific metadata
@@ -2695,12 +2496,12 @@ components:
           type: string
           description: Cluster ID
         status:
-          $ref: '#/components/schemas/ClusterStatusInfo'
+          $ref: "#/components/schemas/ClusterStatusInfo"
         controller_statuses:
           type: array
           description: Individual controller status reports
           items:
-            $ref: '#/components/schemas/ClusterControllerStatus'
+            $ref: "#/components/schemas/ClusterControllerStatus"
 
     ClusterList:
       type: object
@@ -2714,7 +2515,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Cluster'
+            $ref: "#/components/schemas/Cluster"
         total:
           type: integer
           description: Total number of clusters
@@ -2751,7 +2552,7 @@ components:
           description: NodePool name
         created_by:
           type: string
-          description: Email of the user who created this nodepool
+          description: ARN of the user who created this nodepool
         generation:
           type: integer
           format: int64
@@ -2760,9 +2561,9 @@ components:
           type: string
           description: Resource version for optimistic concurrency control
         spec:
-          $ref: '#/components/schemas/NodePoolSpec'
+          $ref: "#/components/schemas/NodePoolSpec"
         status:
-          $ref: '#/components/schemas/NodePoolStatusInfo'
+          $ref: "#/components/schemas/NodePoolStatusInfo"
         created_at:
           type: string
           format: date-time
@@ -2785,12 +2586,12 @@ components:
           description: Parent cluster ID
         name:
           type: string
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'
+          pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
           minLength: 3
           maxLength: 63
           description: DNS-compatible nodepool name
         spec:
-          $ref: '#/components/schemas/NodePoolSpec'
+          $ref: "#/components/schemas/NodePoolSpec"
 
     NodePoolUpdateRequest:
       type: object
@@ -2799,35 +2600,11 @@ components:
         - spec
       properties:
         spec:
-          $ref: '#/components/schemas/NodePoolSpec'
-
-    NodePoolSpec:
-      type: object
-      description: NodePool specification defining desired state
-      properties:
-        replicas:
-          type: integer
-          format: int32
-          description: Number of worker nodes in the pool
-        management:
-          type: object
-          description: Node pool management configuration
-          additionalProperties: true
-        platform:
-          type: object
-          description: Platform-specific configuration
-          additionalProperties: true
-        release:
-          type: object
-          description: Release/version configuration
-          additionalProperties: true
-        nodeDrainTimeout:
-          type: string
-          description: Timeout for draining nodes
+          $ref: "#/components/schemas/NodePoolSpec"
 
     NodePoolStatusInfo:
       type: object
-      description: Kubernetes-like aggregated status for nodepools
+      description: Aggregated status for nodepools
       properties:
         observedGeneration:
           type: integer
@@ -2837,10 +2614,10 @@ components:
           type: array
           description: Status conditions
           items:
-            $ref: '#/components/schemas/Condition'
+            $ref: "#/components/schemas/Condition"
         phase:
           type: string
-          enum: [Pending, Progressing, Ready, Failed]
+          enum: [WaitingForCluster, Provisioning, Ready, Deleting]
           description: High-level nodepool phase
         message:
           type: string
@@ -2871,14 +2648,10 @@ components:
           type: array
           description: Controller-specific conditions
           items:
-            $ref: '#/components/schemas/Condition'
+            $ref: "#/components/schemas/Condition"
         metadata:
           type: object
           description: Controller-specific metadata
-          additionalProperties: true
-        data:
-          type: object
-          description: Controller-specific data
           additionalProperties: true
         last_updated:
           type: string
@@ -2893,12 +2666,12 @@ components:
           type: string
           description: NodePool ID
         status:
-          $ref: '#/components/schemas/NodePoolStatusInfo'
+          $ref: "#/components/schemas/NodePoolStatusInfo"
         controller_statuses:
           type: array
           description: Individual controller status reports
           items:
-            $ref: '#/components/schemas/NodePoolControllerStatus'
+            $ref: "#/components/schemas/NodePoolControllerStatus"
 
     NodePoolList:
       type: object
@@ -2912,7 +2685,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/NodePool'
+            $ref: "#/components/schemas/NodePool"
         total:
           type: integer
           description: Total number of nodepools
@@ -2923,40 +2696,286 @@ components:
           type: integer
           description: Number of items skipped
 
+    # ZOA Trusted Action Schemas
+    TrustedActionCatalog:
+      type: object
+      description: Catalog of available trusted actions
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrustedActionListItem"
+        total:
+          type: integer
+
+    TrustedActionListItem:
+      type: object
+      description: Summary of a trusted action
+      properties:
+        name:
+          type: string
+        scope:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+
+    TrustedActionDescribe:
+      type: object
+      description: Detailed trusted action metadata
+      properties:
+        name:
+          type: string
+        scope:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        authorization:
+          type: object
+          description: Authorization policy for this action
+          properties:
+            approval:
+              description: '"none" or a structured approval policy object'
+        write_cooldown_seconds:
+          type: integer
+        dry_run_action:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrustedActionParam"
+        required_fields:
+          type: array
+          items:
+            type: string
+          example: [target_cluster, jira]
+
+    TrustedActionParam:
+      type: object
+      description: A parameter accepted by a trusted action
+      properties:
+        name:
+          type: string
+        required:
+          type: boolean
+        default:
+          type: string
+        description:
+          type: string
+
+    TrustedActionCreateRequest:
+      type: object
+      description: Request body for executing a trusted action
+      required:
+        - target_cluster
+        - jira
+      properties:
+        target_cluster:
+          type: string
+          description: Target cluster for the action
+        jira:
+          type: string
+          description: Jira ticket reference (e.g. ROSAENG-1234)
+          pattern: "^[A-Z][A-Z0-9]+-\\d+$"
+        params:
+          type: object
+          description: Action-specific parameters
+          additionalProperties:
+            type: string
+        force:
+          type: boolean
+          description: Bypass write cooldown and concurrent limits
+          default: false
+        dry_run:
+          type: boolean
+          description: Execute read-only variant of the action
+          default: false
+
+    Execution:
+      type: object
+      description: A trusted action execution record
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+        caller_arn:
+          type: string
+        operator:
+          type: string
+        action:
+          type: string
+        executed_action:
+          type: string
+        dry_run:
+          type: boolean
+        force:
+          type: boolean
+        target_cluster:
+          type: string
+        scope:
+          type: string
+        type:
+          type: string
+        params:
+          type: object
+          additionalProperties:
+            type: string
+        jira:
+          type: string
+        approval_state:
+          type: string
+          enum: [not_required, pending, approved, rejected]
+        revision:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, timed_out]
+        manifest_work_name:
+          type: string
+        output_path:
+          type: string
+        output_status:
+          type: string
+          enum: [pending, uploaded, failed]
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        completed_at:
+          type: string
+        runner_seconds:
+          type: integer
+        upload_seconds:
+          type: integer
+        duration_seconds:
+          type: integer
+
+    ExecutionResponse:
+      type: object
+      description: Full execution response with optional output and logs
+      allOf:
+        - $ref: "#/components/schemas/Execution"
+        - type: object
+          properties:
+            output:
+              description: Parsed JSON output from S3 (included when ?include=output)
+            logs:
+              type: string
+              description: Execution logs from S3 (included when ?include=logs)
+
+    ExecutionList:
+      type: object
+      description: Paginated list of executions
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Execution"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        has_more:
+          type: boolean
+
+    AuditEntry:
+      type: object
+      description: An audit log entry for a trusted action API call
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+        caller_arn:
+          type: string
+        operator:
+          type: string
+        method:
+          type: string
+          description: HTTP method
+        path:
+          type: string
+          description: Request path
+        action:
+          type: string
+        target_cluster:
+          type: string
+        execution_id:
+          type: string
+        jira:
+          type: string
+        approval_state:
+          type: string
+        status_code:
+          type: integer
+        timestamp:
+          type: string
+
+    AuditList:
+      type: object
+      description: List of audit log entries
+      required:
+        - kind
+        - items
+        - total
+      properties:
+        kind:
+          type: string
+          example: AuditList
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+        total:
+          type: integer
+
   responses:
     BadRequest:
       description: Bad request
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Forbidden:
       description: Forbidden
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     NotFound:
       description: Not found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Conflict:
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     InternalError:
       description: Internal server error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
