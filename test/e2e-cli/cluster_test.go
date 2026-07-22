@@ -23,8 +23,8 @@ package e2e_cli_test
 //
 // Available labels:
 //   help, login, vpc-create, vpc-list, iam-create, iam-list, account-add,
-//   hcp-create, oidc-create, oidc-list, cluster-status, dns-verify,
-//   nodepool-create, nodepool-list, nodepools-wait, nodepool-delete,
+//   hcp-create, oidc-create, oidc-list, cluster-status, kubeconfig,
+//   nodepool-create, nodepool-list, dns-verify, nodepools-wait, nodepool-delete,
 //   hcp-patch, bundles-delete, bundles-wait, oidc-delete, iam-delete, vpc-delete
 //
 // Group labels: setup, create, monitor, update, cleanup
@@ -536,6 +536,50 @@ var _ = Describe("ROSACTL CLI E2E Tests", Ordered, func() {
 		finalJSON, err := json.MarshalIndent(finalStatus, "", "  ")
 		Expect(err).ToNot(HaveOccurred())
 		GinkgoWriter.Printf("HCP final cluster statuses:\n%s\n", string(finalJSON))
+	})
+
+	It("should generate a working kubeconfig", Label("kubeconfig", "monitor"), func() {
+		defer recordTiming("hcp-kubeconfig")()
+		id := clusterID
+		if id == "" {
+			id = os.Getenv("HCP_INSTANCE_ID")
+		}
+		Expect(id).ToNot(BeEmpty(), "clusterID required — run full Ordered suite or set HCP_INSTANCE_ID")
+
+		name := clusterName
+		if name == "" {
+			name = os.Getenv("HCP_CLUSTER_NAME")
+		}
+		Expect(name).ToNot(BeEmpty(), "clusterName required — run full Ordered suite or set HCP_CLUSTER_NAME")
+
+		GinkgoWriter.Printf("Generating kubeconfig for cluster %s (id=%s)\n", name, id)
+
+		cmd := exec.Command(ROSACTL_BIN, "cluster", "kubeconfig", name, "--region", region)
+		cmd.Env = append(os.Environ(), customerEnv()...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		Expect(err).ToNot(HaveOccurred(), "rosactl cluster kubeconfig failed: %s", stderr.String())
+		Expect(stdout.Len()).To(BeNumerically(">", 0), "kubeconfig output should not be empty")
+
+		kubeconfigFile, err := os.CreateTemp("", "e2e-kubeconfig-*.yaml")
+		Expect(err).ToNot(HaveOccurred())
+		defer func() {
+			kubeconfigFile.Close()
+			os.Remove(kubeconfigFile.Name())
+		}()
+		_, err = kubeconfigFile.Write(stdout.Bytes())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(kubeconfigFile.Close()).To(Succeed())
+
+		GinkgoWriter.Printf("Validating kubeconfig with kubectl (file=%s)\n", kubeconfigFile.Name())
+		healthCmd := exec.Command("kubectl", "--kubeconfig", kubeconfigFile.Name(), "get", "--raw", "/healthz")
+		healthCmd.Env = append(os.Environ(), customerEnv()...)
+		healthOutput, err := healthCmd.CombinedOutput()
+		Expect(err).ToNot(HaveOccurred(), "kubectl get --raw /healthz failed:\n%s", string(healthOutput))
+		Expect(strings.TrimSpace(string(healthOutput))).To(Equal("ok"), "healthz should return ok")
+		GinkgoWriter.Printf("kubectl healthz check passed\n")
 	})
 
 	It("should be able to create a nodepool via CLI", Label("nodepool-create", "monitor"), func() {
