@@ -45,32 +45,32 @@ const (
 
 // Execution represents a single Trusted Action execution stored in DynamoDB.
 type Execution struct {
-	ExecutionID      string          `dynamodbav:"executionId" json:"id"`
-	AccountID        string          `dynamodbav:"accountId" json:"account_id,omitempty"`
-	CallerARN        string          `dynamodbav:"callerArn" json:"caller_arn,omitempty"`
-	Operator         string          `dynamodbav:"operator" json:"operator,omitempty"`
-	Action           string          `dynamodbav:"action" json:"action"`
-	ExecutedAction   string          `dynamodbav:"executedAction,omitempty" json:"executed_action,omitempty"`
-	DryRun           bool            `dynamodbav:"dryRun" json:"dry_run"`
-	Force            bool            `dynamodbav:"force" json:"force"`
-	TargetCluster    string          `dynamodbav:"targetCluster" json:"target_cluster"`
-	Scope            string          `dynamodbav:"scope" json:"scope"`
-	Type             string          `dynamodbav:"type" json:"type,omitempty"`
+	ExecutionID      string            `dynamodbav:"executionId" json:"id"`
+	AccountID        string            `dynamodbav:"accountId" json:"account_id,omitempty"`
+	CallerARN        string            `dynamodbav:"callerArn" json:"caller_arn,omitempty"`
+	Operator         string            `dynamodbav:"operator" json:"operator,omitempty"`
+	Action           string            `dynamodbav:"action" json:"action"`
+	ExecutedAction   string            `dynamodbav:"executedAction,omitempty" json:"executed_action,omitempty"`
+	DryRun           bool              `dynamodbav:"dryRun" json:"dry_run"`
+	Force            bool              `dynamodbav:"force" json:"force"`
+	TargetCluster    string            `dynamodbav:"targetCluster" json:"target_cluster"`
+	Scope            string            `dynamodbav:"scope" json:"scope"`
+	Type             string            `dynamodbav:"type" json:"type,omitempty"`
 	Params           map[string]string `dynamodbav:"params,omitempty" json:"params,omitempty"`
 	Jira             string            `dynamodbav:"jira" json:"jira"`
 	ApprovalState    ApprovalState     `dynamodbav:"approvalState" json:"approval_state"`
 	Revision         string            `dynamodbav:"revision,omitempty" json:"revision,omitempty"`
 	Status           ExecutionStatus   `dynamodbav:"status" json:"status"`
-	ManifestWorkName string          `dynamodbav:"manifestWorkName,omitempty" json:"manifest_work_name,omitempty"`
-	OutputPath       string          `dynamodbav:"outputPath,omitempty" json:"output_path,omitempty"`
-	OutputStatus     OutputStatus    `dynamodbav:"outputStatus,omitempty" json:"output_status,omitempty"`
-	CreatedAt       string `dynamodbav:"createdAt" json:"created_at"`
-	UpdatedAt       string `dynamodbav:"updatedAt,omitempty" json:"updated_at,omitempty"`
-	CompletedAt     string `dynamodbav:"completedAt,omitempty" json:"completed_at,omitempty"`
-	RunnerSeconds   int    `dynamodbav:"runnerSeconds,omitempty" json:"runner_seconds,omitempty"`
-	UploadSeconds   int    `dynamodbav:"uploadSeconds,omitempty" json:"upload_seconds,omitempty"`
-	DurationSeconds int    `dynamodbav:"durationSeconds,omitempty" json:"duration_seconds,omitempty"`
-	TTL             int64  `dynamodbav:"ttl,omitempty" json:"-"`
+	ManifestWorkName string            `dynamodbav:"manifestWorkName,omitempty" json:"manifest_work_name,omitempty"`
+	OutputPath       string            `dynamodbav:"outputPath,omitempty" json:"output_path,omitempty"`
+	OutputStatus     OutputStatus      `dynamodbav:"outputStatus,omitempty" json:"output_status,omitempty"`
+	CreatedAt        string            `dynamodbav:"createdAt" json:"created_at"`
+	UpdatedAt        string            `dynamodbav:"updatedAt,omitempty" json:"updated_at,omitempty"`
+	CompletedAt      string            `dynamodbav:"completedAt,omitempty" json:"completed_at,omitempty"`
+	RunnerSeconds    int               `dynamodbav:"runnerSeconds,omitempty" json:"runner_seconds,omitempty"`
+	UploadSeconds    int               `dynamodbav:"uploadSeconds,omitempty" json:"upload_seconds,omitempty"`
+	DurationSeconds  int               `dynamodbav:"durationSeconds,omitempty" json:"duration_seconds,omitempty"`
+	TTL              int64             `dynamodbav:"ttl,omitempty" json:"-"`
 }
 
 // CreateRequest is the JSON body for POST /api/v0/trusted-actions/{action}/run.

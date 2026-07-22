@@ -189,7 +189,7 @@ vet:
 
 # Run linter
 lint:
-	golangci-lint run ./...
+	golangci-lint run --timeout 5m ./...
 
 # Run linter in CI container with fresh clone (reproduces Prow CI exactly)
 lint-ci-container:
