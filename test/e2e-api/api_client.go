@@ -1,7 +1,7 @@
 package e2e_test
 
 import (
-	awstest "github.com/openshift/rosa-regional-platform-api/internal/test/aws"
+	awstest "github.com/openshift/rosa-regional-platform-api/test/helpers/aws"
 )
 
 // Clean these up in a future PR?

@@ -1,52 +1,18 @@
-# Binary (only in root)
-/rosa-regional-platform-api*
+# Build output
+/bin/
 
 # Test coverage
 coverage.out
 coverage.html
+cover.out
 test-results/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-
-# Vendor (if used)
-vendor/
-
-# Local development
-.env
-*.local
-
-.claude/settings.local.json
-
-rosa-regional-platform-api
-rosa-regional-platform-api.log
-
-# === Additional patterns for agent-readiness ===
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
+# Test binaries
 *.test
-
-# Output of the go coverage tool
 *.out
 *.prof
 
-# Go workspace file
-go.work
-go.work.sum
-
-# IDE and editor files
+# IDE
 .idea/
 .vscode/
 *.swp
@@ -55,11 +21,39 @@ go.work.sum
 .project
 .settings/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
-Desktop.ini
 
-# Build output
-/bin/
-/dist/
+# Vendor
+vendor/
+
+# Local development
+.env
+*.local
+.claude/settings.local.json
+
+# Go workspace
+go.work
+go.work.sum
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Custom golangci-lint binary
+custom-gcl
+
+# Pinned tool binaries (built from hack/tools/go.mod)
+hack/tools/bin/
+
+# envtest binaries
+.envtest/
+hyperfleet-operator/bin/
+
+# Compiled operator binaries (built outside bin/)
+hyperfleet-operator/manager
+hyperfleet-operator/compactor

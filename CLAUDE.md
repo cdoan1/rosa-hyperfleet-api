@@ -1,48 +1,51 @@
 # CLAUDE.md
 
-<!-- Canonical source: AGENTS.md. This file is auto-generated for Claude Code compatibility. -->
-
-This file provides guidance to AI coding assistants when working with this repository.
-
 ## Project Overview
 
-ROSA Regional Platform API — a stateless gateway API for ROSA HCP regional cluster management. Provides REST and gRPC interfaces for managing clusters within a specific cloud region.
+ROSA Hyperfleet API — ROSA HCP regional cluster management.
 
-## Build & Test Commands
+Three components:
+- **platform-api/** — Stateless REST gateway (SigV4 auth, Cedar/AVP authz, ZOA)
+- **hyperfleet-operator/** — Kubernetes operator (Cluster, NodePool, Placement, ManagementCluster, Manifest CRDs)
+- **hyperfleet-db/** — PostgreSQL-backed controller-runtime library
+
+## Build & Test
 
 ```bash
-make build           # Build the API binary
-make test            # Run unit tests (Ginkgo)
-make fmt             # Format Go source code
-make lint            # Run linters
-make generate        # Regenerate code (mocks, OpenAPI)
-make generate-swagger # Regenerate Swagger/OpenAPI specs
-make clean           # Remove build artifacts
+make build              # All components
+make test               # All unit tests
+make lint               # golangci-lint v2 across all modules
+make verify             # go.mod tidiness
+make deps               # Download and tidy all modules
+
+make build-api          # Platform API
+make build-operator     # Fleet operator (manager + compactor)
+make build-hyperfleet-db      # FleetDB library
+
+make test-api           # API unit tests
+make test-operator      # Operator unit tests
+make test-hyperfleet-db       # FleetDB unit tests
+make test-operator-int  # Operator integration tests (Postgres + DynamoDB)
+
+make manifests          # Generate CRDs (controller-gen)
+make generate           # Generate deepcopy
 ```
 
-### Integration & E2E Tests
-```bash
-make e2e-init-db         # Initialize test database
-make e2e-authz-infra-up  # Start authorization test infrastructure
-make e2e-authz-infra-down # Stop authorization test infrastructure
+## Module Layout
+
+```
+hyperfleet-db/go.mod              ← standalone
+hyperfleet-operator/api/go.mod   ← standalone (CRD types sub-module)
+hyperfleet-operator/go.mod       ← requires: fleetdb, hyperfleet-operator/api
+platform-api/go.mod         ← requires: fleetdb, hyperfleet-operator/api
 ```
 
-## Architecture
-
-- **cmd/**: Application entry points
-- **pkg/**: Core application code
-  - API handlers, services, and data access
-  - gRPC and REST server implementations
-  - `pkg/zoa/` — ZOA Trusted Actions handlers for FedRAMP-compliant service delivery operations
-- **internal/**: Internal packages (not importable by external modules)
-- **docs/**: API documentation and design references
-- **openapi/**: OpenAPI/Swagger specifications
-- **test/**: Integration and E2E test suites
-- **hack/**: Development scripts and utilities
+Cross-module refs use permanent `replace` directives to sibling dirs.
 
 ## Key Conventions
 
-- Module path: `github.com/openshift/rosa-regional-platform-api`
-- Uses Ginkgo/Gomega for testing
+- Multi-module monorepo: separate go.mod per component
+- Ginkgo/Gomega for testing
 - OpenAPI-first API design
-- DynamoDB for data persistence
+- CRD types owned by hyperfleet-operator, imported by platform-api
+- golangci-lint v2 with custom logcheck plugin
