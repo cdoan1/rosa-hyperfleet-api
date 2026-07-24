@@ -1,0 +1,50 @@
+FROM registry.access.redhat.com/ubi9/go-toolset:1.26.4-1783442369 AS builder
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+WORKDIR /app
+
+COPY hyperfleet-db/go.mod hyperfleet-db/go.sum ./hyperfleet-db/
+COPY hyperfleet-operator/api/go.mod hyperfleet-operator/api/go.sum ./hyperfleet-operator/api/
+COPY platform-api/go.mod platform-api/go.sum ./platform-api/
+RUN cd platform-api && go mod download
+
+COPY hyperfleet-db/ ./hyperfleet-db/
+COPY hyperfleet-operator/api/ ./hyperfleet-operator/api/
+COPY platform-api/ ./platform-api/
+
+RUN cd platform-api && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -buildvcs=false \
+    -ldflags="-w -s" \
+    -o /app/rosa-regional-platform-api \
+    ./cmd
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1782797275
+
+ARG VERSION=0.0.1
+ARG RELEASE=1
+
+LABEL name="rosa-hyperfleet-api" \
+      vendor="Red Hat, Inc." \
+      version="${VERSION}" \
+      release="${RELEASE}" \
+      summary="ROSA Hyperfleet platform API" \
+      description="ROSA Hyperfleet platform API service" \
+      io.k8s.display-name="rosa-hyperfleet-api" \
+      io.k8s.description="ROSA Hyperfleet platform API service" \
+      com.redhat.component="rosa-hyperfleet-api-container" \
+      distribution-scope="public" \
+      url="https://github.com/openshift-online/rosa-hyperfleet-api"
+
+WORKDIR /app
+
+COPY --from=builder /app/rosa-regional-platform-api /app/rosa-regional-platform-api
+
+EXPOSE 8000 8081 9090
+
+USER 65534:65534
+
+ENTRYPOINT ["/app/rosa-regional-platform-api"]
+CMD ["serve"]

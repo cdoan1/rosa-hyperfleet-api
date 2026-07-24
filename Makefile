@@ -1,347 +1,250 @@
-.PHONY: build test test-unit test-authz test-coverage test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa lint clean image image-push run generate generate-swagger help fmt vet
+.PHONY: help build test lint clean \
+	build-hyperfleet-db build-operator build-api \
+	test-hyperfleet-db test-operator test-operator-int test-api \
+	test-e2e test-e2e-api test-e2e-cli test-e2e-platform-monitoring test-e2e-zoa test-e2e-authz \
+	e2e-authz-infra-up e2e-authz-infra-down e2e-init-db \
+	fmt vet verify deps \
+	manifests generate setup-envtest \
+	image-api image-operator image-e2e image-push-api image-push-operator \
+	run
 
-BINARY_NAME := rosa-regional-platform-api
-IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api
-IMAGE_TAG ?= latest
-GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-GOOS ?= linux
-GOARCH ?= amd64
-PLATFORMS ?= linux/amd64,linux/arm64
-# In Prow CI, ARTIFACT_DIR is set automatically; locally default to ./test-results
-TEST_OUTPUT_DIR ?= $(or $(ARTIFACT_DIR),./test-results)
-DYNAMODB_ENDPOINT ?= http://localhost:8180
-CEDAR_AGENT_ENDPOINT ?= http://localhost:8181
+# ── Configuration ────────────────────────────────────────────────────────
 
-# AWS settings - these can be overridden by environment variables or command line
+IMAGE_REPO_API      ?= quay.io/openshift-online/rosa-regional-platform-api
+IMAGE_REPO_OPERATOR ?= quay.io/openshift-online/hyperfleet-operator
+IMAGE_TAG           ?= latest
+GIT_SHA             := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GOOS                ?= linux
+GOARCH              ?= amd64
+PLATFORMS           ?= linux/amd64,linux/arm64
+
+TEST_OUTPUT_DIR     ?= $(or $(ARTIFACT_DIR),./test-results)
+DYNAMODB_ENDPOINT   ?= http://localhost:8180
+CEDAR_AGENT_ENDPOINT?= http://localhost:8181
+
 AWS_PROFILE ?=
-AWS_REGION ?=
-FOCUS ?=
-SKIP ?= Authz
+AWS_REGION  ?=
+FOCUS       ?=
+SKIP        ?= Authz
 
-# CI container settings - for reproducing Prow CI environment locally
-CI_IMAGE_REPO ?= quay.io/openshift-online/rosa-regional-platform-api-ci
-CI_IMAGE_TAG ?= latest
-REPO_URL ?= https://github.com/openshift-online/rosa-regional-platform-api
-GIT_REF ?= main
-
-# Container engine: prefer podman, fall back to docker
 CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
 
-# Detect host platform for native builds
-HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-HOST_ARCH := $(shell uname -m)
-ifeq ($(HOST_ARCH),x86_64)
-	HOST_ARCH := amd64
-endif
-ifeq ($(HOST_ARCH),aarch64)
-	HOST_ARCH := arm64
-endif
+TOOLS_DIR        := ./hack/tools
+TOOLS_BIN_DIR    := $(TOOLS_DIR)/bin
+GOLANGCI_LINT    := $(abspath $(TOOLS_BIN_DIR)/golangci-lint)
 
-# Show available make targets
+$(GOLANGCI_LINT): $(TOOLS_DIR)/go.mod
+	cd $(TOOLS_DIR); go build -tags=tools -o $(abspath $(TOOLS_BIN_DIR))/golangci-lint github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+
+# ── Help ─────────────────────────────────────────────────────────────────
+
 help:
-	@echo "Available targets:"
+	@echo "Usage: make <target>"
 	@echo ""
-	@echo "Build & Run:"
-	@echo "  build          - Build the binary"
-	@echo "  run            - Run locally with debug settings"
-	@echo "  clean          - Clean build artifacts"
+	@echo "Build:"
+	@echo "  build                Build all components"
+	@echo "  build-api            Platform API server"
+	@echo "  build-operator       Hyperfleet operator (manager + compactor)"
+	@echo "  build-hyperfleet-db  Hyperfleet DB library"
 	@echo ""
-	@echo "Testing:"
-	@echo "  test                           - Run all unit tests (excludes e2e)"
-	@echo "  test-unit                      - Run unit tests for a specific package (PKG=./pkg/authz/...)"
-	@echo "  test-authz                     - Run authorization package tests only"
-	@echo "  test-coverage                  - Run unit tests with coverage report"
-	@echo "  test-e2e                       - Run e2e integration tests (native, excludes CLI tests)"
-	@echo "  test-e2e-cli                   - Run e2e CLI tests only (HCP cluster creation)"
-	@echo "  test-e2e-awscreds              - Run AWS credentials check test only"
-	@echo "  test-e2e-container             - Run e2e tests in container"
-	@echo "                                   Supports: AWS_PROFILE=..., FOCUS='pattern', SKIP='pattern'"
-	@echo "  test-e2e-authz                 - Run authz e2e tests with local infrastructure"
-	@echo ""
-	@echo "E2E Infrastructure:"
-	@echo "  e2e-authz-infra-up   - Start DynamoDB Local and cedar-agent containers"
-	@echo "  e2e-authz-infra-down - Stop E2E infrastructure"
-	@echo "  e2e-init-db    - Initialize DynamoDB tables"
+	@echo "Test:"
+	@echo "  test                 All unit tests"
+	@echo "  test-api             Platform API"
+	@echo "  test-operator        Hyperfleet operator"
+	@echo "  test-operator-int    Operator integration (Postgres + DynamoDB)"
+	@echo "  test-hyperfleet-db   Hyperfleet DB"
+	@echo "  test-e2e-api         E2E API"
+	@echo "  test-e2e-cli         E2E CLI"
+	@echo "  test-e2e-authz       E2E authz (starts local infra)"
+	@echo "  test-e2e-zoa         E2E ZOA"
+	@echo "  test-e2e-platform-monitoring  E2E monitoring"
 	@echo ""
 	@echo "Code Quality:"
-	@echo "  lint                - Run golangci-lint"
-	@echo "  lint-ci-container   - Run linter in CI container with fresh clone"
-	@echo "                        Supports: REPO_URL=..., GIT_REF=..."
-	@echo "  fmt                 - Format code with gofmt"
-	@echo "  vet                 - Run go vet"
-	@echo "  verify              - Verify go.mod is tidy"
-	@echo ""
-	@echo "Docker:"
-	@echo "  image                    - Build container image"
-	@echo "  image-push               - Push container image"
-	@echo "  image-e2e                - Build E2E test container (single platform)"
-	@echo "  image-e2e-multiarch      - Build E2E test container (multiarch)"
-	@echo "  image-e2e-push-multiarch - Build and push E2E test container (multiarch)"
+	@echo "  lint                 golangci-lint on all modules"
+	@echo "  fmt                  Format Go source"
+	@echo "  vet                  go vet on all modules"
+	@echo "  verify               Verify go.mod tidiness"
 	@echo ""
 	@echo "Code Generation:"
-	@echo "  deps           - Download and tidy dependencies"
-	@echo "  generate       - Generate OpenAPI code"
-	@echo "  generate-swagger - Regenerate swagger-ui.html"
+	@echo "  manifests            Generate CRD manifests"
+	@echo "  generate             Generate deepcopy methods"
+	@echo "  setup-envtest        Install envtest binaries (etcd, kube-apiserver)"
+	@echo "  deps                 Download and tidy all modules"
 	@echo ""
-	@echo "  all            - Run all checks (deps, fmt, vet, lint, test, build)"
+	@echo "Images:"
+	@echo "  image-api            Platform API image"
+	@echo "  image-operator       Hyperfleet operator image"
+	@echo "  image-e2e            E2E test image"
 
-# Build the binary
-build:
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(BINARY_NAME) ./cmd/$(BINARY_NAME)
+# ── Build ────────────────────────────────────────────────────────────────
 
-# Run all unit tests (excludes e2e), ci calls test, so disable mod check here
-test:
-	go test -v -race -count=1 $(shell go list ./... | grep -v '/test/e2e')
+build: build-hyperfleet-db build-operator build-api
 
-# Run unit tests for a specific package (usage: make test-unit PKG=./pkg/authz/...)
-PKG ?= ./...
-test-unit:
-	go test -v -race -count=1 $(PKG)
+build-hyperfleet-db:
+	cd hyperfleet-db && go build ./...
 
-# Run authorization package tests only
-test-authz:
-	go test -v -race -count=1 ./pkg/authz/...
+build-operator:
+	cd hyperfleet-operator && go build -o ../bin/manager ./cmd/manager
+	cd hyperfleet-operator && go build -o ../bin/compactor ./cmd/compactor
 
-# Run tests with coverage (excludes e2e)
-test-coverage:
-	go test -v -race -coverprofile=coverage.out $(shell go list ./... | grep -v '/test/e2e')
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report: coverage.html"
+build-api:
+	cd platform-api && go build -o ../bin/rosa-regional-platform-api ./cmd
 
-# Kept for backwards compatibility. Not sure if this is used elsewhere, but feel free to delete
-# if this isn't necessary
+# ── Test ─────────────────────────────────────────────────────────────────
+
+# TODO: add test-operator (needs setup-envtest in CI image) and test-hyperfleet-db (needs podman + postgres)
+test: test-api
+
+test-hyperfleet-db:
+	cd hyperfleet-db && go test -v -race -count=1 ./...
+
+test-operator:
+	cd hyperfleet-operator && KUBEBUILDER_ASSETS="$$(setup-envtest use --print path -p path 2>/dev/null || echo '')" go test -v -race -count=1 ./internal/...
+
+test-operator-int:
+	cd hyperfleet-operator && go test -v -race -count=1 ./test/...
+
+test-api:
+	cd platform-api && go test -v -race -count=1 $$(go list ./... | grep -v '/test/e2e')
+
 test-e2e: test-e2e-api
 
-# Run e2e tests (native - works on Linux, macOS, Windows)
-# Excludes CLI tests (use test-e2e-cli for those) and Authz tests (use test-e2e-authz)
 test-e2e-api:
-	E2E_BASE_URL="${BASE_URL}" E2E_ACCOUNT_ID="${E2E_ACCOUNT_ID}" \
-	E2E_RHOBS_API_URL="${RHOBS_API_URL}" \
-	ginkgo -vv \
-	--skip="Authz" --junit-report=junit-api.xml \
-	--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-api
+	E2E_BASE_URL="$${BASE_URL}" E2E_ACCOUNT_ID="$${E2E_ACCOUNT_ID}" \
+	E2E_RHOBS_API_URL="$${RHOBS_API_URL}" \
+	ginkgo -vv --skip="Authz" \
+		--junit-report=junit-api.xml --output-dir=$(TEST_OUTPUT_DIR) \
+		./test/e2e-api
 
-test-e2e-api-quiet:
-	E2E_BASE_URL="${BASE_URL}" E2E_ACCOUNT_ID="${E2E_ACCOUNT_ID}" \
-	E2E_RHOBS_API_URL="${RHOBS_API_URL}" \
-	ginkgo --skip="Authz" \
-	--junit-report=junit-api.xml \
-	--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-api
-
-# Run e2e CLI tests only (HCP cluster creation via rosactl)
-# Requires: E2E_BASE_URL, ROSACTL_BIN, AWS_REGION, CUSTOMER_AWS_ACCESS_KEY_ID, CUSTOMER_AWS_SECRET_ACCESS_KEY
 test-e2e-cli:
-	@E2E_BASE_URL="${BASE_URL}" \
-		E2E_ACCOUNT_ID="${E2E_ACCOUNT_ID}" \
-		E2E_RHOBS_API_URL="${RHOBS_API_URL}" \
-		ROSACTL_BIN="${ROSACTL_BIN}" \
-		AWS_REGION="${AWS_REGION}" \
-		ginkgo -vv --junit-report=junit-cli.xml \
+	E2E_BASE_URL="$${BASE_URL}" E2E_ACCOUNT_ID="$${E2E_ACCOUNT_ID}" \
+	E2E_RHOBS_API_URL="$${RHOBS_API_URL}" \
+	ROSACTL_BIN="$${ROSACTL_BIN}" AWS_REGION="$${AWS_REGION}" \
+	ginkgo -vv --junit-report=junit-cli.xml \
 		$(if $(E2E_LABEL_FILTER),--label-filter="$(E2E_LABEL_FILTER)") \
 		--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-cli
 
 test-e2e-platform-monitoring:
-	E2E_RHOBS_API_URL="${RHOBS_API_URL}" \
+	E2E_RHOBS_API_URL="$${RHOBS_API_URL}" \
 	ginkgo -vv --junit-report=junit-platform-monitoring.xml \
-	--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-platform-monitoring
+		--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-platform-monitoring
 
 test-e2e-zoa:
-	E2E_BASE_URL="${BASE_URL}" E2E_ACCOUNT_ID="${E2E_ACCOUNT_ID}" \
+	E2E_BASE_URL="$${BASE_URL}" E2E_ACCOUNT_ID="$${E2E_ACCOUNT_ID}" \
 	ginkgo -vv --junit-report=junit-zoa.xml \
-	--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-zoa
+		--output-dir=$(TEST_OUTPUT_DIR) ./test/e2e-zoa
 
-# Run just the AWS credentials check test
-test-e2e-awscreds:
-	ginkgo -vv --focus="AWS Credentials Check" ./test/e2e-api
+# ── E2E Infrastructure ──────────────────────────────────────────────────
 
-# E2E infrastructure targets
-.PHONY: e2e-authz-infra-up e2e-authz-infra-down e2e-init-db test-e2e-authz
-
-# Start DynamoDB Local and cedar-agent containers
 e2e-authz-infra-up:
 	podman-compose -f hack/podman-compose.e2e-authz.yaml up -d
 	@echo "Waiting for services to be ready..."
 	@sleep 5
 	@$(MAKE) e2e-init-db
 
-# Stop E2E infrastructure
 e2e-authz-infra-down:
 	podman-compose -f hack/podman-compose.e2e-authz.yaml down -v
 
-# Initialize DynamoDB tables
 e2e-init-db:
 	./scripts/e2e-init-dynamodb.sh
 
-# Run authz E2E tests (starts infrastructure, runs tests, keeps infra running)
 test-e2e-authz: e2e-authz-infra-up
 	@./scripts/run-e2e-authz.sh
 
-# Run authz E2E tests with cleanup (stops infrastructure after tests)
-test-e2e-authz-clean: test-e2e-authz e2e-authz-infra-down
+# ── Code Quality ─────────────────────────────────────────────────────────
 
-# Format code
 fmt:
-	go fmt ./...
+	cd hyperfleet-db && go fmt ./...
+	cd hyperfleet-operator && go fmt ./...
+	cd platform-api && go fmt ./...
 
-# Run go vet
 vet:
-	go vet ./...
+	cd hyperfleet-db && go vet ./...
+	cd hyperfleet-operator && go vet ./...
+	cd platform-api && go vet ./...
 
-# Run linter
-lint:
-	golangci-lint run --timeout 5m ./...
+lint: $(GOLANGCI_LINT)
+	cd hyperfleet-db && $(GOLANGCI_LINT) run --config ../.golangci.yml --timeout 5m ./...
+	cd hyperfleet-operator && $(GOLANGCI_LINT) run --config ../.golangci.yml --timeout 5m ./...
+	cd platform-api && $(GOLANGCI_LINT) run --config ../.golangci.yml --timeout 5m ./...
 
-# Run linter in CI container with fresh clone (reproduces Prow CI exactly)
-lint-ci-container:
-	@echo "Building CI container image..."
-	$(CONTAINER_ENGINE) build -f ci/Containerfile -t $(CI_IMAGE_REPO):$(CI_IMAGE_TAG) .
-	@echo "Running linter in CI container with fresh clone from $(REPO_URL)@$(GIT_REF)..."
-	$(CONTAINER_ENGINE) run --rm \
-		$(CI_IMAGE_REPO):$(CI_IMAGE_TAG) \
-		bash -c "git clone $(REPO_URL) /tmp/repo && cd /tmp/repo && git checkout $(GIT_REF) && ./ci/lint.sh"
+verify:
+	cd hyperfleet-db && go mod tidy
+	cd hyperfleet-operator/api && go mod tidy
+	cd hyperfleet-operator && go mod tidy
+	cd platform-api && go mod tidy
+	cd test && go mod tidy
+	cd hack/tools && go mod tidy
+	git diff --exit-code \
+		hyperfleet-db/go.mod hyperfleet-db/go.sum \
+		hyperfleet-operator/api/go.mod hyperfleet-operator/api/go.sum \
+		hyperfleet-operator/go.mod hyperfleet-operator/go.sum \
+		platform-api/go.mod platform-api/go.sum \
+		test/go.mod test/go.sum \
+		hack/tools/go.mod hack/tools/go.sum
 
-# Clean build artifacts
-clean:
-	rm -f $(BINARY_NAME)
-	rm -f coverage.out coverage.html
+deps:
+	cd hyperfleet-db && go mod download && go mod tidy
+	cd hyperfleet-operator/api && go mod download && go mod tidy
+	cd hyperfleet-operator && go mod download && go mod tidy
+	cd platform-api && go mod download && go mod tidy
+	cd test && go mod download && go mod tidy
 
-# Build container image
-image:
-	$(CONTAINER_ENGINE) build --platform $(GOOS)/$(GOARCH) -t $(IMAGE_REPO):$(IMAGE_TAG) .
-	$(CONTAINER_ENGINE) tag $(IMAGE_REPO):$(IMAGE_TAG) $(IMAGE_REPO):$(GIT_SHA)
+# ── Code Generation ──────────────────────────────────────────────────────
 
-# Build E2E test container (single platform)
-image-e2e:
-	$(CONTAINER_ENGINE) build -f Containerfile.e2e \
+manifests:
+	cd hyperfleet-operator && controller-gen crd paths="./api/..." output:crd:dir=config/crd/bases
+
+generate:
+	cd hyperfleet-operator && controller-gen object paths="./api/..."
+
+setup-envtest:
+	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	setup-envtest use
+
+# ── Images ───────────────────────────────────────────────────────────────
+
+image-api:
+	$(CONTAINER_ENGINE) build -f platform-api/Dockerfile \
 		--platform $(GOOS)/$(GOARCH) \
-		-t $(IMAGE_REPO)-e2e:$(IMAGE_TAG) .
-	$(CONTAINER_ENGINE) tag $(IMAGE_REPO)-e2e:$(IMAGE_TAG) $(IMAGE_REPO)-e2e:$(GIT_SHA)
+		-t $(IMAGE_REPO_API):$(IMAGE_TAG) .
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_API):$(IMAGE_TAG) $(IMAGE_REPO_API):$(GIT_SHA)
 
-# Build E2E test container for multiple architectures
-image-e2e-multiarch:
-	$(CONTAINER_ENGINE) buildx build -f Containerfile.e2e \
-		--platform $(PLATFORMS) \
-		-t $(IMAGE_REPO)-e2e:$(IMAGE_TAG) \
-		-t $(IMAGE_REPO)-e2e:$(GIT_SHA) \
-		--load .
+image-operator:
+	$(CONTAINER_ENGINE) build -f hyperfleet-operator/Dockerfile \
+		--platform $(GOOS)/$(GOARCH) \
+		-t $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG) .
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG) $(IMAGE_REPO_OPERATOR):$(GIT_SHA)
 
-# Build and push E2E test container for multiple architectures
-image-e2e-push-multiarch:
-	$(CONTAINER_ENGINE) buildx build -f Containerfile.e2e \
-		--platform $(PLATFORMS) \
-		-t $(IMAGE_REPO)-e2e:$(IMAGE_TAG) \
-		-t $(IMAGE_REPO)-e2e:$(GIT_SHA) \
-		--push .
+image-e2e:
+	$(CONTAINER_ENGINE) build -f platform-api/Containerfile.e2e \
+		--platform $(GOOS)/$(GOARCH) \
+		-t $(IMAGE_REPO_API)-e2e:$(IMAGE_TAG) .
 
-# Build ginkgo command with focus/skip flags
-GINKGO_CMD := ginkgo -vv
-ifneq ($(FOCUS),)
-	GINKGO_CMD += --focus="$(FOCUS)"
-endif
-ifneq ($(SKIP),)
-	GINKGO_CMD += --skip="$(SKIP)"
-endif
-GINKGO_CMD += --junit-report=junit.xml --output-dir=/app/test-results ./test/e2e-api
+image-push-api: image-api
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_API):$(IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_API):$(GIT_SHA)
 
-# Since we're using dynamic credentials in our aws config, we need to export the
-# credentials to the container
-test-e2e-container: image-e2e-multiarch
-	@echo "✅ Exporting static credentials from profile $(AWS_PROFILE)..."
-	@eval "$$(aws configure export-credentials --profile $(AWS_PROFILE) --format env-no-export)" && \
-	$(CONTAINER_ENGINE) run --rm \
-		-e E2E_BASE_URL="$(BASE_URL)" \
-		-e E2E_ACCOUNT_ID="$(E2E_ACCOUNT_ID)" \
-		-e AWS_ACCESS_KEY_ID="$$AWS_ACCESS_KEY_ID" \
-		-e AWS_SECRET_ACCESS_KEY="$$AWS_SECRET_ACCESS_KEY" \
-		-e AWS_SESSION_TOKEN="$$AWS_SESSION_TOKEN" \
-		-e AWS_REGION="$(AWS_REGION)" \
-		-v $(PWD)/test-results:/app/test-results \
-		$(IMAGE_REPO)-e2e:$(IMAGE_TAG) \
-		$(GINKGO_CMD)
+image-push-operator: image-operator
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(GIT_SHA)
 
-# Push container image
-image-push: image
-	$(CONTAINER_ENGINE) push $(IMAGE_REPO):$(IMAGE_TAG)
-	$(CONTAINER_ENGINE) push $(IMAGE_REPO):$(GIT_SHA)
+# ── Run ──────────────────────────────────────────────────────────────────
 
-# Run locally
-run: build
-	./$(BINARY_NAME) serve \
+run: build-api
+	./bin/rosa-regional-platform-api serve \
 		--log-level=debug \
 		--log-format=text \
 		--maestro-url=http://localhost:8001 \
 		--allowed-accounts=123456789012
 
-# Download dependencies
-deps:
-	go mod download
-	go mod tidy
+# ── Clean ────────────────────────────────────────────────────────────────
 
-# Generate OpenAPI code (requires oapi-codegen)
-generate:
-	@echo "OpenAPI code generation not yet configured"
-	@echo "Install oapi-codegen: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"
+clean:
+	rm -rf bin/
+	rm -f coverage.out coverage.html
+	rm -rf test-results/
 
-# Regenerate swagger-ui.html from openapi.yaml (requires yq)
-generate-swagger:
-	@which yq > /dev/null || (echo "Error: yq is required. Install with: brew install yq" && exit 1)
-	@echo "Generating openapi/swagger-ui.html from openapi/openapi.yaml..."
-	@( \
-		echo '<!DOCTYPE html>'; \
-		echo '<html lang="en">'; \
-		echo '<head>'; \
-		echo '  <meta charset="UTF-8">'; \
-		echo '  <title>ROSA Regional Platform API - Swagger UI</title>'; \
-		echo '  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui.css">'; \
-		echo '  <style>'; \
-		echo '    html {'; \
-		echo '      box-sizing: border-box;'; \
-		echo '      overflow: -moz-scrollbars-vertical;'; \
-		echo '      overflow-y: scroll;'; \
-		echo '    }'; \
-		echo '    *, *:before, *:after {'; \
-		echo '      box-sizing: inherit;'; \
-		echo '    }'; \
-		echo '    body {'; \
-		echo '      margin: 0;'; \
-		echo '      padding: 0;'; \
-		echo '    }'; \
-		echo '  </style>'; \
-		echo '</head>'; \
-		echo '<body>'; \
-		echo '  <div id="swagger-ui"></div>'; \
-		echo '  <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-bundle.js"></script>'; \
-		echo '  <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-standalone-preset.js"></script>'; \
-		echo '  <script>'; \
-		echo '    window.onload = function() {'; \
-		echo '      const ui = SwaggerUIBundle({'; \
-		echo "        url: window.location.origin + '/openapi.yaml',"; \
-		echo '        spec: '; \
-		yq eval -o=json -I=2 '.' openapi/openapi.yaml | sed 's/^/  /'; \
-		echo ','; \
-		echo "        dom_id: '#swagger-ui',"; \
-		echo '        deepLinking: true,'; \
-		echo '        presets: ['; \
-		echo '          SwaggerUIBundle.presets.apis,'; \
-		echo '          SwaggerUIStandalonePreset'; \
-		echo '        ],'; \
-		echo '        plugins: ['; \
-		echo '          SwaggerUIBundle.plugins.DownloadUrl'; \
-		echo '        ],'; \
-		echo '        layout: "StandaloneLayout"'; \
-		echo '      });'; \
-		echo '      window.ui = ui;'; \
-		echo '    };'; \
-		echo '  </script>'; \
-		echo '</body>'; \
-		echo '</html>'; \
-	) > docs/index.html
-	@echo "Done! Generated docs/index.html"
+# ── All ──────────────────────────────────────────────────────────────────
 
-# Verify go.mod is tidy
-verify:
-	go mod tidy
-	git diff --exit-code go.mod go.sum
-
-# All checks
 all: deps fmt vet lint test build

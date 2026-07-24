@@ -1,6 +1,4 @@
 #!/bin/bash
-# CI entrypoint for unit tests.
-
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
