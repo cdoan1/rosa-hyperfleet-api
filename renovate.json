@@ -5,21 +5,31 @@
     "gomod",
     "tekton"
   ],
+  "dockerfile": {
+    "managerFilePatterns": [
+      "/^Dockerfile$/",
+      "/^ci\\/Containerfile$/"
+    ]
+  },
+  "tekton": {
+    "managerFilePatterns": [
+      "/^\\.tekton\\/.*\\.ya?ml$/"
+    ]
+  },
   "packageRules": [
     {
       "description": "Automerge patch/minor/digest Containerfile/Dockerfile updates when Prow + Konflux pass",
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true,
-      "automergeType": "branch",
-      "automergeStrategy": "squash",
+      "automergeType": "pr",
       "platformAutomerge": true,
       "addLabels": [
         "automerge",
         "dependencies",
         "docker",
-        "/lgtm",
-        "/approve"
+        "lgtm",
+        "approved"
       ]
     },
     {
@@ -39,15 +49,14 @@
       "matchManagers": ["gomod"],
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true,
-      "automergeType": "branch",
-      "automergeStrategy": "squash",
+      "automergeType": "pr",
       "platformAutomerge": true,
       "addLabels": [
         "automerge",
         "dependencies",
         "go-modules",
-        "/lgtm",
-        "/approve"
+        "lgtm",
+        "approved"
       ]
     },
     {
@@ -67,14 +76,13 @@
       "matchManagers": ["tekton"],
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true,
-      "automergeType": "branch",
-      "automergeStrategy": "squash",
+      "automergeType": "pr",
       "platformAutomerge": true,
       "addLabels": [
         "automerge",
         "dependencies",
-        "/lgtm",
-        "/approve"
+        "lgtm",
+        "approved"
       ]
     },
     {
