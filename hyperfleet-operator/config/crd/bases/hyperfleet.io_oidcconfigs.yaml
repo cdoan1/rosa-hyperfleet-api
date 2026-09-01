@@ -68,7 +68,9 @@ spec:
               issuerUrl:
                 description: |-
                   IssuerUrl is the OIDC issuer URL.
-                  Required for unmanaged configs; set by the controller for managed configs.
+                  Required for both types; computed by platform-api for managed configs,
+                  customer-supplied for unmanaged configs.
+                minLength: 1
                 type: string
               secretArn:
                 description: |-
@@ -83,23 +85,24 @@ spec:
                 - unmanaged
                 type: string
             required:
+            - issuerUrl
             - type
             type: object
             x-kubernetes-validations:
             - message: managed type must not set secretArn or installerRoleArn
               rule: self.type != 'managed' || (self.secretArn == '' && self.installerRoleArn
                 == '')
-            - message: unmanaged type requires secretArn, installerRoleArn, and issuerUrl
+            - message: unmanaged type requires secretArn and installerRoleArn
               rule: self.type != 'unmanaged' || (self.secretArn != '' && self.installerRoleArn
-                != '' && self.issuerUrl != '')
+                != '')
             - message: spec.type is immutable
               rule: self.type == oldSelf.type
             - message: spec.secretArn is immutable
               rule: self.secretArn == oldSelf.secretArn
             - message: spec.installerRoleArn is immutable
               rule: self.installerRoleArn == oldSelf.installerRoleArn
-            - message: spec.issuerUrl is immutable once set
-              rule: oldSelf.issuerUrl == '' || self.issuerUrl == oldSelf.issuerUrl
+            - message: spec.issuerUrl is immutable
+              rule: self.issuerUrl == oldSelf.issuerUrl
           status:
             description: OidcConfigStatus defines the observed state of an OidcConfig.
             properties:

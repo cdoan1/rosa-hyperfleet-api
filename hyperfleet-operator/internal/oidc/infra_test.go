@@ -21,7 +21,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -87,4 +90,90 @@ func TestResolveIssuerHost(t *testing.T) {
 			}
 		})
 	}
+}
+
+// discoveryHandler returns an http.HandlerFunc that serves body (with the
+// given status code) only at the discovery path, and 404s everything else,
+// mirroring how a real OIDC issuer only publishes documents at
+// .well-known/openid-configuration.
+func discoveryHandler(status int, body string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+discoveryPath {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}
+}
+
+func TestVerifyIssuerDocument(t *testing.T) {
+	t.Run("succeeds for a valid discovery document with a matching issuer", func(t *testing.T) {
+		var srv *httptest.Server
+		srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/"+discoveryPath {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"issuer": srv.URL})
+		}))
+		defer srv.Close()
+
+		thumbprint, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if thumbprint == "" {
+			t.Error("expected a non-empty thumbprint")
+		}
+	})
+
+	t.Run("fails on a non-200 response", func(t *testing.T) {
+		srv := httptest.NewTLSServer(discoveryHandler(http.StatusInternalServerError, `{"issuer":"ignored"}`))
+		defer srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL); err == nil {
+			t.Error("expected an error for a non-200 response, got nil")
+		}
+	})
+
+	t.Run("fails on an invalid JSON body", func(t *testing.T) {
+		srv := httptest.NewTLSServer(discoveryHandler(http.StatusOK, `not json`))
+		defer srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL); err == nil {
+			t.Error("expected an error for an invalid JSON body, got nil")
+		}
+	})
+
+	t.Run("fails when the issuer field is missing", func(t *testing.T) {
+		srv := httptest.NewTLSServer(discoveryHandler(http.StatusOK, `{}`))
+		defer srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL); err == nil {
+			t.Error("expected an error for a missing issuer field, got nil")
+		}
+	})
+
+	t.Run("fails when the issuer field does not match", func(t *testing.T) {
+		srv := httptest.NewTLSServer(discoveryHandler(http.StatusOK, `{"issuer":"https://wrong.example.com"}`))
+		defer srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL); err == nil {
+			t.Error("expected an error for a mismatched issuer field, got nil")
+		}
+	})
+
+	t.Run("fails when the host is unreachable", func(t *testing.T) {
+		srv := httptest.NewTLSServer(discoveryHandler(http.StatusOK, `{"issuer":"ignored"}`))
+		issuerURL := srv.URL
+		client := srv.Client()
+		srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), client, issuerURL); err == nil {
+			t.Error("expected an error for an unreachable host, got nil")
+		}
+	})
 }

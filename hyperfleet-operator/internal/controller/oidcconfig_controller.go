@@ -39,11 +39,13 @@ import (
 const (
 	oidcConfigFinalizer    = "hyperfleet.io/oidcconfig"
 	thumbprintRefreshDelay = 24 * time.Hour
+
+	// managedPendingRequeueInterval controls how often a managed OidcConfig
+	// re-checks whether its issuer is serving real OIDC documents yet
+	managedPendingRequeueInterval = 30 * time.Second
 )
 
-// OidcConfigReconciler reconciles OidcConfig objects by provisioning OIDC
-// infrastructure (S3 documents, Secrets Manager keys) for managed configs
-// or copying customer keys for unmanaged configs.
+// OidcConfigReconciler reconciles OidcConfig objects
 type OidcConfigReconciler struct {
 	client.Client
 	Scheme                  *runtime.Scheme
@@ -89,55 +91,17 @@ func (r *OidcConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 }
 
+// reconcileManaged verifies the issuer HyperShift is expected to eventually
+// serve real OIDC documents for
 func (r *OidcConfigReconciler) reconcileManaged(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-	configID := oc.Name
-
 	if oc.Status.Phase == "" {
 		r.setPhase(ctx, oc, hyperfleetv1alpha1.OidcConfigPhasePending)
 	}
 
-	// If issuerUrl is not set, the OIDC infrastructure hasn't been created yet.
-	if oc.Spec.IssuerUrl == "" {
-		log.Info("Setting up managed OIDC infrastructure", "config", configID)
-
-		privateKeyPEM, jwksDoc, err := r.OIDC.GenerateKeyPair()
-		if err != nil {
-			r.setReadyCondition(ctx, oc, "KeyGenerationFailed", err.Error())
-			return ctrl.Result{}, fmt.Errorf("generate key pair: %w", err)
-		}
-
-		if err := r.OIDC.UploadOIDCDocuments(ctx, configID, jwksDoc); err != nil {
-			r.setReadyCondition(ctx, oc, "S3UploadFailed", err.Error())
-			return ctrl.Result{}, fmt.Errorf("upload OIDC documents: %w", err)
-		}
-
-		if err := r.OIDC.StorePrivateKey(ctx, configID, privateKeyPEM); err != nil {
-			r.setReadyCondition(ctx, oc, "SecretStoreFailed", err.Error())
-			return ctrl.Result{}, fmt.Errorf("store private key: %w", err)
-		}
-
-		// Set issuerUrl on the spec (one-time, immutable after this).
-		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			var latest hyperfleetv1alpha1.OidcConfig
-			if err := r.Get(ctx, client.ObjectKeyFromObject(oc), &latest); err != nil {
-				return err
-			}
-			if latest.Spec.IssuerUrl != "" {
-				return nil
-			}
-			latest.Spec.IssuerUrl = r.OIDC.IssuerURL(configID)
-			return r.Update(ctx, &latest)
-		}); err != nil {
-			return ctrl.Result{}, fmt.Errorf("set issuerUrl: %w", err)
-		}
-
-		// The issuerUrl update above triggers a new reconcile via the watch
-		// on this object, so no explicit requeue is needed here.
-		return ctrl.Result{}, nil
-	}
-
-	return r.finalizeReady(ctx, oc)
+	return r.checkReadiness(ctx, oc, func(reason, message string) (ctrl.Result, error) {
+		r.setReadyConditionAndPhase(ctx, oc, reason, message, hyperfleetv1alpha1.OidcConfigPhasePending)
+		return ctrl.Result{RequeueAfter: managedPendingRequeueInterval}, nil
+	})
 }
 
 func (r *OidcConfigReconciler) reconcileUnmanaged(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (ctrl.Result, error) {
@@ -173,16 +137,19 @@ func (r *OidcConfigReconciler) reconcileUnmanaged(ctx context.Context, oc *hyper
 		}
 	}
 
-	return r.finalizeReady(ctx, oc)
+	return r.checkReadiness(ctx, oc, func(reason, message string) (ctrl.Result, error) {
+		// Returning the error lets controller-runtime's rate limiter apply exponential backoff.
+		r.setReadyConditionAndPhase(ctx, oc, reason, message, hyperfleetv1alpha1.OidcConfigPhaseError)
+		return ctrl.Result{}, fmt.Errorf("%s: %s", reason, message)
+	})
 }
 
-// finalizeReady computes the thumbprint and sets the status to Ready.
-func (r *OidcConfigReconciler) finalizeReady(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (ctrl.Result, error) {
-	thumbprint, err := r.OIDC.ComputeThumbprint(ctx, oc.Spec.IssuerUrl)
+// checkReadiness verifies oc's issuer is serving valid OIDC documents and,
+// on success, sets the status to Ready
+func (r *OidcConfigReconciler) checkReadiness(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig, onFailure func(reason, message string) (ctrl.Result, error)) (ctrl.Result, error) {
+	thumbprint, err := r.OIDC.VerifyIssuer(ctx, oc.Spec.IssuerUrl)
 	if err != nil {
-		// Returning the error lets controller-runtime's rate limiter apply exponential backoff
-		r.setReadyConditionAndPhase(ctx, oc, "ThumbprintFailed", err.Error(), hyperfleetv1alpha1.OidcConfigPhaseError)
-		return ctrl.Result{}, fmt.Errorf("compute thumbprint: %w", err)
+		return onFailure("IssuerNotReady", err.Error())
 	}
 
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -219,12 +186,6 @@ func (r *OidcConfigReconciler) reconcileDelete(ctx context.Context, oc *hyperfle
 
 	configID := oc.Name
 	log.Info("OidcConfig deleting", "config", configID, "type", oc.Spec.Type)
-
-	if oc.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeManaged {
-		if err := r.OIDC.DeleteOIDCDocuments(ctx, configID); err != nil {
-			return ctrl.Result{}, fmt.Errorf("delete OIDC documents: %w", err)
-		}
-	}
 
 	if err := r.OIDC.DeletePrivateKey(ctx, configID); err != nil {
 		return ctrl.Result{}, fmt.Errorf("delete private key: %w", err)
