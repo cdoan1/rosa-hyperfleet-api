@@ -21903,6 +21903,15 @@ components:
               type: string
           configuration:
               $ref: '#/components/schemas/ClusterConfiguration'
+          controllerAvailabilityPolicy:
+              description: controllerAvailabilityPolicy specifies the availability policy applied to critical control plane components like the Kube API Server.
+              enum:
+                  - HighlyAvailable
+                  - SingleReplica
+              type: string
+          dns:
+              description: dns specifies the DNS configuration for the hosted cluster ingress.
+              type: object
           fips:
               description: fips indicates whether this cluster's nodes will be running in FIPS mode.
               type: boolean
@@ -21933,6 +21942,12 @@ components:
                       - source
                   type: object
               type: array
+          infrastructureAvailabilityPolicy:
+              description: infrastructureAvailabilityPolicy specifies the availability policy applied to infrastructure services which run on the hosted cluster data plane like the ingress controller and image registry controller.
+              enum:
+                  - HighlyAvailable
+                  - SingleReplica
+              type: string
           issuerURL:
               description: issuerURL is an OIDC issuer URL which will be used as the issuer in all
               type: string

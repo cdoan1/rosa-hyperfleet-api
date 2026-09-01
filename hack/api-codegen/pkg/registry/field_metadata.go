@@ -368,14 +368,12 @@ var FieldRegistry = TypedFieldRegistry{
 		"spec.hostedCluster.controllerAvailabilityPolicy": {
 			FieldPath: "spec.hostedCluster.controllerAvailabilityPolicy",
 			WriteMode: ServiceSet,
-			Hidden:    true,
 			OwnerType: "Cluster",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.Cluster",
 		},
 		"spec.hostedCluster.dns": {
 			FieldPath: "spec.hostedCluster.dns",
 			WriteMode: ServiceSet,
-			Hidden:    true,
 			OwnerType: "Cluster",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.Cluster",
 		},
@@ -408,7 +406,6 @@ var FieldRegistry = TypedFieldRegistry{
 		"spec.hostedCluster.infrastructureAvailabilityPolicy": {
 			FieldPath: "spec.hostedCluster.infrastructureAvailabilityPolicy",
 			WriteMode: ServiceSet,
-			Hidden:    true,
 			OwnerType: "Cluster",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.Cluster",
 		},

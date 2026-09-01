@@ -344,14 +344,12 @@
   {
     "fieldPath": "spec.hostedCluster.controllerAvailabilityPolicy",
     "writeMode": "service-set",
-    "hidden": true,
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
     "fieldPath": "spec.hostedCluster.dns",
     "writeMode": "service-set",
-    "hidden": true,
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -384,7 +382,6 @@
   {
     "fieldPath": "spec.hostedCluster.infrastructureAvailabilityPolicy",
     "writeMode": "service-set",
-    "hidden": true,
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
