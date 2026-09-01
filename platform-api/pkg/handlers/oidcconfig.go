@@ -33,7 +33,7 @@ func NewOidcConfigHandler(db *hyperfleetdb.Client, logger *slog.Logger) *OidcCon
 	}
 }
 
-// List handles GET /api/v0/oidc_configs
+// List handles GET /api/v0/oidcconfigs
 func (h *OidcConfigHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -91,7 +91,7 @@ func (h *OidcConfigHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Create handles POST /api/v0/oidc_configs
+// Create handles POST /api/v0/oidcconfigs
 // Request body: public.OidcConfig (K8s-native). Spec.Type is required.
 func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -157,7 +157,7 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get handles GET /api/v0/oidc_configs/{id}
+// Get handles GET /api/v0/oidcconfigs/{id}
 func (h *OidcConfigHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)
@@ -181,7 +181,7 @@ func (h *OidcConfigHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Delete handles DELETE /api/v0/oidc_configs/{id}
+// Delete handles DELETE /api/v0/oidcconfigs/{id}
 func (h *OidcConfigHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	accountID := middleware.GetAccountID(ctx)

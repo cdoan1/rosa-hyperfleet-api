@@ -234,7 +234,7 @@ func New(cfg *config.Config, dbClient *hyperfleetdb.Client, logger *slog.Logger)
 	nodePoolRouter.HandleFunc("/{id}", nodePoolHandler.Delete).Methods(http.MethodDelete)
 
 	// OidcConfig routes (user-facing, require authz)
-	oidcConfigRouter := apiRouter.PathPrefix("/api/v0/oidc_configs").Subrouter()
+	oidcConfigRouter := apiRouter.PathPrefix("/api/v0/oidcconfigs").Subrouter()
 	if authzMiddleware != nil {
 		oidcConfigRouter.Use(privilegedMiddleware.CheckPrivileged)
 		oidcConfigRouter.Use(authzMiddleware.Authorize)

@@ -49,7 +49,7 @@ func TestOidcConfigHandler_List_Success(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs", nil)
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -77,7 +77,7 @@ func TestOidcConfigHandler_List_Empty(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs", nil)
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -109,7 +109,7 @@ func TestOidcConfigHandler_List_Pagination(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs?limit=2&offset=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs?limit=2&offset=1", nil)
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -145,7 +145,7 @@ func TestOidcConfigHandler_List_OffsetBeyondTotal(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs?offset=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs?offset=10", nil)
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -180,7 +180,7 @@ func TestOidcConfigHandler_Create_Success(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -216,7 +216,7 @@ func TestOidcConfigHandler_Create_ManagedIgnoresClientIssuerUrl(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -249,7 +249,7 @@ func TestOidcConfigHandler_Create_InvalidJSON(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader([]byte("not json")))
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader([]byte("not json")))
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -284,7 +284,7 @@ func TestOidcConfigHandler_Create_MissingFields(t *testing.T) {
 			handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
 			body, _ := json.Marshal(tt.body)
-			req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 			req = req.WithContext(testContext(testAccountID))
 
 			w := httptest.NewRecorder()
@@ -315,7 +315,7 @@ func TestOidcConfigHandler_Create_InvalidType(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -385,7 +385,7 @@ func TestOidcConfigHandler_Create_InvalidFieldsForType(t *testing.T) {
 			handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
 			body, _ := json.Marshal(map[string]any{"spec": tt.spec})
-			req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 			req = req.WithContext(testContext(testAccountID))
 
 			w := httptest.NewRecorder()
@@ -420,7 +420,7 @@ func TestOidcConfigHandler_Create_UnmanagedSuccess(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidcconfigs", bytes.NewReader(body))
 	req = req.WithContext(testContext(testAccountID))
 
 	w := httptest.NewRecorder()
@@ -446,7 +446,7 @@ func TestOidcConfigHandler_Get_Success(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs/oidc-123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs/oidc-123", nil)
 	req = req.WithContext(testContext(testAccountID))
 	req = mux.SetURLVars(req, map[string]string{"id": "oidc-123"})
 
@@ -471,7 +471,7 @@ func TestOidcConfigHandler_Get_NotFound(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs/no-such-config", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs/no-such-config", nil)
 	req = req.WithContext(testContext(testAccountID))
 	req = mux.SetURLVars(req, map[string]string{"id": "no-such-config"})
 
@@ -498,7 +498,7 @@ func TestOidcConfigHandler_Get_WrongAccount(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidc_configs/oidc-123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/oidcconfigs/oidc-123", nil)
 	req = req.WithContext(testContext(testAccountID))
 	req = mux.SetURLVars(req, map[string]string{"id": "oidc-123"})
 
@@ -518,7 +518,7 @@ func TestOidcConfigHandler_Delete_Success(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v0/oidc_configs/oidc-123", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v0/oidcconfigs/oidc-123", nil)
 	req = req.WithContext(testContext(testAccountID))
 	req = mux.SetURLVars(req, map[string]string{"id": "oidc-123"})
 
@@ -542,7 +542,7 @@ func TestOidcConfigHandler_Delete_NotFound(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), logger)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v0/oidc_configs/no-such-config", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v0/oidcconfigs/no-such-config", nil)
 	req = req.WithContext(testContext(testAccountID))
 	req = mux.SetURLVars(req, map[string]string{"id": "no-such-config"})
 
