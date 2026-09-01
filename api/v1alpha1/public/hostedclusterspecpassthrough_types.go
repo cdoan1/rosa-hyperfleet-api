@@ -23,6 +23,21 @@ type HostedClusterSpecPassthrough struct {
 	// +hyperfleet:write-mode=mutable
 	// +required
 	Platform hypershiftv1beta1.PlatformSpec `json:"platform"`
+	// controllerAvailabilityPolicy specifies the availability policy applied to critical control plane components like the Kube API Server.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=service-set
+	// +optional
+	ControllerAvailabilityPolicy hypershiftv1beta1.AvailabilityPolicy `json:"controllerAvailabilityPolicy,omitempty"`
+	// infrastructureAvailabilityPolicy specifies the availability policy applied to infrastructure services which run on the hosted cluster data plane like the ingress controller and image registry controller.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=service-set
+	// +optional
+	InfrastructureAvailabilityPolicy hypershiftv1beta1.AvailabilityPolicy `json:"infrastructureAvailabilityPolicy,omitempty"`
+	// dns specifies the DNS configuration for the hosted cluster ingress.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=service-set
+	// +optional
+	DNS hypershiftv1beta1.DNSSpec `json:"dns,omitempty"`
 	// networking specifies network configuration for the hosted cluster.
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=mutable
