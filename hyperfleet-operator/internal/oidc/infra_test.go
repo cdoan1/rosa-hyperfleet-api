@@ -130,6 +130,25 @@ func TestVerifyIssuerDocument(t *testing.T) {
 		}
 	})
 
+	t.Run("succeeds when issuerURL has a trailing slash but the document reports it without one", func(t *testing.T) {
+		var srv *httptest.Server
+		srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/"+discoveryPath {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			// Real OIDC issuers conventionally report their issuer identifier
+			// without a trailing slash, regardless of how the caller wrote it.
+			_ = json.NewEncoder(w).Encode(map[string]string{"issuer": srv.URL})
+		}))
+		defer srv.Close()
+
+		if _, err := verifyIssuerDocument(context.Background(), srv.Client(), srv.URL+"/"); err != nil {
+			t.Fatalf("expected no error for a trailing-slash issuerURL, got %v", err)
+		}
+	})
+
 	t.Run("fails on a non-200 response", func(t *testing.T) {
 		srv := httptest.NewTLSServer(discoveryHandler(http.StatusInternalServerError, `{"issuer":"ignored"}`))
 		defer srv.Close()

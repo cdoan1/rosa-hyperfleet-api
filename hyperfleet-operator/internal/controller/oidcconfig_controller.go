@@ -43,6 +43,12 @@ const (
 	// managedPendingRequeueInterval controls how often a managed OidcConfig
 	// re-checks whether its issuer is serving real OIDC documents yet
 	managedPendingRequeueInterval = 30 * time.Second
+
+	// managedPendingMessagePrefix annotates a managed OidcConfig's readiness
+	// failure message: until cluster-creation wiring lands, HyperShift has
+	// nothing to publish yet, so a failure here is expected rather than a
+	// sign of a real problem.
+	managedPendingMessagePrefix = "403 expected; to be replaced as part of ROSAENG-65615: "
 )
 
 // OidcConfigReconciler reconciles OidcConfig objects
@@ -99,7 +105,7 @@ func (r *OidcConfigReconciler) reconcileManaged(ctx context.Context, oc *hyperfl
 	}
 
 	return r.checkReadiness(ctx, oc, func(reason, message string) (ctrl.Result, error) {
-		r.setReadyConditionAndPhase(ctx, oc, reason, message, hyperfleetv1alpha1.OidcConfigPhasePending)
+		r.setReadyConditionAndPhase(ctx, oc, reason, managedPendingMessagePrefix+message, hyperfleetv1alpha1.OidcConfigPhasePending)
 		return ctrl.Result{RequeueAfter: managedPendingRequeueInterval}, nil
 	})
 }

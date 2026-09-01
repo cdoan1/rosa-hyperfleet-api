@@ -208,6 +208,43 @@ func TestOidcConfigHandler_Create_Success(t *testing.T) {
 	}
 }
 
+func TestOidcConfigHandler_Create_ManagedRejectsWhenIssuerBaseURLNotConfigured(t *testing.T) {
+	scheme := newTestScheme()
+	fc := fake.NewClientBuilder().WithScheme(scheme).Build()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	// A blank base URL must never be silently turned into a path-only
+	// issuerUrl (e.g. "/generated-config-id"); the server should refuse to
+	// create the config instead.
+	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), "", logger)
+	handler.generateID = func() string { return "generated-config-id" }
+
+	body, _ := json.Marshal(map[string]any{
+		"spec": map[string]any{
+			"type": "managed",
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+	req = req.WithContext(testContext(testAccountID))
+
+	w := httptest.NewRecorder()
+	handler.Create(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var errResp map[string]any
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
+	if !strings.Contains(errResp["message"].(string), ErrOidcConfigCreateIssuerNotConfigured.Code) {
+		t.Errorf("expected message to contain %s, got %q", ErrOidcConfigCreateIssuerNotConfigured.Code, errResp["message"])
+	}
+
+	if _, err := handler.db.GetOidcConfig(req.Context(), testAccountID, "generated-config-id"); err == nil {
+		t.Error("expected no OidcConfig CR to be created when the issuer base URL is not configured")
+	}
+}
+
 func TestOidcConfigHandler_Create_ManagedIgnoresClientIssuerUrl(t *testing.T) {
 	scheme := newTestScheme()
 	fc := fake.NewClientBuilder().WithScheme(scheme).Build()

@@ -147,6 +147,11 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("creating oidc config", "account_id", accountID, "config_id", configID, "type", req.Spec.Type)
 
 	if req.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeManaged {
+		if h.oidcIssuerBaseURL == "" {
+			h.logger.Error("oidc issuer base URL is not configured; refusing to create managed config with a path-only issuerUrl", "account_id", accountID, "config_id", configID)
+			writeAPIError(w, ErrOidcConfigCreateIssuerNotConfigured, h.logger)
+			return
+		}
 		req.Spec.IssuerUrl = strings.TrimRight(h.oidcIssuerBaseURL, "/") + "/" + configID
 	} else {
 		existing, err := h.db.ListOidcConfigs(ctx, accountID)

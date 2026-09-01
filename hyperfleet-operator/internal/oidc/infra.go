@@ -239,7 +239,11 @@ func (c *AWSClient) VerifyIssuer(ctx context.Context, issuerURL string) (string,
 // VerifyIssuer so it can be exercised directly against a local test server,
 // independent of the SSRF-safe host resolution done in resolveIssuerHost.
 func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL string) (string, error) {
-	discoveryURL := strings.TrimRight(issuerURL, "/") + "/" + discoveryPath
+	// Normalize once so discoveryURL construction and the issuer comparison
+	// below agree, regardless of whether the caller's issuerURL has a
+	// trailing slash (OIDC issuer identifiers conventionally do not).
+	normalizedIssuerURL := strings.TrimRight(issuerURL, "/")
+	discoveryURL := normalizedIssuerURL + "/" + discoveryPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("build discovery request for %s: %w", discoveryURL, err)
@@ -262,8 +266,8 @@ func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL st
 	if doc.Issuer == "" {
 		return "", fmt.Errorf("discovery document from %s has no issuer field", discoveryURL)
 	}
-	if doc.Issuer != issuerURL {
-		return "", fmt.Errorf("discovery document issuer %q from %s does not match expected issuer %q", doc.Issuer, discoveryURL, issuerURL)
+	if doc.Issuer != normalizedIssuerURL {
+		return "", fmt.Errorf("discovery document issuer %q from %s does not match expected issuer %q", doc.Issuer, discoveryURL, normalizedIssuerURL)
 	}
 
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
