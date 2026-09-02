@@ -153,19 +153,6 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Spec.IssuerUrl = strings.TrimRight(h.oidcIssuerBaseURL, "/") + "/" + configID
-	} else {
-		existing, err := h.db.ListOidcConfigs(ctx, accountID)
-		if err != nil {
-			h.logger.Error("failed to list oidc configs", "error", err, "account_id", accountID)
-			writeAPIError(w, ErrOidcConfigCreateFailed, h.logger)
-			return
-		}
-		for i := range existing.Items {
-			if existing.Items[i].Spec.IssuerUrl == req.Spec.IssuerUrl {
-				writeAPIError(w, ErrOidcConfigCreateDuplicateIssuerUrl, h.logger)
-				return
-			}
-		}
 	}
 
 	cr := hyperfleetdb.PublicToInternalOidcConfig(&req, accountID, configID)

@@ -498,9 +498,11 @@ func TestOidcConfigHandler_Create_UnmanagedDuplicateIssuerUrlSameAccount(t *test
 		InstallerRoleArn: "arn:aws:iam::123456789012:role/installer",
 		AccountID:        testAccountID,
 	}
-	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+	innerFC := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		testOidcConfigCR("oidc-existing", testAccountID, existingSpec),
 	).Build()
+
+	fc := &issuerURLUniqueClient{Client: innerFC}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), testOidcIssuerBaseURL, logger)
 
