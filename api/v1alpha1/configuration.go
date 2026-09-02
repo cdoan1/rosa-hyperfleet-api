@@ -169,7 +169,7 @@ type ImageConfiguration struct{}
 type IngressConfiguration struct{}
 
 // NetworkConfiguration specifies cluster network configuration.
-// +k8s:openapi-gen=false
+// +k8s:openapi-gen=true
 // +hyperfleet:write-mode=service-set
 // +hyperfleet:upstream-reduced-object=hypershiftv1beta1.NetworkConfiguration
 type NetworkConfiguration struct {
