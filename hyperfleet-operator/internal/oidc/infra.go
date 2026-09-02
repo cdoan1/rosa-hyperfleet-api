@@ -190,26 +190,11 @@ func (c *AWSClient) DeletePrivateKey(ctx context.Context, configID string) error
 }
 
 // oidcDiscoveryResponse is the subset of the OIDC discovery document
-// (RFC-style ".well-known/openid-configuration") that VerifyIssuer needs to
-// confirm the issuer is actually serving real, matching documents.
 type oidcDiscoveryResponse struct {
 	Issuer string `json:"issuer"`
 }
 
-// VerifyIssuer confirms issuerURL is actually serving a valid OIDC discovery
-// document — not just that something answers on 443 — and returns the SHA-1
-// thumbprint of the issuer's root CA certificate for use when creating an
-// AWS IAM OIDC provider.
-//
-// A bare TLS handshake isn't sufficient here: issuer URLs are typically
-// CloudFront-backed, and CloudFront completes a TLS handshake using the
-// distribution's shared certificate regardless of whether anything has been
-// published at the requested path. So this fetches the discovery document
-// itself and confirms its `issuer` field matches, which is the only way to
-// tell "real OIDC documents are being served here" from "this CloudFront
-// distribution exists but nothing has been uploaded to this path yet." That
-// distinction matters most for a managed OidcConfig, whose issuerUrl may be
-// reserved long before HyperShift ever publishes documents for it.
+// VerifyIssuer confirms issuerURL is actually serving a valid OIDC discovery document
 func (c *AWSClient) VerifyIssuer(ctx context.Context, issuerURL string) (string, error) {
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -234,10 +219,7 @@ func (c *AWSClient) VerifyIssuer(ctx context.Context, issuerURL string) (string,
 	return verifyIssuerDocument(dialCtx, client, issuerURL)
 }
 
-// verifyIssuerDocument performs the actual GET .../.well-known/openid-configuration
-// against client and validates the response. It is split out from
-// VerifyIssuer so it can be exercised directly against a local test server,
-// independent of the SSRF-safe host resolution done in resolveIssuerHost.
+// verifyIssuerDocument performs the actual GET check against client and validates the response
 func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL string) (string, error) {
 	normalizedIssuerURL := strings.TrimRight(issuerURL, "/")
 	discoveryURL := normalizedIssuerURL + "/" + discoveryPath
@@ -280,18 +262,7 @@ func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL st
 	return fmt.Sprintf("%x", fingerprint[:]), nil
 }
 
-// resolveIssuerHost validates issuerURL against SSRF and resolves it to a
-// concrete dial address. issuerURL is customer-controlled for unmanaged
-// OidcConfigs, so it must not be allowed to reach loopback, link-local
-// (including the 169.254.169.254 cloud metadata endpoint), private, or
-// other non-public addresses.
-//
-// The hostname is resolved here and the resulting IP is used directly for
-// the dial in VerifyIssuer, rather than letting the dialer re-resolve the
-// hostname. This closes the DNS-rebinding TOCTOU window where a second
-// lookup could return a different, unvalidated address. The original
-// hostname is still returned for TLS SNI, certificate hostname
-// verification, and the HTTP Host header.
+// resolveIssuerHost validates issuerURL against SSRF and resolves it to a concrete dial address
 func resolveIssuerHost(ctx context.Context, issuerURL string) (hostname, dialAddr string, err error) {
 	u, err := url.Parse(issuerURL)
 	if err != nil {
@@ -326,9 +297,6 @@ func resolveIssuerHost(ctx context.Context, issuerURL string) (hostname, dialAdd
 	return hostname, net.JoinHostPort(addrs[0].IP.String(), port), nil
 }
 
-// isDisallowedIssuerIP rejects loopback, link-local, private, unspecified,
-// and multicast addresses to prevent the operator from being used as an
-// SSRF proxy against internal infrastructure or the cloud metadata service.
 func isDisallowedIssuerIP(ip net.IP) bool {
 	return ip.IsLoopback() ||
 		ip.IsLinkLocalUnicast() ||

@@ -40,8 +40,6 @@ import (
 	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
 )
 
-// --- fake OIDC infra client ---
-
 type fakeOidcInfra struct {
 	mu sync.Mutex
 
@@ -104,8 +102,6 @@ func (f *fakeOidcInfra) VerifyIssuer(_ context.Context, _ string) (string, error
 	return f.thumbprint, nil
 }
 
-// --- tests ---
-
 var _ = Describe("OidcConfig Controller", func() {
 	const testNS = "account-test-account"
 
@@ -162,9 +158,6 @@ var _ = Describe("OidcConfig Controller", func() {
 			infra := &fakeOidcInfra{thumbprint: "abc123def456"}
 			r := newReconciler(infra)
 
-			// Reconcile 1: adds finalizer. The Update call it makes triggers
-			// a follow-up reconcile via the watch in production, so no
-			// explicit requeue is returned here.
 			result, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-01"},
 			})
@@ -175,9 +168,6 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-01"}, &updated)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(&updated, oidcConfigFinalizer)).To(BeTrue())
 
-			// Reconcile 2: verifies the issuer and reaches Ready. Managed
-			// configs never touch private-key storage — that stays
-			// HyperShift's responsibility.
 			result, err = r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-01"},
 			})
@@ -212,15 +202,11 @@ var _ = Describe("OidcConfig Controller", func() {
 			infra := &fakeOidcInfra{verifyIssuerErr: fmt.Errorf("GET .../.well-known/openid-configuration: unexpected status 404")}
 			r := newReconciler(infra)
 
-			// Reconcile 1: adds finalizer.
 			_, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-pending"},
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// Reconcile 2: the issuer isn't serving real documents yet.
-			// This must not be treated as an Error — it's an expected,
-			// self-healing wait for HyperShift to finish provisioning.
 			result, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-pending"},
 			})
@@ -293,12 +279,9 @@ var _ = Describe("OidcConfig Controller", func() {
 			infra := &fakeOidcInfra{thumbprint: "thumb01"}
 			r := newReconciler(infra)
 
-			// 2 reconciles to reach Ready.
 			_, err := reconcileN(r, testNS, "managed-idem", 2)
 			Expect(err).NotTo(HaveOccurred())
 
-			// 3rd reconcile re-verifies the issuer (thumbprint refresh) but
-			// never calls into private-key storage.
 			_, err = r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-idem"},
 			})
@@ -421,17 +404,11 @@ var _ = Describe("OidcConfig Controller", func() {
 			}
 			r := newReconciler(infra)
 
-			// Reconcile 1: adds finalizer.
 			_, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "unmanaged-verify-fail"},
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// Reconcile 2: key copy succeeds, but issuer verification
-			// fails. Unlike managed configs, this is a hard failure —
-			// unmanaged issuers are customer-hosted and expected to be
-			// reachable immediately, so this returns an error to trigger
-			// exponential backoff instead of a fixed-interval requeue.
 			result, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "unmanaged-verify-fail"},
 			})
@@ -482,8 +459,6 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "unmanaged-recover"}, &updated)).To(Succeed())
 			Expect(updated.Status.Phase).To(Equal(hyperfleetv1alpha1.OidcConfigPhaseError))
 
-			// The customer host becomes reachable again; the next
-			// reconcile should restore Ready.
 			infra.verifyIssuerErr = nil
 			result, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "unmanaged-recover"},
@@ -603,10 +578,7 @@ var _ = Describe("OidcConfig Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deletion is identical for managed and unmanaged configs:
-			// DeletePrivateKey is called unconditionally and is a safe
-			// no-op if no key was ever stored (as is always true for
-			// managed configs).
+			// Deletion is identical for managed and unmanaged configs
 			Expect(infra.deleteKeyCalled).To(Equal(1))
 		})
 
@@ -658,11 +630,9 @@ var _ = Describe("OidcConfig Controller", func() {
 			infra := &fakeOidcInfra{thumbprint: "thumb"}
 			r := newReconciler(infra)
 
-			// Reach Ready state.
 			_, err := reconcileN(r, testNS, "managed-del-sm-fail", 2)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Delete.
 			var latest hyperfleetv1alpha1.OidcConfig
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"}, &latest)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, &latest)).To(Succeed())
@@ -675,8 +645,6 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("secrets manager delete failed"))
 
-			// The finalizer must remain until Secrets Manager cleanup
-			// succeeds and reconciliation can retry.
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"}, &latest)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(&latest, oidcConfigFinalizer)).To(BeTrue())
 		})
@@ -692,10 +660,6 @@ var _ = Describe("OidcConfig Controller", func() {
 		})
 
 		It("should set Error phase for an unrecognized Spec.Type", func() {
-			// The CRD schema enforces an enum on spec.type, and spec.type is
-			// immutable, so an unrecognized value can never reach the real
-			// API server used by k8sClient. Seed a fake client directly to
-			// exercise the reconciler's default branch in the type switch.
 			scheme := runtime.NewScheme()
 			Expect(hyperfleetv1alpha1.AddToScheme(scheme)).To(Succeed())
 
@@ -715,8 +679,6 @@ var _ = Describe("OidcConfig Controller", func() {
 				OIDC:   &fakeOidcInfra{},
 			}
 
-			// Reconcile 1: adds finalizer.
-			// Reconcile 2: hits the unrecognized type branch.
 			_, err := reconcileN(r, testNS, "invalid-type", 2)
 			Expect(err).NotTo(HaveOccurred())
 

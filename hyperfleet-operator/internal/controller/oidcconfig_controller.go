@@ -40,14 +40,9 @@ const (
 	oidcConfigFinalizer    = "hyperfleet.io/oidcconfig"
 	thumbprintRefreshDelay = 24 * time.Hour
 
-	// managedPendingRequeueInterval controls how often a managed OidcConfig
-	// re-checks whether its issuer is serving real OIDC documents yet
 	managedPendingRequeueInterval = 30 * time.Second
 
-	// managedPendingMessagePrefix annotates a managed OidcConfig's readiness
-	// failure message: until cluster-creation wiring lands, HyperShift has
-	// nothing to publish yet, so a failure here is expected rather than a
-	// sign of a real problem.
+	// will be removed as part of cluster creation wiring
 	managedPendingMessagePrefix = "403 expected; to be replaced as part of ROSAENG-65615: "
 )
 
@@ -97,8 +92,7 @@ func (r *OidcConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 }
 
-// reconcileManaged verifies the issuer HyperShift is expected to eventually
-// serve real OIDC documents for
+// reconcileManaged verifies the issuer HyperShift is expected to eventually serve real OIDC documents for
 func (r *OidcConfigReconciler) reconcileManaged(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (ctrl.Result, error) {
 	if oc.Status.Phase == "" {
 		r.setPhase(ctx, oc, hyperfleetv1alpha1.OidcConfigPhasePending)
@@ -150,8 +144,7 @@ func (r *OidcConfigReconciler) reconcileUnmanaged(ctx context.Context, oc *hyper
 	})
 }
 
-// checkReadiness verifies oc's issuer is serving valid OIDC documents and,
-// on success, sets the status to Ready
+// checkReadiness verifies oc's issuer is serving valid OIDC documents and on success, sets the status to Ready
 func (r *OidcConfigReconciler) checkReadiness(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig, onFailure func(reason, message string) (ctrl.Result, error)) (ctrl.Result, error) {
 	thumbprint, err := r.OIDC.VerifyIssuer(ctx, oc.Spec.IssuerUrl)
 	if err != nil {

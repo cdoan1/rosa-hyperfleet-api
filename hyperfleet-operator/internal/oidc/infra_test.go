@@ -92,10 +92,8 @@ func TestResolveIssuerHost(t *testing.T) {
 	}
 }
 
-// discoveryHandler returns an http.HandlerFunc that serves body (with the
-// given status code) only at the discovery path, and 404s everything else,
-// mirroring how a real OIDC issuer only publishes documents at
-// .well-known/openid-configuration.
+// discoveryHandler returns an http.HandlerFunc that serves body only at the discovery path, and 404s everything else,
+// mirroring a real OIDC issuer
 func discoveryHandler(status int, body string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/"+discoveryPath {
@@ -138,8 +136,6 @@ func TestVerifyIssuerDocument(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			// Real OIDC issuers conventionally report their issuer identifier
-			// without a trailing slash, regardless of how the caller wrote it.
 			_ = json.NewEncoder(w).Encode(map[string]string{"issuer": srv.URL})
 		}))
 		defer srv.Close()
