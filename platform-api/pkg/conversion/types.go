@@ -94,8 +94,6 @@ type ServiceSetFields struct {
 	Management hypershiftv1beta1.NodePoolManagement `json:"management"`
 	// MemoryThrottlingFactor is service-set (platform-managed, hidden from API)
 	MemoryThrottlingFactor *float64 `json:"memoryThrottlingFactor"`
-	// Network is service-set (platform-managed, hidden from API)
-	Network *v1alpha1.NetworkConfiguration `json:"network"`
 	// NodeDrainTimeout is service-set (platform-managed, hidden from API)
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout"`
 	// NodeLabels is service-set (platform-managed, hidden from API)

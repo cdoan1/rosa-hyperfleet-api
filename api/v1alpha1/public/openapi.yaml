@@ -22008,6 +22008,9 @@ components:
               $ref: '#/components/schemas/KubeletConfig'
           machineConfig:
               $ref: '#/components/schemas/MachineConfigSpec'
+          network:
+              description: network contains the configuration for cluster networking.
+              type: object
       type: object
     KubeletConfig:
       description: KubeletConfig specifies kubelet configuration with granular markers for customer control.

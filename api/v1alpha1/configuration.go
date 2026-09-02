@@ -168,7 +168,12 @@ type ImageConfiguration struct{}
 
 type IngressConfiguration struct{}
 
-type NetworkConfiguration struct{}
+// NetworkConfiguration specifies cluster network configuration.
+// +k8s:openapi-gen=false
+// +hyperfleet:write-mode=service-set
+// +hyperfleet:upstream-reduced-object=hypershiftv1beta1.NetworkConfiguration
+type NetworkConfiguration struct {
+}
 
 type OAuthConfiguration struct{}
 
@@ -210,8 +215,8 @@ type MachineConfigSpec struct {
 }
 
 type SystemdUnit struct {
-	Name string `json:"name"`
-	Enabled  *bool `json:"enabled,omitempty"`
+	Name    string `json:"name"`
+	Enabled *bool  `json:"enabled,omitempty"`
 	// +kubebuilder:validation:MaxLength=65536
 	Contents string `json:"contents,omitempty"`
 	// +kubebuilder:validation:MaxItems=16

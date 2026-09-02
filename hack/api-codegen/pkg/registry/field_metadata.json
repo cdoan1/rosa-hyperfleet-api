@@ -307,13 +307,6 @@
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
-    "fieldPath": "spec.hostedCluster.configuration.network",
-    "writeMode": "service-set",
-    "hidden": true,
-    "ownerType": "Cluster",
-    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
-  },
-  {
     "fieldPath": "spec.hostedCluster.configuration.oauth",
     "writeMode": "service-set",
     "hidden": true,
@@ -741,13 +734,6 @@
   },
   {
     "fieldPath": "machineConfig.systemdUnits",
-    "writeMode": "service-set",
-    "hidden": true,
-    "ownerType": "ClusterConfiguration",
-    "ownerGVK": ""
-  },
-  {
-    "fieldPath": "network",
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "ClusterConfiguration",
