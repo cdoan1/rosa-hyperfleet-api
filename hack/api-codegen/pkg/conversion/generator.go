@@ -43,12 +43,14 @@ type Generator struct {
 }
 
 type typeInfo struct {
-	Name       string
-	StructType *ast.StructType
-	Doc        *ast.CommentGroup
-	Fields     []*fieldInfo
-	Markers    []string
-	Embeds     []string
+	Name            string
+	StructType      *ast.StructType
+	Doc             *ast.CommentGroup
+	Fields          []*fieldInfo
+	Markers         []string
+	Embeds          []string
+	UpstreamType    string // From +hyperfleet:upstream-reduced-object marker
+	NeedsRESTMirror bool   // True if this type needs REST generation
 }
 
 type namedTypeInfo struct {
@@ -268,6 +270,17 @@ func (g *Generator) extractClientMarkers(file *ast.File) {
 
 func (g *Generator) parseStructType(typeName string, structType *ast.StructType, doc *ast.CommentGroup) *typeInfo {
 	ti := &typeInfo{Name: typeName, StructType: structType, Doc: doc}
+
+	// Check for +hyperfleet:upstream-reduced-object marker
+	if doc != nil {
+		upstreamReducedPattern := regexp.MustCompile(`\+hyperfleet:upstream-reduced-object=([^\s]+)`)
+		docText := doc.Text()
+		if matches := upstreamReducedPattern.FindStringSubmatch(docText); len(matches) > 1 {
+			ti.UpstreamType = matches[1]
+			ti.NeedsRESTMirror = true
+		}
+	}
+
 	for _, field := range structType.Fields.List {
 		if len(field.Names) == 0 {
 			ti.Embeds = append(ti.Embeds, g.exprToString(field.Type))
@@ -477,10 +490,24 @@ func (g *Generator) qualifyType(goType string) string {
 // generated in the REST package (they're in the same package, no qualifier needed).
 func (g *Generator) qualifyTypeForREST(goType string, restTypeSet map[string]bool) string {
 	base := goType
-	base = strings.TrimPrefix(base, "*")
-	base = strings.TrimPrefix(base, "[]")
+	prefix := ""
+	if strings.HasPrefix(base, "*") {
+		prefix = "*"
+		base = strings.TrimPrefix(base, "*")
+	}
+	if strings.HasPrefix(base, "[]") {
+		prefix += "[]"
+		base = strings.TrimPrefix(base, "[]")
+	}
 
 	if strings.Contains(base, ".") {
+		// Check if this is an upstream type that has a local REST mirror
+		for _, ti := range g.typeInfos {
+			if ti.NeedsRESTMirror && strings.HasSuffix(base, "."+ti.Name) {
+				// Use local REST type instead of upstream
+				return prefix + ti.Name
+			}
+		}
 		return goType
 	}
 	if g.isBuiltinType(base) {
@@ -489,6 +516,11 @@ func (g *Generator) qualifyTypeForREST(goType string, restTypeSet map[string]boo
 
 	if restTypeSet[base] {
 		return goType // Same REST package, no qualifier
+	}
+
+	// Check if this is an upstream-reduced type
+	if ti, ok := g.typeInfos[base]; ok && ti.NeedsRESTMirror {
+		return prefix + base // Use local type, no qualification
 	}
 
 	return g.qualifyType(goType)
@@ -613,13 +645,19 @@ func (g *Generator) generateRESTTypes() error {
 		}
 	}
 
-	// Build the full set of types being generated as REST types (including passthrough)
+	// Build the full set of types being generated as REST types (including passthrough and upstream-reduced)
 	restTypeSet := make(map[string]bool)
 	for _, t := range resourceTypes {
 		restTypeSet[t] = true
 	}
 	for typeName := range g.typeInfos {
 		if strings.Contains(typeName, "Passthrough") {
+			restTypeSet[typeName] = true
+		}
+	}
+	// Add upstream-reduced types to REST type set
+	for typeName, ti := range g.typeInfos {
+		if ti.NeedsRESTMirror {
 			restTypeSet[typeName] = true
 		}
 	}
@@ -666,6 +704,26 @@ func (g *Generator) generateRESTTypes() error {
 	if len(referencedNamedTypes) > 0 {
 		if err := g.generateRESTConstants(referencedNamedTypes); err != nil {
 			return fmt.Errorf("generating REST constants: %w", err)
+		}
+	}
+
+	// NEW: Generate REST types for upstream-reduced objects
+	for typeName, ti := range g.typeInfos {
+		if !ti.NeedsRESTMirror {
+			continue
+		}
+
+		// Add this type to restTypeSet so nested references work
+		restTypeSet[typeName] = true
+
+		code, err := g.renderRESTType(ti, restTypeSet, false)
+		if err != nil {
+			return fmt.Errorf("rendering REST type %s: %w", typeName, err)
+		}
+
+		filename := strings.ToLower(typeName) + "_types.go"
+		if err := g.writeRESTFile(filename, code); err != nil {
+			return fmt.Errorf("writing REST type %s: %w", typeName, err)
 		}
 	}
 

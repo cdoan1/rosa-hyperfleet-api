@@ -309,7 +309,56 @@
   {
     "fieldPath": "spec.hostedCluster.configuration.network",
     "writeMode": "service-set",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.clusterNetwork",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.clusterNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.clusterNetwork.hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.externalIP",
+    "writeMode": "service-set",
     "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.networkDiagnostics",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.networkType",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.serviceNetwork",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.network.serviceNodePortRange",
+    "writeMode": "mutable",
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -752,7 +801,56 @@
   {
     "fieldPath": "network",
     "writeMode": "service-set",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.clusterNetwork",
+    "writeMode": "immutable",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.clusterNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.clusterNetwork.hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.externalIP",
+    "writeMode": "service-set",
     "hidden": true,
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.networkDiagnostics",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.networkType",
+    "writeMode": "immutable",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.serviceNetwork",
+    "writeMode": "immutable",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "network.serviceNodePortRange",
+    "writeMode": "mutable",
     "ownerType": "ClusterConfiguration",
     "ownerGVK": ""
   },
@@ -775,6 +873,18 @@
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "cidr",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworkEntry",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworkEntry",
     "ownerGVK": ""
   },
   {
@@ -926,6 +1036,56 @@
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "KubeletConfig",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork",
+    "writeMode": "immutable",
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork.hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "externalIP",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "networkDiagnostics",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "networkType",
+    "writeMode": "immutable",
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "serviceNetwork",
+    "writeMode": "immutable",
+    "ownerType": "NetworkConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "serviceNodePortRange",
+    "writeMode": "mutable",
+    "ownerType": "NetworkConfiguration",
     "ownerGVK": ""
   },
   {
