@@ -64,6 +64,8 @@ type ServiceSetFields struct {
 	EvictionSoftGracePeriod map[string]string `json:"evictionSoftGracePeriod"`
 	// Extensions is service-set (platform-managed, hidden from API)
 	Extensions []string `json:"extensions"`
+	// ExternalIP is service-set (platform-managed, hidden from API)
+	ExternalIP *configv1.ExternalIPConfig `json:"externalIP"`
 	// FeatureGate is service-set (platform-managed, hidden from API)
 	FeatureGate *v1alpha1.FeatureGateConfiguration `json:"featureGate"`
 	// Files is service-set (platform-managed, hidden from API)
@@ -94,6 +96,10 @@ type ServiceSetFields struct {
 	Management hypershiftv1beta1.NodePoolManagement `json:"management"`
 	// MemoryThrottlingFactor is service-set (platform-managed, hidden from API)
 	MemoryThrottlingFactor *float64 `json:"memoryThrottlingFactor"`
+	// Network is service-set (platform-managed, hidden from API)
+	Network *v1alpha1.NetworkConfiguration `json:"network"`
+	// NetworkDiagnostics is service-set (platform-managed, hidden from API)
+	NetworkDiagnostics configv1.NetworkDiagnostics `json:"networkDiagnostics"`
 	// NodeDrainTimeout is service-set (platform-managed, hidden from API)
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout"`
 	// NodeLabels is service-set (platform-managed, hidden from API)

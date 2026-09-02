@@ -170,6 +170,8 @@ type ImageConfiguration struct{}
 type IngressConfiguration struct{}
 
 // NetworkConfiguration specifies cluster network configuration.
+// +k8s:openapi-gen=true
+// +hyperfleet:write-mode=immutable
 // +hyperfleet:upstream-reduced-object=configv1.NetworkSpec
 type NetworkConfiguration struct {
 	// clusterNetwork is the IP address pool to use for pod IPs.
