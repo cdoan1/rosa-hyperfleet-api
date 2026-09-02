@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
 	hypershiftv1beta1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
-	"github.com/openshift/hypershift/api/util/ipnet"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -127,14 +126,6 @@ func purgeDynamoTables() {
 	}
 }
 
-func mustParseCIDR(s string) ipnet.IPNet {
-	parsed, err := ipnet.ParseCIDR(s)
-	if err != nil {
-		panic(err)
-	}
-	return *parsed
-}
-
 func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 	return &hyperfleetv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "cluster-e2e-cluster-id"},
@@ -144,10 +135,10 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 				Release:    hypershiftv1beta1.Release{Image: "quay.io/ocp:4.17"},
 				IssuerURL:  "https://oidc.e2e.example.com/" + name,
 				PullSecret: corev1.LocalObjectReference{Name: "pull-secret"},
-				Networking: hypershiftv1beta1.ClusterNetworking{
-					ClusterNetwork: []hypershiftv1beta1.ClusterNetworkEntry{{CIDR: mustParseCIDR("10.128.0.0/14")}},
-					ServiceNetwork: []hypershiftv1beta1.ServiceNetworkEntry{{CIDR: mustParseCIDR("172.30.0.0/16")}},
-					MachineNetwork: []hypershiftv1beta1.MachineNetworkEntry{{CIDR: mustParseCIDR("10.0.0.0/16")}},
+				Networking: hyperfleetv1alpha1.ClusterNetworking{
+					ClusterNetwork: []hyperfleetv1alpha1.ClusterNetworkEntry{{CIDR: "10.128.0.0/14"}},
+					ServiceNetwork: []hyperfleetv1alpha1.ServiceNetworkEntry{{CIDR: "172.30.0.0/16"}},
+					MachineNetwork: []hyperfleetv1alpha1.MachineNetworkEntry{{CIDR: "10.0.0.0/16"}},
 				},
 				Etcd: hypershiftv1beta1.EtcdSpec{
 					ManagementType: hypershiftv1beta1.Managed,

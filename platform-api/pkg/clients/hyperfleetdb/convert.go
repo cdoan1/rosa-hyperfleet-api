@@ -2,6 +2,7 @@ package hyperfleetdb
 
 import (
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"strings"
 
@@ -35,6 +36,16 @@ func PublicToInternalCluster(pub *public.Cluster, accountID, clusterID string) *
 		return nil
 	}
 
+	// DEBUG: Log incoming REST networking data
+	restNetworking := pub.Spec.HostedCluster.Networking
+	slog.Info("REST → CRD conversion",
+		"clusterID", clusterID,
+		"rest.networking.networkType", restNetworking.NetworkType,
+		"rest.networking.machineNetwork.count", len(restNetworking.MachineNetwork),
+		"rest.networking.clusterNetwork.count", len(restNetworking.ClusterNetwork),
+		"rest.networking.serviceNetwork.count", len(restNetworking.ServiceNetwork),
+	)
+
 	meta := pub.ObjectMeta
 	meta.Labels = maps.Clone(pub.Labels)
 	enrichMetadata(&meta, clusterID, clusterID, accountID)
@@ -44,6 +55,16 @@ func PublicToInternalCluster(pub *public.Cluster, accountID, clusterID string) *
 		InternalID: clusterID,
 	}
 	crdSpec := v1alpha1conv.UnprojectCluster(&pub.Spec, enrichment)
+
+	// DEBUG: Log CRD networking data after conversion
+	crdNetworking := crdSpec.HostedCluster.Networking
+	slog.Info("After JSON roundtrip (write path)",
+		"clusterID", clusterID,
+		"crd.networking.networkType", crdNetworking.NetworkType,
+		"crd.networking.machineNetwork.count", len(crdNetworking.MachineNetwork),
+		"crd.networking.clusterNetwork.count", len(crdNetworking.ClusterNetwork),
+		"crd.networking.serviceNetwork.count", len(crdNetworking.ServiceNetwork),
+	)
 
 	return &hyperfleetv1alpha1.Cluster{
 		TypeMeta:   pub.TypeMeta,
@@ -61,7 +82,29 @@ func InternalToPublicCluster(cr *hyperfleetv1alpha1.Cluster) *public.Cluster {
 	if cr == nil {
 		return nil
 	}
+
+	// DEBUG: Log CRD networking data before conversion
+	crdNetworking := cr.Spec.HostedCluster.Networking
+	slog.Info("CRD → REST conversion",
+		"clusterID", clusterIDFromNamespace(cr.Namespace),
+		"crd.networking.networkType", crdNetworking.NetworkType,
+		"crd.networking.machineNetwork.count", len(crdNetworking.MachineNetwork),
+		"crd.networking.clusterNetwork.count", len(crdNetworking.ClusterNetwork),
+		"crd.networking.serviceNetwork.count", len(crdNetworking.ServiceNetwork),
+	)
+
 	pub := v1alpha1conv.ProjectCluster(cr)
+
+	// DEBUG: Log REST networking data after conversion
+	restNetworking := pub.Spec.HostedCluster.Networking
+	slog.Info("After JSON roundtrip",
+		"clusterID", clusterIDFromNamespace(cr.Namespace),
+		"rest.networking.networkType", restNetworking.NetworkType,
+		"rest.networking.machineNetwork.count", len(restNetworking.MachineNetwork),
+		"rest.networking.clusterNetwork.count", len(restNetworking.ClusterNetwork),
+		"rest.networking.serviceNetwork.count", len(restNetworking.ServiceNetwork),
+	)
+
 	pub.UID = types.UID(clusterIDFromNamespace(cr.Namespace))
 	return pub
 }

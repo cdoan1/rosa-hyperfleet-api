@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
 	"github.com/openshift-online/rosa-hyperfleet-api/hyperfleet-db/internal/model"
 	"github.com/openshift-online/rosa-hyperfleet-api/hyperfleet-db/internal/reader"
 	"github.com/openshift-online/rosa-hyperfleet-api/hyperfleet-db/internal/writer"
@@ -144,6 +146,12 @@ func (c *pgClient) Create(ctx context.Context, obj client.Object, opts ...client
 	if err != nil {
 		return err
 	}
+
+	// DEBUG: Log Cluster networking data when creating
+	if cluster, ok := obj.(*hyperfleetv1alpha1.Cluster); ok {
+		logClusterNetworking(cluster, "CREATE", spec)
+	}
+
 	metadata, err := extractMetadata(obj)
 	if err != nil {
 		return err
@@ -226,6 +234,11 @@ func (c *pgClient) Update(ctx context.Context, obj client.Object, opts ...client
 	newSpec, err := extractSpec(obj)
 	if err != nil {
 		return err
+	}
+
+	// DEBUG: Log Cluster networking data when updating
+	if cluster, ok := obj.(*hyperfleetv1alpha1.Cluster); ok {
+		logClusterNetworking(cluster, "UPDATE", newSpec)
 	}
 
 	if !writer.JSONEqual(current.Spec, newSpec) {
@@ -643,6 +656,44 @@ func buildListFilter(listOpts client.ListOptions) (*reader.ListFilter, error) {
 		return nil, nil
 	}
 	return &f, nil
+}
+
+// logClusterNetworking logs the networking data for a Cluster object being written to FleetDB.
+// This helps debug whether networking data is present when stored and if it changes over time.
+func logClusterNetworking(cluster *hyperfleetv1alpha1.Cluster, operation string, specJSON json.RawMessage) {
+	networking := cluster.Spec.HostedCluster.Networking
+
+	// Log high-level counts
+	slog.Info("FleetDB write",
+		"operation", operation,
+		"namespace", cluster.Namespace,
+		"name", cluster.Name,
+		"networking.networkType", networking.NetworkType,
+		"networking.machineNetwork.count", len(networking.MachineNetwork),
+		"networking.clusterNetwork.count", len(networking.ClusterNetwork),
+		"networking.serviceNetwork.count", len(networking.ServiceNetwork),
+	)
+
+	// Marshal the full networking object as JSON for detailed inspection
+	networkingJSON, err := json.MarshalIndent(networking, "", "  ")
+	if err == nil && len(networking.ClusterNetwork) > 0 {
+		slog.Info("FleetDB networking detail",
+			"operation", operation,
+			"name", cluster.Name,
+			"networking_json", string(networkingJSON),
+		)
+	}
+
+	// Also log a sample of the raw spec JSON being written to DB (first 500 chars)
+	specPreview := string(specJSON)
+	if len(specPreview) > 500 {
+		specPreview = specPreview[:500] + "..."
+	}
+	slog.Info("FleetDB spec preview",
+		"operation", operation,
+		"name", cluster.Name,
+		"spec_preview", specPreview,
+	)
 }
 
 var _ client.Client = (*pgClient)(nil)

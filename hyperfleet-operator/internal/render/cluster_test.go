@@ -21,10 +21,10 @@ func testCluster() *hyperfleetv1alpha1.Cluster {
 			HostedCluster: hyperfleetv1alpha1.HostedClusterSpecPassthrough{
 				Release:   hypershiftv1beta1.Release{Image: "quay.io/ocp:4.17"},
 				IssuerURL: "https://oidc.example.com/abc12345",
-				Networking: hypershiftv1beta1.ClusterNetworking{
-					ClusterNetwork: []hypershiftv1beta1.ClusterNetworkEntry{{CIDR: mustParseCIDR("10.128.0.0/14")}},
-					ServiceNetwork: []hypershiftv1beta1.ServiceNetworkEntry{{CIDR: mustParseCIDR("172.30.0.0/16")}},
-					MachineNetwork: []hypershiftv1beta1.MachineNetworkEntry{{CIDR: mustParseCIDR("10.0.0.0/16")}},
+				Networking: hyperfleetv1alpha1.ClusterNetworking{
+					ClusterNetwork: []hyperfleetv1alpha1.ClusterNetworkEntry{{CIDR: "10.128.0.0/14"}},
+					ServiceNetwork: []hyperfleetv1alpha1.ServiceNetworkEntry{{CIDR: "172.30.0.0/16"}},
+					MachineNetwork: []hyperfleetv1alpha1.MachineNetworkEntry{{CIDR: "10.0.0.0/16"}},
 				},
 				Platform: hypershiftv1beta1.PlatformSpec{
 					Type: hypershiftv1beta1.AWSPlatform,
