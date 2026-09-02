@@ -1,0 +1,156 @@
+package e2e_test
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"os/exec"
+	"strings"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+// oidcConfigMetadata extracts the metadata sub-object from a decoded OidcConfig response body.
+func oidcConfigMetadata(config map[string]interface{}) map[string]interface{} {
+	metadata, _ := config["metadata"].(map[string]interface{})
+	return metadata
+}
+
+// oidcConfigSpec extracts the spec sub-object from a decoded OidcConfig response body.
+func oidcConfigSpec(config map[string]interface{}) map[string]interface{} {
+	spec, _ := config["spec"].(map[string]interface{})
+	return spec
+}
+
+var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
+	var (
+		baseURL         string
+		accountID       string
+		apiClient       *APIClient
+		createdConfigID string
+	)
+
+	BeforeAll(func() {
+		baseURL = os.Getenv("E2E_BASE_URL")
+		Expect(baseURL).NotTo(BeEmpty(), "E2E_BASE_URL must be set")
+
+		accountID = os.Getenv("E2E_ACCOUNT_ID")
+		if accountID == "" {
+			GinkgoWriter.Printf("No E2E_ACCOUNT_ID set, using AWS STS caller identity\n")
+			cmd := exec.Command("aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text")
+			output, err := cmd.CombinedOutput()
+			Expect(err).NotTo(HaveOccurred(), "Failed to get AWS account ID via STS")
+			accountID = strings.TrimSpace(string(output))
+		}
+
+		apiClient = NewAPIClient(baseURL)
+	})
+
+	It("should create a managed OIDC config", func() {
+		createReq := map[string]interface{}{
+			"spec": map[string]interface{}{
+				"type": "managed",
+			},
+		}
+
+		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusCreated), "body: %s", string(response.Body))
+		Expect(response.Headers).To(HaveKey("Content-Type"))
+
+		var created map[string]interface{}
+		Expect(json.Unmarshal(response.Body, &created)).To(Succeed())
+
+		spec := oidcConfigSpec(created)
+		Expect(spec["type"]).To(Equal("managed"))
+		Expect(spec["issuerUrl"]).NotTo(BeEmpty(), "managed config should have a computed issuerUrl")
+
+		metadata := oidcConfigMetadata(created)
+		uid, _ := metadata["uid"].(string)
+		Expect(uid).NotTo(BeEmpty(), "response should include metadata.uid as the config ID")
+		createdConfigID = uid
+
+		GinkgoWriter.Printf("Created OIDC config id=%s issuerUrl=%v\n", createdConfigID, spec["issuerUrl"])
+	})
+
+	It("should get the created OIDC config by id", func() {
+		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
+
+		response, err := apiClient.Get("/api/v0/oidc_configs/"+createdConfigID, accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
+
+		var fetched map[string]interface{}
+		Expect(json.Unmarshal(response.Body, &fetched)).To(Succeed())
+
+		Expect(oidcConfigMetadata(fetched)["uid"]).To(Equal(createdConfigID))
+		Expect(oidcConfigSpec(fetched)["type"]).To(Equal("managed"))
+	})
+
+	It("should list OIDC configs and include the created config", func() {
+		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
+
+		response, err := apiClient.Get("/api/v0/oidc_configs", accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
+
+		var list struct {
+			Items []map[string]interface{} `json:"items"`
+			Total int                      `json:"total"`
+		}
+		Expect(json.Unmarshal(response.Body, &list)).To(Succeed())
+
+		found := false
+		for _, item := range list.Items {
+			if uid, _ := oidcConfigMetadata(item)["uid"].(string); uid == createdConfigID {
+				found = true
+				break
+			}
+		}
+		Expect(found).To(BeTrue(), "expected created config %s to appear in list", createdConfigID)
+	})
+
+	It("should reject creating an OIDC config with a missing type", func() {
+		createReq := map[string]interface{}{
+			"spec": map[string]interface{}{},
+		}
+
+		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
+		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-002"))
+	})
+
+	It("should reject creating an OIDC config with an invalid type", func() {
+		createReq := map[string]interface{}{
+			"spec": map[string]interface{}{
+				"type": "bogus",
+			},
+		}
+
+		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
+		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-004"))
+	})
+
+	It("should return 404 for a nonexistent OIDC config", func() {
+		response, err := apiClient.Get("/api/v0/oidc_configs/does-not-exist", accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusNotFound))
+	})
+
+	It("should delete the created OIDC config", func() {
+		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
+
+		response, err := apiClient.Delete("/api/v0/oidc_configs/"+createdConfigID, accountID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusAccepted), "body: %s", string(response.Body))
+
+		var deleted map[string]interface{}
+		Expect(json.Unmarshal(response.Body, &deleted)).To(Succeed())
+		Expect(fmt.Sprintf("%v", deleted["config_id"])).To(Equal(createdConfigID))
+	})
+})
