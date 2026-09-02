@@ -166,6 +166,7 @@ var typeToRegistryPrefix = map[string]string{
 	"KubeletConfig":                "kubelet",
 	"MachineConfigSpec":            "machineConfig",
 	"NetworkConfiguration":         "network",
+	"ClusterNetworking":            "",
 }
 
 // filterHiddenFields removes fields marked as hidden in the registry from

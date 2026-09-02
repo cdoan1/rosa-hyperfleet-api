@@ -458,8 +458,64 @@
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
-    "fieldPath": "spec.hostedCluster.networking",
-    "writeMode": "mutable",
+    "fieldPath": "spec.hostedCluster.networking.allocateNodeCIDRs",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.apiServer",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.clusterNetwork",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.clusterNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.clusterNetwork.hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.machineNetwork",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.machineNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.networkType",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.serviceNetwork",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.serviceNetwork.cidr",
+    "writeMode": "immutable",
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -888,6 +944,68 @@
     "ownerGVK": ""
   },
   {
+    "fieldPath": "allocateNodeCIDRs",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "apiServer",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork.hostPrefix",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "machineNetwork",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "machineNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "networkType",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "serviceNetwork",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "serviceNetwork.cidr",
+    "writeMode": "immutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
     "fieldPath": "allowedUnsafeSysctls",
     "writeMode": "service-set",
     "hidden": true,
@@ -1036,6 +1154,12 @@
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "KubeletConfig",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "cidr",
+    "writeMode": "immutable",
+    "ownerType": "MachineNetworkEntry",
     "ownerGVK": ""
   },
   {
@@ -1251,5 +1375,11 @@
     "writeMode": "immutable",
     "ownerType": "OidcConfig",
     "ownerGVK": "hyperfleet.io/v1alpha1.OidcConfig"
+  },
+  {
+    "fieldPath": "cidr",
+    "writeMode": "immutable",
+    "ownerType": "ServiceNetworkEntry",
+    "ownerGVK": ""
   }
 ]

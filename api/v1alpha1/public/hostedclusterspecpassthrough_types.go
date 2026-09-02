@@ -27,7 +27,7 @@ type HostedClusterSpecPassthrough struct {
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=mutable
 	// +required
-	Networking hypershiftv1beta1.ClusterNetworking `json:"networking"`
+	Networking ClusterNetworking `json:"networking"`
 	// autoNode specifies the configuration for automatic node provisioning and lifecycle management.
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set

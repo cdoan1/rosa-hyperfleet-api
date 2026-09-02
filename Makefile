@@ -400,7 +400,7 @@ generate-openapi: codegen-conversion
 	./bin/openapi-merge \
 		-spec $(OPENAPI_SPEC) \
 		-generated $(OPENAPI_GENERATED) \
-		-schemas Cluster,ClusterList,ClusterSpec,ClusterStatus,NodePool,NodePoolList,NodePoolSpec,NodePoolStatus,OidcConfig,OidcConfigList,OidcConfigStatus,PlacementReference,HostedClusterSpecPassthrough,NodePoolSpecPassthrough,ClusterConfiguration,KubeletConfig,MachineConfigSpec
+		-schemas Cluster,ClusterList,ClusterSpec,ClusterStatus,NodePool,NodePoolList,NodePoolSpec,NodePoolStatus,OidcConfig,OidcConfigList,OidcConfigStatus,PlacementReference,HostedClusterSpecPassthrough,NodePoolSpecPassthrough,ClusterConfiguration,KubeletConfig,MachineConfigSpec,ClusterNetworking
 
 verify-openapi: generate-openapi
 	git diff --exit-code $(OPENAPI_SPEC)

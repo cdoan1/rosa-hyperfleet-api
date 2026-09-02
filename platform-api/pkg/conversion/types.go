@@ -16,6 +16,8 @@ type ServiceSetFields struct {
 	AccountID string `json:"accountId"`
 	// AdditionalTrustBundle is service-set (platform-managed, hidden from API)
 	AdditionalTrustBundle *corev1.LocalObjectReference `json:"additionalTrustBundle"`
+	// AllocateNodeCIDRs is service-set (platform-managed, hidden from API)
+	AllocateNodeCIDRs *hypershiftv1beta1.AllocateNodeCIDRsMode `json:"allocateNodeCIDRs"`
 	// AllowedUnsafeSysctls is service-set (platform-managed, hidden from API)
 	AllowedUnsafeSysctls []string `json:"allowedUnsafeSysctls"`
 	// ApiServer is service-set (platform-managed, hidden from API)
