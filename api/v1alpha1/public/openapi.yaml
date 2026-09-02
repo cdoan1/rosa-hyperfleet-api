@@ -21993,6 +21993,40 @@ components:
               $ref: '#/components/schemas/KubeletConfig'
           machineConfig:
               $ref: '#/components/schemas/MachineConfigSpec'
+          network:
+              description: network contains the configuration for cluster networking.
+              properties:
+                  clusterNetwork:
+                      description: clusterNetwork is the IP address pool to use for pod IPs.
+                      items:
+                          description: ClusterNetworkEntry is a contiguous block of IP addresses for pods.
+                          properties:
+                              cidr:
+                                  description: cidr is the complete block for pod IPs.
+                                  type: string
+                              hostPrefix:
+                                  description: hostPrefix is the size (prefix) of block to allocate to each node.
+                                  format: int32
+                                  minimum: 0
+                                  type: integer
+                          required:
+                              - cidr
+                          type: object
+                      maxItems: 32
+                      type: array
+                  networkType:
+                      description: networkType is the plugin to be deployed (e.g. OVNKubernetes).
+                      type: string
+                  serviceNetwork:
+                      description: serviceNetwork is the IP address pool for services.
+                      items:
+                          type: string
+                      maxItems: 32
+                      type: array
+                  serviceNodePortRange:
+                      description: serviceNodePortRange is the port range for Services of type NodePort.
+                      type: string
+              type: object
       type: object
     KubeletConfig:
       description: KubeletConfig specifies kubelet configuration with granular markers for customer control.
@@ -22795,4 +22829,54 @@ components:
                   Thumbprint is the SHA-1 fingerprint of the OIDC issuer's TLS certificate.
                   Computed by the controller and refreshed periodically.
               type: string
+      type: object
+
+    NetworkConfiguration:
+      description: NetworkConfiguration specifies cluster network configuration.
+      properties:
+          clusterNetwork:
+              description: clusterNetwork is the IP address pool to use for pod IPs.
+              items:
+                  description: ClusterNetworkEntry is a contiguous block of IP addresses for pods.
+                  properties:
+                      cidr:
+                          description: cidr is the complete block for pod IPs.
+                          type: string
+                      hostPrefix:
+                          description: hostPrefix is the size (prefix) of block to allocate to each node.
+                          format: int32
+                          minimum: 0
+                          type: integer
+                  required:
+                      - cidr
+                  type: object
+              maxItems: 32
+              type: array
+          networkType:
+              description: networkType is the plugin to be deployed (e.g. OVNKubernetes).
+              type: string
+          serviceNetwork:
+              description: serviceNetwork is the IP address pool for services.
+              items:
+                  type: string
+              maxItems: 32
+              type: array
+          serviceNodePortRange:
+              description: serviceNodePortRange is the port range for Services of type NodePort.
+              type: string
+      type: object
+
+    ClusterNetworkEntry:
+      description: ClusterNetworkEntry is a contiguous block of IP addresses for pods.
+      properties:
+          cidr:
+              description: cidr is the complete block for pod IPs.
+              type: string
+          hostPrefix:
+              description: hostPrefix is the size (prefix) of block to allocate to each node.
+              format: int32
+              minimum: 0
+              type: integer
+      required:
+          - cidr
       type: object
