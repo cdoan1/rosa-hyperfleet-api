@@ -206,6 +206,7 @@ type NetworkConfiguration struct {
 }
 
 // ClusterNetworkEntry is a contiguous block of IP addresses for pods.
+// +hyperfleet:upstream-reduced-object=configv1.ClusterNetworkEntry
 type ClusterNetworkEntry struct {
 	// cidr is the complete block for pod IPs.
 	// +hyperfleet:write-mode=immutable

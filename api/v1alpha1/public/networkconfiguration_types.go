@@ -2,10 +2,6 @@
 
 package public
 
-import (
-	v1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
-)
-
 // NetworkConfiguration specifies cluster network configuration.
 // +hyperfleet:upstream-reduced-object=configv1.NetworkSpec
 type NetworkConfiguration struct {
@@ -13,7 +9,7 @@ type NetworkConfiguration struct {
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=immutable
 	// +kubebuilder:validation:MaxItems=32
-	ClusterNetwork []v1alpha1.ClusterNetworkEntry `json:"clusterNetwork,omitempty"`
+	ClusterNetwork []ClusterNetworkEntry `json:"clusterNetwork,omitempty"`
 	// serviceNetwork is the IP address pool for services.
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=immutable
