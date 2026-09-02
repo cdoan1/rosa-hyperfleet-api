@@ -419,7 +419,7 @@ type importInfo struct {
 // detectImports scans a list of Go type strings and determines which
 // import aliases are required. This replaces the hard-coded type lists
 // (hypershiftTypes, v1alpha1Types) by deriving imports from the AST.
-func (g *Generator) detectImports(goTypes []string) importInfo {
+func (g *Generator) detectImports(goTypes []string, restTypeSet map[string]bool) importInfo {
 	var info importInfo
 	for _, goType := range goTypes {
 		base := strings.TrimPrefix(goType, "*")
@@ -445,9 +445,13 @@ func (g *Generator) detectImports(goTypes []string) importInfo {
 		}
 
 		// Check if the unqualified type is from the CRD package
+		// BUT skip it if it's also a REST type (same package, no import needed)
 		if !strings.Contains(base, ".") && !g.isBuiltinType(base) {
 			if g.knownTypes[base] {
-				info.NeedsV1alpha1 = true
+				// If restTypeSet is nil or doesn't contain this type, we need the import
+				if restTypeSet == nil || !restTypeSet[base] {
+					info.NeedsV1alpha1 = true
+				}
 			}
 		}
 	}
@@ -708,13 +712,18 @@ func (g *Generator) generateRESTTypes() error {
 	}
 
 	// NEW: Generate REST types for upstream-reduced objects
+	// First pass: populate restTypeSet with all types that will be generated
+	for typeName, ti := range g.typeInfos {
+		if ti.NeedsRESTMirror {
+			restTypeSet[typeName] = true
+		}
+	}
+
+	// Second pass: generate each REST type (now all types are in the set)
 	for typeName, ti := range g.typeInfos {
 		if !ti.NeedsRESTMirror {
 			continue
 		}
-
-		// Add this type to restTypeSet so nested references work
-		restTypeSet[typeName] = true
 
 		code, err := g.renderRESTType(ti, restTypeSet, false)
 		if err != nil {
@@ -998,7 +1007,7 @@ func (g *Generator) renderRESTType(ti *typeInfo, restTypeSet map[string]bool, is
 		}
 	}
 
-	imports := g.detectImports(goTypes)
+	imports := g.detectImports(goTypes, restTypeSet)
 	if isRoot {
 		imports.NeedsMetav1 = true
 	}
@@ -1122,7 +1131,7 @@ func (g *Generator) generateServiceSetFields() error {
 		PackageName: pkgName,
 		CRDPackage:  g.CRDPackage,
 		Fields:      fields,
-		Imports:     g.detectImports(goTypes),
+		Imports:     g.detectImports(goTypes, nil),
 	}
 
 	var buf bytes.Buffer
