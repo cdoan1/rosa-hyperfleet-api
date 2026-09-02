@@ -171,6 +171,10 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	cr := hyperfleetdb.PublicToInternalOidcConfig(&req, accountID, configID)
 
 	if err := h.db.CreateOidcConfig(ctx, cr); err != nil {
+		if hyperfleetdb.IsAlreadyExists(err) {
+			writeAPIError(w, ErrOidcConfigCreateDuplicateIssuerUrl, h.logger)
+			return
+		}
 		h.logger.Error("failed to create oidc config", "error", err, "account_id", accountID)
 		writeAPIError(w, ErrOidcConfigCreateFailed, h.logger)
 		return

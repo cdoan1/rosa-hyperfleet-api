@@ -4,16 +4,23 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gorilla/mux"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
@@ -557,6 +564,90 @@ func TestOidcConfigHandler_Create_UnmanagedDuplicateIssuerUrlDifferentAccountAll
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201 for a duplicate issuerUrl owned by a different account, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// issuerURLUniqueClient wraps a client.Client to enforce uniqueness of
+// (namespace, spec.issuerUrl) among live unmanaged OidcConfigs, modeling the
+// database's idx_oidcconfig_unmanaged_issuer_url partial unique index. The
+// real index is what makes the create atomic; the handler's List-based check
+// (see oidcconfig.go) is only a fast-path for a friendlier error and is
+// racy on its own.
+type issuerURLUniqueClient struct {
+	client.Client
+	mu sync.Mutex
+}
+
+func (c *issuerURLUniqueClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if oc, ok := obj.(*hyperfleetv1alpha1.OidcConfig); ok && oc.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeUnmanaged && oc.Spec.IssuerUrl != "" {
+		var list hyperfleetv1alpha1.OidcConfigList
+		if err := c.Client.List(ctx, &list, client.InNamespace(oc.Namespace)); err != nil {
+			return err
+		}
+		for i := range list.Items {
+			existing := &list.Items[i]
+			if existing.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeUnmanaged && existing.Spec.IssuerUrl == oc.Spec.IssuerUrl {
+				return apierrors.NewAlreadyExists(schema.GroupResource{Resource: "oidcconfigs"}, oc.Name)
+			}
+		}
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+func TestOidcConfigHandler_Create_ConcurrentUnmanagedDuplicateIssuerUrl(t *testing.T) {
+	scheme := newTestScheme()
+	innerFC := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fc := &issuerURLUniqueClient{Client: innerFC}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewOidcConfigHandler(hyperfleetdb.NewClientFrom(fc, logger), testOidcIssuerBaseURL, logger)
+
+	var callCount int64
+	handler.generateID = func() string {
+		n := atomic.AddInt64(&callCount, 1)
+		return fmt.Sprintf("generated-config-id-%d", n)
+	}
+
+	body, _ := json.Marshal(map[string]any{
+		"spec": map[string]any{
+			"type":             "unmanaged",
+			"secretArn":        "arn:aws:secretsmanager:us-east-1:123456789012:secret:foo",
+			"installerRoleArn": "arn:aws:iam::123456789012:role/installer",
+			"issuerUrl":        "https://example.com/oidc-concurrent",
+		},
+	})
+
+	var wg sync.WaitGroup
+	codes := make([]int, 2)
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			req := httptest.NewRequest(http.MethodPost, "/api/v0/oidc_configs", bytes.NewReader(body))
+			req = req.WithContext(testContext(testAccountID))
+			w := httptest.NewRecorder()
+			handler.Create(w, req)
+			codes[idx] = w.Code
+		}(i)
+	}
+
+	wg.Wait()
+
+	var created, conflicts int
+	for _, code := range codes {
+		switch code {
+		case http.StatusCreated:
+			created++
+		case http.StatusConflict:
+			conflicts++
+		}
+	}
+	if created != 1 || conflicts != 1 {
+		t.Fatalf("expected exactly one 201 and one 409 for concurrent creates with the same issuerUrl, got codes %v", codes)
 	}
 }
 
