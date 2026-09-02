@@ -333,7 +333,6 @@ var FieldRegistry = TypedFieldRegistry{
 		"spec.hostedCluster.configuration.network": {
 			FieldPath: "spec.hostedCluster.configuration.network",
 			WriteMode: ServiceSet,
-			Hidden:    true,
 			OwnerType: "Cluster",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.Cluster",
 		},
@@ -825,7 +824,6 @@ var FieldRegistry = TypedFieldRegistry{
 		"network": {
 			FieldPath: "network",
 			WriteMode: ServiceSet,
-			Hidden:    true,
 			OwnerType: "ClusterConfiguration",
 			OwnerGVK:  "",
 		},

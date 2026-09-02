@@ -36,7 +36,7 @@ type ClusterConfiguration struct {
 	Ingress *IngressConfiguration `json:"ingress,omitempty"`
 
 	// network contains the configuration for cluster networking.
-	// +k8s:openapi-gen=false
+	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
 	Network *NetworkConfiguration `json:"network,omitempty"`
 

@@ -309,7 +309,6 @@
   {
     "fieldPath": "spec.hostedCluster.configuration.network",
     "writeMode": "service-set",
-    "hidden": true,
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -799,7 +798,6 @@
   {
     "fieldPath": "network",
     "writeMode": "service-set",
-    "hidden": true,
     "ownerType": "ClusterConfiguration",
     "ownerGVK": ""
   },
