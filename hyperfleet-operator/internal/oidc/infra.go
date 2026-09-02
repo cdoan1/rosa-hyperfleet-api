@@ -239,9 +239,6 @@ func (c *AWSClient) VerifyIssuer(ctx context.Context, issuerURL string) (string,
 // VerifyIssuer so it can be exercised directly against a local test server,
 // independent of the SSRF-safe host resolution done in resolveIssuerHost.
 func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL string) (string, error) {
-	// Normalize once so discoveryURL construction and the issuer comparison
-	// below agree, regardless of whether the caller's issuerURL has a
-	// trailing slash (OIDC issuer identifiers conventionally do not).
 	normalizedIssuerURL := strings.TrimRight(issuerURL, "/")
 	discoveryURL := normalizedIssuerURL + "/" + discoveryPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
@@ -270,12 +267,13 @@ func verifyIssuerDocument(ctx context.Context, client *http.Client, issuerURL st
 		return "", fmt.Errorf("discovery document issuer %q from %s does not match expected issuer %q", doc.Issuer, discoveryURL, normalizedIssuerURL)
 	}
 
-	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
-		return "", fmt.Errorf("no TLS certificates from %s", discoveryURL)
+	// Use the root CA certificate per AWS IAM OIDC provider convention
+	if resp.TLS == nil || len(resp.TLS.VerifiedChains) == 0 || len(resp.TLS.VerifiedChains[0]) == 0 {
+		return "", fmt.Errorf("no verified TLS certificate chain from %s", discoveryURL)
 	}
 
-	// Use the root CA certificate (last in chain) per AWS IAM OIDC provider convention.
-	root := resp.TLS.PeerCertificates[len(resp.TLS.PeerCertificates)-1]
+	chain := resp.TLS.VerifiedChains[0]
+	root := chain[len(chain)-1]
 	// AWS IAM OIDC providers require the thumbprint to be a SHA-1 fingerprint of
 	// the root CA certificate; this is an API contract, not a security choice.
 	fingerprint := sha1.Sum(root.Raw) //nolint:gosec // SHA-1 required by AWS IAM OIDC provider API contract
