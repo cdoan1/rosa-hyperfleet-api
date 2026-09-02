@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	configv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -169,10 +170,53 @@ type ImageConfiguration struct{}
 type IngressConfiguration struct{}
 
 // NetworkConfiguration specifies cluster network configuration.
-// +k8s:openapi-gen=true
-// +hyperfleet:write-mode=service-set
-// +hyperfleet:upstream-reduced-object=hypershiftv1beta1.NetworkConfiguration
+// +hyperfleet:upstream-reduced-object=configv1.NetworkSpec
 type NetworkConfiguration struct {
+	// clusterNetwork is the IP address pool to use for pod IPs.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	// +kubebuilder:validation:MaxItems=32
+	ClusterNetwork []ClusterNetworkEntry `json:"clusterNetwork,omitempty"`
+
+	// serviceNetwork is the IP address pool for services.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	// +kubebuilder:validation:MaxItems=32
+	ServiceNetwork []string `json:"serviceNetwork,omitempty"`
+
+	// networkType is the plugin to be deployed (e.g. OVNKubernetes).
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	NetworkType string `json:"networkType,omitempty"`
+
+	// externalIP defines configuration for Service.ExternalIP.
+	// +k8s:openapi-gen=false
+	// +hyperfleet:write-mode=service-set
+	ExternalIP *configv1.ExternalIPConfig `json:"externalIP,omitempty"`
+
+	// serviceNodePortRange is the port range for Services of type NodePort.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=mutable
+	ServiceNodePortRange string `json:"serviceNodePortRange,omitempty"`
+
+	// networkDiagnostics defines network diagnostics configuration.
+	// +k8s:openapi-gen=false
+	// +hyperfleet:write-mode=service-set
+	NetworkDiagnostics configv1.NetworkDiagnostics `json:"networkDiagnostics,omitempty"`
+}
+
+// ClusterNetworkEntry is a contiguous block of IP addresses for pods.
+type ClusterNetworkEntry struct {
+	// cidr is the complete block for pod IPs.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	CIDR string `json:"cidr"`
+
+	// hostPrefix is the size (prefix) of block to allocate to each node.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	// +kubebuilder:validation:Minimum=0
+	HostPrefix uint32 `json:"hostPrefix,omitempty"`
 }
 
 type OAuthConfiguration struct{}
