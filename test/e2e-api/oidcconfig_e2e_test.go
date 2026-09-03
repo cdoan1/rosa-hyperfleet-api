@@ -55,7 +55,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 			},
 		}
 
-		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		response, err := apiClient.Post("/api/v0/oidcconfigs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusCreated), "body: %s", string(response.Body))
 		Expect(response.Headers).To(HaveKey("Content-Type"))
@@ -78,7 +78,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 	It("should get the created OIDC config by id", func() {
 		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
 
-		response, err := apiClient.Get("/api/v0/oidc_configs/"+createdConfigID, accountID)
+		response, err := apiClient.Get("/api/v0/oidcconfigs/"+createdConfigID, accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
 
@@ -92,7 +92,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 	It("should list OIDC configs and include the created config", func() {
 		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
 
-		response, err := apiClient.Get("/api/v0/oidc_configs", accountID)
+		response, err := apiClient.Get("/api/v0/oidcconfigs", accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
 
@@ -117,7 +117,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 			"spec": map[string]interface{}{},
 		}
 
-		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		response, err := apiClient.Post("/api/v0/oidcconfigs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
 		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-002"))
@@ -130,14 +130,14 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 			},
 		}
 
-		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
+		response, err := apiClient.Post("/api/v0/oidcconfigs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
 		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-004"))
 	})
 
 	It("should return 404 for a nonexistent OIDC config", func() {
-		response, err := apiClient.Get("/api/v0/oidc_configs/does-not-exist", accountID)
+		response, err := apiClient.Get("/api/v0/oidcconfigs/does-not-exist", accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound))
 	})
@@ -145,7 +145,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 	It("should delete the created OIDC config", func() {
 		Expect(createdConfigID).NotTo(BeEmpty(), "requires a config created by a previous test")
 
-		response, err := apiClient.Delete("/api/v0/oidc_configs/"+createdConfigID, accountID)
+		response, err := apiClient.Delete("/api/v0/oidcconfigs/"+createdConfigID, accountID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusAccepted), "body: %s", string(response.Body))
 
