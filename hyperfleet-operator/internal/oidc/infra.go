@@ -41,11 +41,17 @@ import (
 )
 
 const (
-	minKeyBits   = 2048
-	secretPrefix = "hyperfleet/oidc/"
+	minKeyBits = 2048
 
 	discoveryPath = ".well-known/openid-configuration"
 )
+
+// SecretName returns the deterministic AWS Secrets Manager path for
+// configID's OIDC signing key. Shared by the writer (this package) and the
+// ExternalSecret reader (render.oidcSigningKeySecret) to avoid path drift.
+func SecretName(configID string) string {
+	return "/hyperfleet/oidc/" + configID + "/signing-key"
+}
 
 // InfraClient abstracts the OIDC infrastructure operations needed by the
 // OidcConfig controller.
@@ -120,7 +126,7 @@ func (c *AWSClient) assumeRoleCredentials(roleARN string) *aws.CredentialsCache 
 // StorePrivateKey creates the Secrets Manager secret holding the OIDC
 // signing key, or overwrites it if one already exists.
 func (c *AWSClient) StorePrivateKey(ctx context.Context, configID string, privateKeyPEM []byte) error {
-	secretName := secretPrefix + configID
+	secretName := SecretName(configID)
 	_, err := c.sm.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
 		Name:         aws.String(secretName),
 		SecretString: aws.String(string(privateKeyPEM)),
@@ -142,7 +148,7 @@ func (c *AWSClient) StorePrivateKey(ctx context.Context, configID string, privat
 }
 
 func (c *AWSClient) PrivateKeyExists(ctx context.Context, configID string) (bool, error) {
-	secretName := secretPrefix + configID
+	secretName := SecretName(configID)
 	_, err := c.sm.DescribeSecret(ctx, &secretsmanager.DescribeSecretInput{
 		SecretId: aws.String(secretName),
 	})
@@ -174,7 +180,7 @@ func (c *AWSClient) ReadCrossAccountSecret(ctx context.Context, secretARN, roleA
 }
 
 func (c *AWSClient) DeletePrivateKey(ctx context.Context, configID string) error {
-	secretName := secretPrefix + configID
+	secretName := SecretName(configID)
 	_, err := c.sm.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
 		SecretId:                   aws.String(secretName),
 		ForceDeleteWithoutRecovery: aws.Bool(true),

@@ -40,10 +40,10 @@ const (
 	oidcConfigFinalizer    = "hyperfleet.io/oidcconfig"
 	thumbprintRefreshDelay = 24 * time.Hour
 
+	// managedPendingRequeueInterval controls how often a managed OidcConfig
+	// re-checks whether it's been referenced by a cluster yet, and (once
+	// referenced) whether its issuer is serving real OIDC documents yet.
 	managedPendingRequeueInterval = 30 * time.Second
-
-	// will be removed as part of cluster creation wiring
-	managedPendingMessagePrefix = "403 expected; to be replaced as part of ROSAENG-65615: "
 )
 
 // OidcConfigReconciler reconciles OidcConfig objects
@@ -57,6 +57,7 @@ type OidcConfigReconciler struct {
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=oidcconfigs,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=oidcconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=oidcconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=hyperfleet.io,resources=clusters,verbs=get;list;watch
 
 func (r *OidcConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var oc hyperfleetv1alpha1.OidcConfig
@@ -98,10 +99,35 @@ func (r *OidcConfigReconciler) reconcileManaged(ctx context.Context, oc *hyperfl
 		r.setPhase(ctx, oc, hyperfleetv1alpha1.OidcConfigPhasePending)
 	}
 
-	return r.checkReadiness(ctx, oc, func(reason, message string) (ctrl.Result, error) {
-		r.setReadyConditionAndPhase(ctx, oc, reason, managedPendingMessagePrefix+message, hyperfleetv1alpha1.OidcConfigPhasePending)
+	referenced, err := r.isReferencedByCluster(ctx, oc)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("check cluster references: %w", err)
+	}
+	if !referenced {
+		r.setReadyConditionAndPhase(ctx, oc, "AwaitingCluster",
+			"Waiting for a cluster to be created that references this OIDC config", hyperfleetv1alpha1.OidcConfigPhasePending)
+		return ctrl.Result{RequeueAfter: managedPendingRequeueInterval}, nil
+	}
+
+	return r.checkReadiness(ctx, oc, func(_, _ string) (ctrl.Result, error) {
+		r.setReadyConditionAndPhase(ctx, oc, "IssuerNotReady",
+			"Waiting for the referenced cluster's control plane to publish its OIDC configuration", hyperfleetv1alpha1.OidcConfigPhasePending)
 		return ctrl.Result{RequeueAfter: managedPendingRequeueInterval}, nil
 	})
+}
+
+// isReferencedByCluster reports whether any Cluster currently sets this oidcConfigId
+func (r *OidcConfigReconciler) isReferencedByCluster(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (bool, error) {
+	var clusters hyperfleetv1alpha1.ClusterList
+	if err := r.List(ctx, &clusters); err != nil {
+		return false, fmt.Errorf("list clusters: %w", err)
+	}
+	for i := range clusters.Items {
+		if clusters.Items[i].Spec.OidcConfigID == oc.Name {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (r *OidcConfigReconciler) reconcileUnmanaged(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) (ctrl.Result, error) {
@@ -148,6 +174,7 @@ func (r *OidcConfigReconciler) reconcileUnmanaged(ctx context.Context, oc *hyper
 func (r *OidcConfigReconciler) checkReadiness(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig, onFailure func(reason, message string) (ctrl.Result, error)) (ctrl.Result, error) {
 	thumbprint, err := r.OIDC.VerifyIssuer(ctx, oc.Spec.IssuerUrl)
 	if err != nil {
+		logf.FromContext(ctx).V(1).Info("issuer not ready", "issuerUrl", oc.Spec.IssuerUrl, "error", err.Error())
 		return onFailure("IssuerNotReady", err.Error())
 	}
 

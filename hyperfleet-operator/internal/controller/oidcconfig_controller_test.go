@@ -104,11 +104,13 @@ func (f *fakeOidcInfra) VerifyIssuer(_ context.Context, _ string) (string, error
 
 var _ = Describe("OidcConfig Controller", func() {
 	const testNS = "account-test-account"
+	const clusterNS = "cluster-test-cluster-id"
 
 	ctx := context.Background()
 
 	BeforeEach(func() {
 		ensureNamespace(ctx, testNS)
+		ensureNamespace(ctx, clusterNS)
 	})
 
 	AfterEach(func() {
@@ -120,6 +122,12 @@ var _ = Describe("OidcConfig Controller", func() {
 				_ = k8sClient.Delete(ctx, &list.Items[i])
 			}
 		}
+		clusters := &hyperfleetv1alpha1.ClusterList{}
+		if err := k8sClient.List(ctx, clusters, client.InNamespace(clusterNS)); err == nil {
+			for i := range clusters.Items {
+				_ = k8sClient.Delete(ctx, &clusters.Items[i])
+			}
+		}
 	})
 
 	newReconciler := func(infra *fakeOidcInfra) *OidcConfigReconciler {
@@ -128,6 +136,15 @@ var _ = Describe("OidcConfig Controller", func() {
 			Scheme: k8sClient.Scheme(),
 			OIDC:   infra,
 		}
+	}
+
+	// createReferencingCluster creates a minimal Cluster that references oidcConfigID via
+	// spec.oidcConfigId, simulating the cluster-creation flow that unblocks a managed
+	// OidcConfig's readiness checks (see isReferencedByCluster).
+	createReferencingCluster := func(name, oidcConfigID string) {
+		cluster := newTestCluster(name)
+		cluster.Spec.OidcConfigID = oidcConfigID
+		Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 	}
 
 	reconcileN := func(r *OidcConfigReconciler, ns, name string, n int) (ctrl.Result, error) {
@@ -168,6 +185,9 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-01"}, &updated)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(&updated, oidcConfigFinalizer)).To(BeTrue())
 
+			// A cluster must reference the config before the issuer is ever probed.
+			createReferencingCluster("managed-01-cluster", "managed-01")
+
 			result, err = r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-01"},
 			})
@@ -189,6 +209,37 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(readyCond.Reason).To(Equal("OIDCConfigured"))
 		})
 
+		It("should stay Pending with AwaitingCluster and never probe the issuer until a cluster references it", func() {
+			oc := &hyperfleetv1alpha1.OidcConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "managed-awaiting", Namespace: testNS},
+				Spec: hyperfleetv1alpha1.OidcConfigSpec{
+					Type:      hyperfleetv1alpha1.OidcConfigTypeManaged,
+					IssuerUrl: "https://oidc.example.com/managed-awaiting",
+				},
+			}
+			Expect(k8sClient.Create(ctx, oc)).To(Succeed())
+
+			// If VerifyIssuer were called before any cluster exists, it would always fail with
+			// a confusing 403 — assert it's never called at all in this state.
+			infra := &fakeOidcInfra{verifyIssuerErr: fmt.Errorf("should not be called")}
+			r := newReconciler(infra)
+
+			result, err := reconcileN(r, testNS, "managed-awaiting", 2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(managedPendingRequeueInterval))
+			Expect(infra.verifyIssuerCalled).To(Equal(0))
+
+			var updated hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-awaiting"}, &updated)).To(Succeed())
+			Expect(updated.Status.Phase).To(Equal(hyperfleetv1alpha1.OidcConfigPhasePending))
+
+			readyCond := meta.FindStatusCondition(updated.Status.Conditions, "Ready")
+			Expect(readyCond).NotTo(BeNil())
+			Expect(readyCond.Status).To(Equal(metav1.ConditionFalse))
+			Expect(readyCond.Reason).To(Equal("AwaitingCluster"))
+			Expect(readyCond.Message).NotTo(ContainSubstring("403"))
+		})
+
 		It("should stay Pending (not Error) while HyperShift hasn't published OIDC documents yet", func() {
 			oc := &hyperfleetv1alpha1.OidcConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "managed-pending", Namespace: testNS},
@@ -207,11 +258,14 @@ var _ = Describe("OidcConfig Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
+			createReferencingCluster("managed-pending-cluster", "managed-pending")
+
 			result, err := r.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-pending"},
 			})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.RequeueAfter).To(Equal(managedPendingRequeueInterval))
+			Expect(infra.verifyIssuerCalled).To(Equal(1))
 
 			var updated hyperfleetv1alpha1.OidcConfig
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-pending"}, &updated)).To(Succeed())
@@ -221,6 +275,11 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(readyCond).NotTo(BeNil())
 			Expect(readyCond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(readyCond.Reason).To(Equal("IssuerNotReady"))
+			// The raw HTTP failure (e.g. "unexpected status 404"/403) must never leak into the
+			// user-visible message — it reads like an error when it's actually normal
+			// in-progress provisioning.
+			Expect(readyCond.Message).NotTo(ContainSubstring("404"))
+			Expect(readyCond.Message).NotTo(ContainSubstring("403"))
 		})
 
 		It("should reach Ready once the issuer starts serving valid documents after being Pending", func() {
@@ -238,6 +297,7 @@ var _ = Describe("OidcConfig Controller", func() {
 				thumbprint:      "recovered-thumb",
 			}
 			r := newReconciler(infra)
+			createReferencingCluster("managed-recover-cluster", "managed-recover")
 
 			// Reconcile 1: adds finalizer.
 			// Reconcile 2: issuer not ready yet, stays Pending.
@@ -278,6 +338,7 @@ var _ = Describe("OidcConfig Controller", func() {
 
 			infra := &fakeOidcInfra{thumbprint: "thumb01"}
 			r := newReconciler(infra)
+			createReferencingCluster("managed-idem-cluster", "managed-idem")
 
 			_, err := reconcileN(r, testNS, "managed-idem", 2)
 			Expect(err).NotTo(HaveOccurred())
@@ -563,6 +624,7 @@ var _ = Describe("OidcConfig Controller", func() {
 
 			infra := &fakeOidcInfra{thumbprint: "thumb"}
 			r := newReconciler(infra)
+			createReferencingCluster("managed-del-cluster", "managed-del")
 
 			// Reach Ready state.
 			_, err := reconcileN(r, testNS, "managed-del", 2)
@@ -629,6 +691,7 @@ var _ = Describe("OidcConfig Controller", func() {
 
 			infra := &fakeOidcInfra{thumbprint: "thumb"}
 			r := newReconciler(infra)
+			createReferencingCluster("managed-del-sm-fail-cluster", "managed-del-sm-fail")
 
 			_, err := reconcileN(r, testNS, "managed-del-sm-fail", 2)
 			Expect(err).NotTo(HaveOccurred())

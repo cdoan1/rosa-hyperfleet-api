@@ -1007,7 +1007,7 @@ import (
 type ServiceSetFields struct {
 {{- range .Fields }}
 	// {{ .GoName }} is service-set (platform-managed, hidden from API)
-	{{ .GoName }} {{ .GoType }} ` + "`" + `json:"{{ .JSONTag }}"` + "`" + `
+	{{ .GoName }} {{ .GoType }} ` + "`" + `json:"{{ .JSONTag }},omitempty"` + "`" + `
 {{- end }}
 }
 `))
