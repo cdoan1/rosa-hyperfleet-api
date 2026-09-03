@@ -64,6 +64,10 @@ var _ = Describe("Cluster Controller", func() {
 			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: clusterName + "-placement"}, placement); err == nil {
 				_ = k8sClient.Delete(ctx, placement)
 			}
+			oc := &hyperfleetv1alpha1.OidcConfig{}
+			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "account-test-account", Name: "test-oidc-config"}, oc); err == nil {
+				_ = k8sClient.Delete(ctx, oc)
+			}
 		})
 
 		It("should add a finalizer on first reconcile", func() {
@@ -155,6 +159,61 @@ var _ = Describe("Cluster Controller", func() {
 
 			// 7 cluster manifests → 7 ApplyDesires + 1 ReadDesire.
 			Expect(fd.applyCount).To(Equal(7))
+			Expect(fd.readCount).To(Equal(1))
+		})
+
+		It("should create DynamoDB desires including the OIDC signing key ExternalSecret when OidcConfigID is set", func() {
+			ensureNamespace(ctx, "account-test-account")
+			oc := &hyperfleetv1alpha1.OidcConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-oidc-config", Namespace: "account-test-account"},
+				Spec: hyperfleetv1alpha1.OidcConfigSpec{
+					Type:             hyperfleetv1alpha1.OidcConfigTypeUnmanaged,
+					IssuerUrl:        "https://oidc.example.com/test-oidc-config",
+					SecretArn:        "arn:aws:secretsmanager:us-east-1:123456789012:secret:test",
+					InstallerRoleArn: "arn:aws:iam::123456789012:role/installer",
+				},
+			}
+			Expect(k8sClient.Create(ctx, oc)).To(Succeed())
+
+			resource := newTestClusterWithOidcConfig(clusterName)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+
+			// Create a Bound Placement.
+			placement := &hyperfleetv1alpha1.Placement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      clusterName + "-placement",
+					Namespace: testNS,
+				},
+				Spec: hyperfleetv1alpha1.PlacementSpec{
+					ClusterName:       clusterName,
+					ManagementCluster: "mc01",
+				},
+			}
+			Expect(k8sClient.Create(ctx, placement)).To(Succeed())
+			placement.Status.Phase = hyperfleetv1alpha1.PlacementPhaseBound
+			Expect(k8sClient.Status().Update(ctx, placement)).To(Succeed())
+
+			fd := &fakeDynamo{}
+			reconciler := &ClusterReconciler{
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				Dynamo:         fd,
+				RegionalConfig: render.RegionalConfig{BaseDomain: "example.com", AWSRegion: "us-east-1"},
+			}
+
+			// First reconcile: adds finalizer.
+			_, _ = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: clusterName},
+			})
+			// Second reconcile: creates desires.
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: clusterName},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 8 cluster manifests (7 legacy + oidc-signing-key ExternalSecret)
+			// → 8 ApplyDesires + 1 ReadDesire.
+			Expect(fd.applyCount).To(Equal(8))
 			Expect(fd.readCount).To(Equal(1))
 		})
 
@@ -556,6 +615,15 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 			},
 		},
 	}
+}
+
+// newTestClusterWithOidcConfig returns a cluster fixture using the
+// OidcConfig-backed issuer path (OidcConfigID set).
+func newTestClusterWithOidcConfig(name string) *hyperfleetv1alpha1.Cluster {
+	cluster := newTestCluster(name)
+	cluster.Spec.OidcConfigID = "test-oidc-config"
+	cluster.Labels = map[string]string{accountIDLabel: "test-account"}
+	return cluster
 }
 
 // filterDeleteDesires returns ApplyDesires that have Type=Delete.

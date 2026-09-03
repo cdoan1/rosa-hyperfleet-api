@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
 	public "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1/public"
 	"github.com/openshift-online/rosa-hyperfleet-api/platform-api/internal/codegen/featuregate"
 	"github.com/openshift-online/rosa-hyperfleet-api/platform-api/pkg/api"
@@ -154,6 +156,14 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// If oidcConfigId is set, resolve it and derive issuerURL from it below.
+	// Otherwise fall back to the legacy auto-generated issuerURL.
+	oidcConfig, apiErr := h.resolveOidcConfig(ctx, accountID, req.Spec.OidcConfigID, existing)
+	if apiErr != nil {
+		writeAPIError(w, *apiErr, h.logger)
+		return
+	}
+
 	clusterID := h.generateID()
 
 	const maxHash4Retries = 5
@@ -165,15 +175,17 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 			req.Spec.ExpirationTimestamp = &expiry
 		}
 
-		if h.oidcIssuerBaseURL != "" {
-			req.Spec.HostedCluster.IssuerURL = h.oidcIssuerBaseURL + "/" + clusterID
-		}
-
 		cr := hyperfleetdb.PublicToInternalCluster(&req, accountID, clusterID)
 
 		// Set service-set fields on the internal CRD (not visible in public request/response)
 		if callerARN := middleware.GetCallerARN(ctx); callerARN != "" {
 			cr.Spec.CreatorARN = callerARN
+		}
+		// issuerURL is service-set; derive it here rather than accept it from the caller.
+		if oidcConfig != nil {
+			cr.Spec.HostedCluster.IssuerURL = oidcConfig.Spec.IssuerUrl
+		} else if h.oidcIssuerBaseURL != "" {
+			cr.Spec.HostedCluster.IssuerURL = h.oidcIssuerBaseURL + "/" + clusterID
 		}
 
 		if err := h.db.CreateCluster(ctx, accountID, cr); err != nil {
@@ -190,11 +202,56 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if oidcConfig != nil {
+			if err := h.db.UpdateOidcConfigLastUsedTimestamp(ctx, accountID, req.Spec.OidcConfigID, metav1.Now()); err != nil {
+				h.logger.Warn("failed to update oidc config lastUsedTimestamp", "error", err, "account_id", accountID, "oidc_config_id", req.Spec.OidcConfigID)
+			}
+		}
+
 		if err := api.Write(w, http.StatusCreated, hyperfleetdb.InternalToPublicCluster(cr)); err != nil {
 			h.logger.Error("failed to write response", "error", err)
 		}
 		return
 	}
+}
+
+// resolveOidcConfig validates the OidcConfig referenced by oidcConfigID.
+func (h *ClusterHandler) resolveOidcConfig(ctx context.Context, accountID, oidcConfigID string, existingClusters *hyperfleetv1alpha1.ClusterList) (*hyperfleetv1alpha1.OidcConfig, *APIError) {
+	if oidcConfigID == "" {
+		return nil, nil
+	}
+
+	oidcConfig, err := h.db.GetOidcConfig(ctx, accountID, oidcConfigID)
+	if err != nil {
+		if !hyperfleetdb.IsNotFound(err) {
+			h.logger.Error("failed to look up oidc config", "error", err, "account_id", accountID, "oidc_config_id", oidcConfigID)
+		}
+		return nil, &ErrClusterCreateOidcConfigNotFound
+	}
+
+	notReady := oidcConfig.Status.Phase == hyperfleetv1alpha1.OidcConfigPhaseError ||
+		(oidcConfig.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeUnmanaged && oidcConfig.Status.Phase != hyperfleetv1alpha1.OidcConfigPhaseReady)
+	if notReady {
+		return nil, &ErrClusterCreateOidcConfigNotReady
+	}
+
+	if oidcConfigReferencedBy(existingClusters, oidcConfigID) {
+		err := ErrClusterCreateOidcConfigInUse.WithReason(oidcConfigID)
+		return nil, &err
+	}
+
+	return oidcConfig, nil
+}
+
+// oidcConfigReferencedBy reports whether any cluster in clusters already
+// sets spec.oidcConfigId to oidcConfigID.
+func oidcConfigReferencedBy(clusters *hyperfleetv1alpha1.ClusterList, oidcConfigID string) bool {
+	for i := range clusters.Items {
+		if clusters.Items[i].Spec.OidcConfigID == oidcConfigID {
+			return true
+		}
+	}
+	return false
 }
 
 // Get handles GET /api/v0/clusters/{id}
