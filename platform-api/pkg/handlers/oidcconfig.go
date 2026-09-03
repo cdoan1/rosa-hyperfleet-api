@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -19,17 +20,19 @@ import (
 
 // OidcConfigHandler handles OIDC config HTTP requests.
 type OidcConfigHandler struct {
-	db         *hyperfleetdb.Client
-	logger     *slog.Logger
-	generateID func() string
+	db                *hyperfleetdb.Client
+	oidcIssuerBaseURL string
+	logger            *slog.Logger
+	generateID        func() string
 }
 
 // NewOidcConfigHandler creates a new OIDC config handler.
-func NewOidcConfigHandler(db *hyperfleetdb.Client, logger *slog.Logger) *OidcConfigHandler {
+func NewOidcConfigHandler(db *hyperfleetdb.Client, oidcIssuerBaseURL string, logger *slog.Logger) *OidcConfigHandler {
 	return &OidcConfigHandler{
-		db:         db,
-		logger:     logger,
-		generateID: func() string { return uuid.New().String() },
+		db:                db,
+		oidcIssuerBaseURL: oidcIssuerBaseURL,
+		logger:            logger,
+		generateID:        func() string { return uuid.New().String() },
 	}
 }
 
@@ -131,7 +134,6 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeManaged {
-		req.Spec.IssuerUrl = ""
 		if req.Spec.SecretArn != "" || req.Spec.InstallerRoleArn != "" {
 			writeAPIError(w, ErrOidcConfigCreateInvalidFields, h.logger)
 			return
@@ -144,9 +146,22 @@ func (h *OidcConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	configID := h.generateID()
 	h.logger.Info("creating oidc config", "account_id", accountID, "config_id", configID, "type", req.Spec.Type)
 
+	if req.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeManaged {
+		if h.oidcIssuerBaseURL == "" {
+			h.logger.Error("oidc issuer base URL is not configured; refusing to create managed config with a path-only issuerUrl", "account_id", accountID, "config_id", configID)
+			writeAPIError(w, ErrOidcConfigCreateIssuerNotConfigured, h.logger)
+			return
+		}
+		req.Spec.IssuerUrl = strings.TrimRight(h.oidcIssuerBaseURL, "/") + "/" + configID
+	}
+
 	cr := hyperfleetdb.PublicToInternalOidcConfig(&req, accountID, configID)
 
 	if err := h.db.CreateOidcConfig(ctx, cr); err != nil {
+		if hyperfleetdb.IsAlreadyExists(err) {
+			writeAPIError(w, ErrOidcConfigCreateDuplicateIssuerUrl, h.logger)
+			return
+		}
 		h.logger.Error("failed to create oidc config", "error", err, "account_id", accountID)
 		writeAPIError(w, ErrOidcConfigCreateFailed, h.logger)
 		return
