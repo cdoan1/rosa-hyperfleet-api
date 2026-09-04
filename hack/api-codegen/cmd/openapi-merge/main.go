@@ -204,6 +204,7 @@ func jsonSchemaToYAML(raw json.RawMessage, baseIndent int) ([]byte, error) {
 	}
 
 	rewriteRefs(obj)
+	cleanupValidationStrings(obj)
 
 	yamlBytes, err := yaml.Marshal(obj)
 	if err != nil {
@@ -244,6 +245,49 @@ func rewriteRefs(obj map[string]any) {
 			}
 		}
 	}
+}
+
+// cleanupValidationStrings recursively cleans validation rule and message strings.
+// Controller-tools outputs JSON with curly quotes around the values and escaped quotes inside.
+func cleanupValidationStrings(obj map[string]any) {
+	for k, v := range obj {
+		switch val := v.(type) {
+		case string:
+			obj[k] = cleanString(val)
+		case map[string]any:
+			cleanupValidationStrings(val)
+		case []any:
+			for i, item := range val {
+				switch itemVal := item.(type) {
+				case string:
+					val[i] = cleanString(itemVal)
+				case map[string]any:
+					cleanupValidationStrings(itemVal)
+				}
+			}
+		}
+	}
+}
+
+// cleanString removes curly quotes and unescapes backslash-curly-quote sequences.
+func cleanString(s string) string {
+	// Strip leading/trailing curly quotes (U+201C=8220, U+201D=8221)
+	if len(s) >= 2 {
+		runes := []rune(s)
+		first := runes[0]
+		last := runes[len(runes)-1]
+		if (first == 8220 || first == 8221) && (last == 8220 || last == 8221) {
+			s = string(runes[1 : len(runes)-1])
+		}
+	}
+
+	// Replace backslash-curly-quote pairs with empty string literal
+	// Controller-tools outputs \″\″ (backslash+curly, backslash+curly) for empty strings
+	// Replace the pair together to get "" instead of """"
+	s = strings.ReplaceAll(s, string([]rune{92, 8221, 92, 8221}), "\"\"")  // \″\″ -> ""
+	s = strings.ReplaceAll(s, string([]rune{92, 8220, 92, 8220}), "\"\"")  // \″\″ -> ""
+
+	return s
 }
 
 func splitLines(data []byte) []string {
