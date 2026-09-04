@@ -38,8 +38,8 @@ const (
 )
 
 // OidcConfigSpec defines the desired state of an OidcConfig.
-// +kubebuilder:validation:XValidation:rule="self.type != 'managed' || (self.secretArn == '' && self.installerRoleArn == '')",message="managed type must not set secretArn or installerRoleArn"
-// +kubebuilder:validation:XValidation:rule="self.type != 'unmanaged' || (self.secretArn != '' && self.installerRoleArn != '')",message="unmanaged type requires secretArn and installerRoleArn"
+// +kubebuilder:validation:XValidation:rule="self.type != 'managed' || (self.secretArn == ” && self.installerRoleArn == ”)",message="managed type must not set secretArn or installerRoleArn"
+// +kubebuilder:validation:XValidation:rule="self.type != 'unmanaged' || (self.secretArn != ” && self.installerRoleArn != ”)",message="unmanaged type requires secretArn and installerRoleArn"
 // +kubebuilder:validation:XValidation:rule="self.type == oldSelf.type",message="spec.type is immutable"
 // +kubebuilder:validation:XValidation:rule="self.secretArn == oldSelf.secretArn",message="spec.secretArn is immutable"
 // +kubebuilder:validation:XValidation:rule="self.installerRoleArn == oldSelf.installerRoleArn",message="spec.installerRoleArn is immutable"
@@ -108,6 +108,7 @@ type OidcConfigStatus struct {
 
 // +genclient
 // +genclient:nonNamespaced
+// +resourceName=oidc_configs
 // +bridge:field=id,meta=name
 // +bridge:field=resource_version,meta=resourceVersion
 // +bridge:field=generation,meta=generation

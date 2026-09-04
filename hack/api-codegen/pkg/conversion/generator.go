@@ -18,7 +18,7 @@ import (
 	"github.com/openshift-online/rosa-hyperfleet-api/hack/api-codegen/pkg/registry"
 )
 
-var clientgenMarkerRE = regexp.MustCompile(`\+genclient\b|\+bridge:`)
+var clientgenMarkerRE = regexp.MustCompile(`\+genclient\b|\+bridge:|\+resourceName=`)
 
 // Generator generates REST types and conversion functions from CRD types.
 type Generator struct {
