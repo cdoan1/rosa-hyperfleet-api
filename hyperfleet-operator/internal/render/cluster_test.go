@@ -221,6 +221,53 @@ func TestHash4(t *testing.T) {
 	}
 }
 
+func TestExtractUUIDFromIssuerURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			name: "full UUID in CloudFront URL",
+			url:  "https://d2nd8tiva4zh6j.cloudfront.net/21305398-14aa-4003-96a3-f3b860e04a1c",
+			want: "21305398-14aa-4003-96a3-f3b860e04a1c",
+		},
+		{
+			name: "UUID with trailing slash",
+			url:  "https://oidc.example.com/abc12345-1234-5678-90ab-cdef12345678/",
+			want: "abc12345-1234-5678-90ab-cdef12345678",
+		},
+		{
+			name: "short UUID-like string",
+			url:  "https://oidc.example.com/abc12345",
+			want: "abc12345",
+		},
+		{
+			name: "no UUID in path",
+			url:  "https://example.com/some-path",
+			want: "",
+		},
+		{
+			name: "empty string",
+			url:  "",
+			want: "",
+		},
+		{
+			name: "path with no hyphens",
+			url:  "https://example.com/nohyphens",
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractUUIDFromIssuerURL(tt.url)
+			if got != tt.want {
+				t.Errorf("extractUUIDFromIssuerURL(%q) = %q, want %q", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHostedClusterDNS(t *testing.T) {
 	resources, err := ClusterResources(testCluster(), false, testRegionalConfig())
 	if err != nil {
@@ -248,6 +295,12 @@ func TestHostedClusterDNS(t *testing.T) {
 
 	if got := hc.Spec.IssuerURL; got != "https://oidc.example.com/abc12345" {
 		t.Errorf("issuerURL = %q, want %q", got, "https://oidc.example.com/abc12345")
+	}
+
+	// When using a pre-created OIDC config, InfraID should match the UUID from issuerURL
+	// instead of the cluster ID, so HyperShift uploads to the correct S3 path.
+	if got := hc.Spec.InfraID; got != "abc12345" {
+		t.Errorf("infraID = %q, want %q (extracted from issuerURL)", got, "abc12345")
 	}
 }
 
