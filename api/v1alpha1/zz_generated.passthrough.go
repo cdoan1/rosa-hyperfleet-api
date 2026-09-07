@@ -78,7 +78,7 @@ type HostedClusterSpecPassthrough struct {
 	Autoscaling hypershiftv1beta1.ClusterAutoscaling `json:"autoscaling,omitempty"`
 	// autoNode specifies the configuration for automatic node provisioning and lifecycle management.
 	// +k8s:openapi-gen=true
-	// +hyperfleet:write-mode=service-set
+	// +hyperfleet:write-mode=mutable
 	// +optional
 	AutoNode hypershiftv1beta1.AutoNode `json:"autoNode,omitzero"`
 	// etcd specifies configuration for the control plane etcd cluster. The

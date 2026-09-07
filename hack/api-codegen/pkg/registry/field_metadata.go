@@ -71,7 +71,7 @@ var FieldRegistry = TypedFieldRegistry{
 		},
 		"spec.hostedCluster.autoNode": {
 			FieldPath: "spec.hostedCluster.autoNode",
-			WriteMode: ServiceSet,
+			WriteMode: Mutable,
 			OwnerType: "Cluster",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.Cluster",
 		},
