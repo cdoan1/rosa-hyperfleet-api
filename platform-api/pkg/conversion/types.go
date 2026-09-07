@@ -26,8 +26,6 @@ type ServiceSetFields struct {
 	AuditWebhook *corev1.LocalObjectReference `json:"auditWebhook,omitempty"`
 	// Authentication is service-set (platform-managed, hidden from API)
 	Authentication *v1alpha1.ClusterAuthentication `json:"authentication,omitempty"`
-	// AutoNode is service-set (platform-managed, hidden from API)
-	AutoNode hypershiftv1beta1.AutoNode `json:"autoNode,omitempty"`
 	// AutoScaling is service-set (platform-managed, hidden from API)
 	AutoScaling *hypershiftv1beta1.NodePoolAutoScaling `json:"autoScaling,omitempty"`
 	// Autoscaling is service-set (platform-managed, hidden from API)
