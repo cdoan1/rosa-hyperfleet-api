@@ -660,7 +660,7 @@ var _ = Describe("OidcConfig Controller", func() {
 	})
 
 	Context("Deletion", func() {
-		It("should delete the private key for a managed config", func() {
+		It("should delete the finalizer for a managed config without touching Secrets Manager", func() {
 			oc := &hyperfleetv1alpha1.OidcConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "managed-del", Namespace: testNS},
 				Spec: hyperfleetv1alpha1.OidcConfigSpec{
@@ -689,8 +689,45 @@ var _ = Describe("OidcConfig Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deletion is identical for managed and unmanaged configs
-			Expect(infra.deleteKeyCalled).To(Equal(1))
+			// Managed configs never store a private key (see reconcileManaged),
+			// so deletion must not call DeletePrivateKey either.
+			Expect(infra.deleteKeyCalled).To(Equal(0))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del"}, &latest)).
+				NotTo(Succeed())
+		})
+
+		It("should delete a managed config's finalizer even if Secrets Manager cleanup would fail", func() {
+			oc := &hyperfleetv1alpha1.OidcConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "managed-del-sm-fail", Namespace: testNS},
+				Spec: hyperfleetv1alpha1.OidcConfigSpec{
+					Type:      hyperfleetv1alpha1.OidcConfigTypeManaged,
+					IssuerUrl: "https://oidc.example.com/managed-del-sm-fail",
+					AccountID: testAccountID,
+				},
+			}
+			Expect(k8sClient.Create(ctx, oc)).To(Succeed())
+
+			infra := &fakeOidcInfra{thumbprint: "thumb"}
+			r := newReconciler(infra)
+			createReferencingCluster("managed-del-sm-fail-cluster", "managed-del-sm-fail")
+
+			_, err := reconcileN(r, testNS, "managed-del-sm-fail", 2)
+			Expect(err).NotTo(HaveOccurred())
+
+			var latest hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"}, &latest)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &latest)).To(Succeed())
+
+			// Even if Secrets Manager would fail (e.g. a missing IAM permission),
+			// a managed config's deletion must not depend on it.
+			infra.deleteKeyErr = fmt.Errorf("secrets manager delete failed")
+
+			_, err = r.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(infra.deleteKeyCalled).To(Equal(0))
 		})
 
 		It("should delete the private key for an unmanaged config", func() {
@@ -728,37 +765,40 @@ var _ = Describe("OidcConfig Controller", func() {
 			Expect(infra.deleteKeyCalled).To(Equal(1))
 		})
 
-		It("should keep the finalizer and return an error when Secrets Manager cleanup fails", func() {
+		It("should keep the finalizer and return an error when Secrets Manager cleanup fails for an unmanaged config", func() {
 			oc := &hyperfleetv1alpha1.OidcConfig{
-				ObjectMeta: metav1.ObjectMeta{Name: "managed-del-sm-fail", Namespace: testNS},
+				ObjectMeta: metav1.ObjectMeta{Name: "unmanaged-del-sm-fail", Namespace: testNS},
 				Spec: hyperfleetv1alpha1.OidcConfigSpec{
-					Type:      hyperfleetv1alpha1.OidcConfigTypeManaged,
-					IssuerUrl: "https://oidc.example.com/managed-del-sm-fail",
-					AccountID: testAccountID,
+					Type:             hyperfleetv1alpha1.OidcConfigTypeUnmanaged,
+					IssuerUrl:        "https://customer-oidc.example.com",
+					SecretArn:        "arn:aws:secretsmanager:us-east-1:123456789012:secret:key",
+					InstallerRoleArn: "arn:aws:iam::123456789012:role/installer",
 				},
 			}
 			Expect(k8sClient.Create(ctx, oc)).To(Succeed())
 
-			infra := &fakeOidcInfra{thumbprint: "thumb"}
+			infra := &fakeOidcInfra{
+				thumbprint:      "thumb",
+				crossAccountKey: generateTestRSAKeyPEM(),
+			}
 			r := newReconciler(infra)
-			createReferencingCluster("managed-del-sm-fail-cluster", "managed-del-sm-fail")
 
-			_, err := reconcileN(r, testNS, "managed-del-sm-fail", 2)
+			_, err := reconcileN(r, testNS, "unmanaged-del-sm-fail", 2)
 			Expect(err).NotTo(HaveOccurred())
 
 			var latest hyperfleetv1alpha1.OidcConfig
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"}, &latest)).To(Succeed())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "unmanaged-del-sm-fail"}, &latest)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, &latest)).To(Succeed())
 
 			infra.deleteKeyErr = fmt.Errorf("secrets manager delete failed")
 
 			_, err = r.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"},
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "unmanaged-del-sm-fail"},
 			})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("secrets manager delete failed"))
 
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "managed-del-sm-fail"}, &latest)).To(Succeed())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "unmanaged-del-sm-fail"}, &latest)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(&latest, oidcConfigFinalizer)).To(BeTrue())
 		})
 	})
