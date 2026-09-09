@@ -33,6 +33,7 @@ type DBConfig struct {
 type RegionalConfig struct {
 	OIDCIssuerBaseURL        string
 	DefaultClusterExpiration time.Duration
+	AWSRegion                string
 }
 
 type ServerConfig struct {

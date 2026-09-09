@@ -59,6 +59,24 @@ spec:
               accountId:
                 description: AccountID is the AWS account that owns this OIDC config.
                 type: string
+              indexRef:
+                description: |-
+                  IndexRef references the Index that reserves this config's issuer URL. Computed by
+                  platform-api; OidcConfigReconciler owns actually creating the referenced Index.
+                properties:
+                  name:
+                    description: Name of the Index (the unique value, e.g. "f7a3").
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: Namespace of the Index (the uniqueness domain, e.g.
+                      "dns-shard-0-reservations").
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               installerRoleArn:
                 description: |-
                   InstallerRoleArn is the ARN of the cross-account IAM role used to read the customer's secret.

@@ -77,7 +77,7 @@ type ClusterReconciler struct {
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=clusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=nodepools,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=placements,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups=hyperfleet.io,resources=oidcconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=hyperfleet.io,resources=oidcconfigs,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=dnsreservations,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=hyperfleet.io,resources=indices,verbs=get;list;watch;create;delete
 
@@ -99,6 +99,27 @@ func (r *ClusterReconciler) oidcSigningKeyExternal(ctx context.Context, cluster 
 		return false, fmt.Errorf("get oidcconfig %s: %w", cluster.Spec.OidcConfigID, err)
 	}
 	return oc.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeUnmanaged, nil
+}
+
+// releaseOidcConfigClaim removes the clusterNamespaceLabel claim cluster set on its referenced OidcConfig at create time, so the config becomes claimable again by a future cluster.
+func (r *ClusterReconciler) releaseOidcConfigClaim(ctx context.Context, cluster *hyperfleetv1alpha1.Cluster) error {
+	accountID := cluster.Labels[accountIDLabel]
+	if accountID == "" {
+		return nil
+	}
+	key := types.NamespacedName{Namespace: accountNamespace(accountID), Name: cluster.Spec.OidcConfigID}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var oc hyperfleetv1alpha1.OidcConfig
+		if err := r.Get(ctx, key, &oc); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+		if oc.Labels[clusterNamespaceLabel] != cluster.Namespace {
+			return nil
+		}
+		delete(oc.Labels, clusterNamespaceLabel)
+		return r.Update(ctx, &oc)
+	})
 }
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -423,6 +444,13 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, cluster *hyperf
 
 func (r *ClusterReconciler) cleanupAndRemoveFinalizer(ctx context.Context, cluster *hyperfleetv1alpha1.Cluster) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	// Release the 1:1 binding claim this cluster took on its referenced OidcConfig, freeing it for reuse; retries on conflict since a missed release permanently orphans the config.
+	if cluster.Spec.OidcConfigID != "" {
+		if err := r.releaseOidcConfigClaim(ctx, cluster); err != nil {
+			return ctrl.Result{}, fmt.Errorf("release oidc config claim: %w", err)
+		}
+	}
 
 	// Clean up the cluster's DNS reservation and its backing Index. Both are
 	// labeled with the cluster namespace, so deleting each set by label covers

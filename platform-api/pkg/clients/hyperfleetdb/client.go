@@ -272,6 +272,29 @@ func (c *Client) UpdateOidcConfigLastUsedTimestamp(ctx context.Context, accountI
 	return c.client.Status().Update(ctx, oc)
 }
 
+// UpdateOidcConfigObject updates oc (e.g. its labels) via CAS on its current ResourceVersion; oc must be freshly fetched (e.g. via GetOidcConfig) so a concurrent change surfaces as a conflict (IsConflict) instead of overwriting it.
+func (c *Client) UpdateOidcConfigObject(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) error {
+	return c.client.Update(ctx, oc)
+}
+
+// DeleteOidcConfigObject deletes oc via CAS on its current ResourceVersion; oc must be freshly fetched (e.g. via GetOidcConfig) so a concurrent change surfaces as a conflict (IsConflict) instead of deleting stale state.
+func (c *Client) DeleteOidcConfigObject(ctx context.Context, oc *hyperfleetv1alpha1.OidcConfig) error {
+	return c.client.Delete(ctx, oc)
+}
+
+// GetOidcIssuerIndex is a best-effort, non-atomic fast-path check for whether indexName is reserved.
+func (c *Client) GetOidcIssuerIndex(ctx context.Context, indexName string) (*hyperfleetv1alpha1.Index, error) {
+	var idx hyperfleetv1alpha1.Index
+	err := c.client.Get(ctx, k8stypes.NamespacedName{
+		Namespace: hyperfleetv1alpha1.OidcIssuerReservationsNamespace,
+		Name:      indexName,
+	}, &idx)
+	if err != nil {
+		return nil, err
+	}
+	return &idx, nil
+}
+
 // --- Error helpers ---
 
 // IsNotFound returns true if the error is a Kubernetes 404.
@@ -282,6 +305,11 @@ func IsNotFound(err error) bool {
 // IsAlreadyExists returns true if the error is a Kubernetes 409 (already exists).
 func IsAlreadyExists(err error) bool {
 	return apierrors.IsAlreadyExists(err)
+}
+
+// IsConflict returns true if the error is a Kubernetes 409 from a CAS Update/Delete, distinct from IsAlreadyExists which is a 409 from a colliding Create.
+func IsConflict(err error) bool {
+	return apierrors.IsConflict(err)
 }
 
 // --- internal helpers ---

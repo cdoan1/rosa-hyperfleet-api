@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -36,6 +39,17 @@ const (
 	OidcConfigTypeManaged   = "managed"
 	OidcConfigTypeUnmanaged = "unmanaged"
 )
+
+// OidcIssuerReservationsNamespace is the single Index uniqueness domain shared by every account,
+// guaranteeing issuer-URL uniqueness within this region's deployment.
+const OidcIssuerReservationsNamespace = "oidc-issuer-reservations"
+
+// IssuerURLIndexName derives the Index name for normalizedIssuerURL. K8s names must be DNS-1123
+// subdomains, so this hex-encodes the URL's SHA-256 digest instead of using it directly.
+func IssuerURLIndexName(normalizedIssuerURL string) string {
+	sum := sha256.Sum256([]byte(normalizedIssuerURL))
+	return hex.EncodeToString(sum[:])
+}
 
 // OidcConfigSpec defines the desired state of an OidcConfig.
 // +kubebuilder:validation:XValidation:rule="self.type != 'managed' || (self.secretArn == '' && self.installerRoleArn == '')",message="managed type must not set secretArn or installerRoleArn"
@@ -77,6 +91,13 @@ type OidcConfigSpec struct {
 	// +hyperfleet:write-mode=service-set
 	// +optional
 	AccountID string `json:"accountId,omitempty"`
+
+	// IndexRef references the Index that reserves this config's issuer URL. Computed by
+	// platform-api; OidcConfigReconciler owns actually creating the referenced Index.
+	// +k8s:openapi-gen=false
+	// +hyperfleet:write-mode=service-set
+	// +optional
+	IndexRef IndexRef `json:"indexRef,omitzero"`
 }
 
 // OidcConfigStatus defines the observed state of an OidcConfig.

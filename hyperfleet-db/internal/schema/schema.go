@@ -14,8 +14,6 @@ var migrationsFS embed.FS
 func Migrate(ctx context.Context, conn *pgx.Conn) error {
 	files := []string{
 		"migrations/001_initial.sql",
-		"migrations/003_oidcconfig_issuer_url_uniqueness.sql",
-		"migrations/004_cluster_oidcconfig_uniqueness.sql",
 	}
 	for _, f := range files {
 		sql, err := migrationsFS.ReadFile(f)
