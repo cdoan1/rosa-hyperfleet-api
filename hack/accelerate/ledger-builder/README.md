@@ -26,6 +26,9 @@ make accel-build-setup
 # Build the ledger CSV
 make accel-build-ledger
 
+# View pipeline status report
+make accel-report
+
 # Output: hack/accelerate/ledger-builder/output/ledger.csv
 ```
 
