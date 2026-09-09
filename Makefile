@@ -11,7 +11,8 @@
     codegen-passthrough-clobber \
 	codegen-conversion verify-conversion \
 	generate-openapi verify-openapi swagger-ui \
-	image-api image-operator image-push-api image-push-operator
+	image-api image-operator image-push-api image-push-operator \
+	accel-build-setup accel-build-ledger accel-build-clean
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -494,6 +495,40 @@ image-push-api: image-api
 image-push-operator: image-operator
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG)
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(GIT_SHA)
+
+# ── Acceleration Pipeline ────────────────────────────────────────────────
+
+ACCEL_DIR               := hack/accelerate/ledger-builder
+ACCEL_VENV              := $(ACCEL_DIR)/.venv
+ACCEL_PYTHON            := $(ACCEL_VENV)/bin/python3
+ACCEL_PIP               := $(ACCEL_VENV)/bin/pip
+ACCEL_SCRIPT            := $(ACCEL_DIR)/build_ledger.py
+ACCEL_REQUIREMENTS      := $(ACCEL_DIR)/requirements.txt
+ACCEL_OUTPUT            := $(ACCEL_DIR)/output/ledger.csv
+FIELD_METADATA_JSON     := hack/api-codegen/pkg/registry/field_metadata.json
+
+$(ACCEL_VENV): $(ACCEL_REQUIREMENTS)
+	@echo "Setting up Python virtual environment for ledger builder..."
+	python3 -m venv $(ACCEL_VENV)
+	$(ACCEL_PIP) install --upgrade pip
+	$(ACCEL_PIP) install -r $(ACCEL_REQUIREMENTS)
+	@touch $(ACCEL_VENV)
+
+accel-build-setup: $(ACCEL_VENV)
+	@echo "✓ Virtual environment ready at $(ACCEL_VENV)"
+
+accel-build-ledger: $(ACCEL_VENV)
+	@echo "Building delivery ledger from field registry..."
+	$(ACCEL_PYTHON) $(ACCEL_SCRIPT) \
+		--input $(FIELD_METADATA_JSON) \
+		--output $(ACCEL_OUTPUT) \
+		--verbose
+	@echo "✓ Ledger built: $(ACCEL_OUTPUT)"
+
+accel-build-clean:
+	rm -rf $(ACCEL_VENV)
+	rm -f $(ACCEL_DIR)/output/*.csv
+	@echo "✓ Acceleration build artifacts cleaned"
 
 # ── Clean ────────────────────────────────────────────────────────────────
 
