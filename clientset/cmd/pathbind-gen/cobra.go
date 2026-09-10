@@ -15,8 +15,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// numericPtrField tracks pointer flag fields for normalization (clearing unset pre-allocated defaults).
-type numericPtrField struct {
+// unsetPtrField tracks pointer flag fields for normalization (clearing unset pre-allocated defaults).
+type unsetPtrField struct {
 	GoName     string   // Struct field name (e.g. "Port")
 	FlagName   string   // Flag name (e.g. "port")
 	Operations []string // ["create"] or ["create", "update"]
@@ -40,7 +40,7 @@ type templateData struct {
 	RequiredUpdateFlagFields []mergedAlias
 	HasUpdateFields          bool
 	Namespaced               bool
-	NumericPtrFields         []numericPtrField // Pointer flag fields needing normalization
+	UnsetPtrFields           []unsetPtrField // Pointer flag fields needing normalization
 }
 
 func runCobra(draftPath, overridesPath, outputDir string) error {
@@ -98,7 +98,7 @@ func runCobra(draftPath, overridesPath, outputDir string) error {
 		runtimeAlias := pkgAlias(cfg.RuntimePkg)
 
 		// Collect pointer flag fields for normalization (clearing unset pre-allocated defaults).
-		numericPtrFields := collectNumericPtrFields(aliases)
+		unsetPtrFields := collectUnsetPtrFields(aliases)
 
 		td := templateData{
 			GeneratedAt:              time.Now().UTC().Format(time.RFC3339),
@@ -117,7 +117,7 @@ func runCobra(draftPath, overridesPath, outputDir string) error {
 			RequiredUpdateFlagFields: reqUpdate,
 			HasUpdateFields:          len(updateFlagFields) > 0,
 			Namespaced:               strings.EqualFold(resKey, "nodepool"),
-			NumericPtrFields:         numericPtrFields,
+			UnsetPtrFields:           unsetPtrFields,
 		}
 
 		if err := emitFile(createTmpl, td, filepath.Join(outputDir, strings.ToLower(resKey)+"_create_gen.go"), true); err != nil {
@@ -681,11 +681,11 @@ func categorizeAliases(aliases []mergedAlias) (
 	return
 }
 
-// collectNumericPtrFields extracts pointer flag fields needing normalization.
+// collectUnsetPtrFields extracts pointer flag fields needing normalization.
 // Cobra pre-allocates *bool and numeric pointers with zero defaults; unset flags must
 // be cleared to nil so pathbind.Expand omits them from the API payload.
-func collectNumericPtrFields(aliases []mergedAlias) []numericPtrField {
-	var fields []numericPtrField
+func collectUnsetPtrFields(aliases []mergedAlias) []unsetPtrField {
+	var fields []unsetPtrField
 	for _, a := range aliases {
 		if !a.HasFlag || !strings.HasPrefix(a.Type, "*") {
 			continue
@@ -693,7 +693,7 @@ func collectNumericPtrFields(aliases []mergedAlias) []numericPtrField {
 		baseType := strings.TrimPrefix(a.Type, "*")
 		isNumericPtr := strings.Contains("int8 int16 int32 int64 uint8 uint16 uint32 uint64 float32 float64", baseType)
 		if isNumericPtr || baseType == "bool" {
-			fields = append(fields, numericPtrField{
+			fields = append(fields, unsetPtrField{
 				GoName:     a.GoName,
 				FlagName:   a.Flag,
 				Operations: a.Operations,

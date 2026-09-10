@@ -80,11 +80,11 @@ func (Generated{{$res}}CreatePrompt) Prompt(ctx context.Context, r {{$rt}}, cmd 
 // cobra but not actually set by the user. This allows pathbind.Expand to distinguish
 // between "not set" (nil) and "explicitly set to zero".
 func normalize{{$res}}CreateInput(cmd *cobra.Command, input *{{$res}}CreateInput) {
-{{- if .NumericPtrFields}}
+{{- if .UnsetPtrFields}}
 	if cmd == nil {
 		return
 	}
-	{{range .NumericPtrFields}}
+	{{range .UnsetPtrFields}}
 	{{- if contains .Operations "create"}}
 	if cmd.Flags().Lookup({{printf "%q" .FlagName}}) != nil && !cmd.Flag({{printf "%q" .FlagName}}).Changed &&
 		input.{{.GoName}} != nil {
