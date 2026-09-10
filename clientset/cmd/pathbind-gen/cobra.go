@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// numericPtrField tracks numeric pointer fields for normalization (clearing unset pre-allocated zeros).
+// numericPtrField tracks pointer flag fields for normalization (clearing unset pre-allocated defaults).
 type numericPtrField struct {
 	GoName     string   // Struct field name (e.g. "Port")
 	FlagName   string   // Flag name (e.g. "port")
@@ -40,7 +40,7 @@ type templateData struct {
 	RequiredUpdateFlagFields []mergedAlias
 	HasUpdateFields          bool
 	Namespaced               bool
-	NumericPtrFields         []numericPtrField // Numeric pointer fields needing normalization
+	NumericPtrFields         []numericPtrField // Pointer flag fields needing normalization
 }
 
 func runCobra(draftPath, overridesPath, outputDir string) error {
@@ -97,7 +97,7 @@ func runCobra(draftPath, overridesPath, outputDir string) error {
 		sdkShort := sdkShortType(sdkType)
 		runtimeAlias := pkgAlias(cfg.RuntimePkg)
 
-		// Collect numeric pointer fields for normalization (clearing unset pre-allocated zeros).
+		// Collect pointer flag fields for normalization (clearing unset pre-allocated defaults).
 		numericPtrFields := collectNumericPtrFields(aliases)
 
 		td := templateData{
@@ -681,14 +681,18 @@ func categorizeAliases(aliases []mergedAlias) (
 	return
 }
 
-// collectNumericPtrFields extracts numeric pointer fields needing normalization.
+// collectNumericPtrFields extracts pointer flag fields needing normalization.
+// Cobra pre-allocates *bool and numeric pointers with zero defaults; unset flags must
+// be cleared to nil so pathbind.Expand omits them from the API payload.
 func collectNumericPtrFields(aliases []mergedAlias) []numericPtrField {
 	var fields []numericPtrField
 	for _, a := range aliases {
-		// Numeric pointer types: *int, *uint, *float variations.
-		isNumericPtr := strings.HasPrefix(a.Type, "*") &&
-			strings.Contains("int8 int16 int32 int64 uint8 uint16 uint32 uint64 float32 float64", strings.TrimPrefix(a.Type, "*"))
-		if isNumericPtr && a.HasFlag {
+		if !a.HasFlag || !strings.HasPrefix(a.Type, "*") {
+			continue
+		}
+		baseType := strings.TrimPrefix(a.Type, "*")
+		isNumericPtr := strings.Contains("int8 int16 int32 int64 uint8 uint16 uint32 uint64 float32 float64", baseType)
+		if isNumericPtr || baseType == "bool" {
 			fields = append(fields, numericPtrField{
 				GoName:     a.GoName,
 				FlagName:   a.Flag,

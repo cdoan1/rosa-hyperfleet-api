@@ -122,6 +122,48 @@ func TestToKebab(t *testing.T) {
 	}
 }
 
+func TestCollectNumericPtrFields_includesBoolPtr(t *testing.T) {
+	aliases := []mergedAlias{
+		{GoName: "MaxPods", Type: "*int64", Flag: "max-pods", HasFlag: true, Operations: []string{"create"}},
+		{GoName: "SerializeImagePulls", Type: "*bool", Flag: "serialize-image-pulls", HasFlag: true, Operations: []string{"create", "update"}},
+		{GoName: "Name", Type: "string", Flag: "cluster-name", HasFlag: true, Operations: []string{"create"}},
+		{GoName: "Fips", Type: "bool", Flag: "fips", HasFlag: true, Operations: []string{"create"}},
+		{GoName: "DeleteProtection", Type: "*bool", Flag: "delete-protection", HasFlag: true, Operations: []string{"create", "update"}},
+	}
+
+	got := collectNumericPtrFields(aliases)
+	want := map[string]numericPtrField{
+		"max-pods": {
+			GoName:     "MaxPods",
+			FlagName:   "max-pods",
+			Operations: []string{"create"},
+		},
+		"serialize-image-pulls": {
+			GoName:     "SerializeImagePulls",
+			FlagName:   "serialize-image-pulls",
+			Operations: []string{"create", "update"},
+		},
+		"delete-protection": {
+			GoName:     "DeleteProtection",
+			FlagName:   "delete-protection",
+			Operations: []string{"create", "update"},
+		},
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("collectNumericPtrFields() returned %d fields, want %d: %v", len(got), len(want), got)
+	}
+	for _, field := range got {
+		expected, ok := want[field.FlagName]
+		if !ok {
+			t.Fatalf("unexpected field %q in %v", field.FlagName, got)
+		}
+		if field.GoName != expected.GoName || field.FlagName != expected.FlagName {
+			t.Fatalf("field %q: got %+v, want %+v", field.FlagName, field, expected)
+		}
+	}
+}
+
 // TestFlagCallTrimPrefix documents why strings.TrimPrefix alone is insufficient
 // to distinguish *bool from bool when combined with HasPrefix:
 // both end up in the same switch case, and HasPrefix determines the branch —

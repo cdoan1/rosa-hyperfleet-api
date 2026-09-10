@@ -56,7 +56,7 @@ func (Generated{{$res}}UpdatePrompt) Prompt(ctx context.Context, r {{$rt}}, cmd 
 	return nil
 }
 
-// normalize{{$res}}UpdateInput clears numeric pointer fields that were pre-allocated by
+// normalize{{$res}}UpdateInput clears pointer flag fields that were pre-allocated by
 // cobra but not actually set by the user. This allows pathbind.Expand to distinguish
 // between "not set" (nil) and "explicitly set to zero".
 func normalize{{$res}}UpdateInput(cmd *cobra.Command, input *{{$res}}UpdateInput) {
