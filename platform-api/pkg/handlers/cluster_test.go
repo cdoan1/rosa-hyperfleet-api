@@ -19,10 +19,8 @@ import (
 
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -567,6 +565,8 @@ func TestClusterHandler_Create_OidcConfigError_Rejected(t *testing.T) {
 func TestClusterHandler_Create_OidcConfigAlreadyInUse(t *testing.T) {
 	scheme := newTestScheme()
 	oidcConfig := testReadyOidcConfig(testOidcConfigID, testAccountID, testOidcConfigIssuerURL)
+	// In-use is now signaled by the clusterNamespaceLabel claim on the OidcConfig itself, not by scanning Cluster rows.
+	oidcConfig.Labels = map[string]string{clusterNamespaceLabel: "cluster-existing-cluster-id"}
 	existingCluster := testClusterCR("existing-cluster-id", "existing-cluster", testAccountID)
 	existingCluster.Spec.OidcConfigID = testOidcConfigID
 	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(oidcConfig, existingCluster).
@@ -619,36 +619,13 @@ func TestClusterHandler_Create_OidcConfigInUseDifferentAccountAllowed(t *testing
 	}
 }
 
-type oidcConfigIDUniqueClient struct {
-	client.Client
-	mu sync.Mutex
-}
-
-func (c *oidcConfigIDUniqueClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if cluster, ok := obj.(*hyperfleetv1alpha1.Cluster); ok && cluster.Spec.OidcConfigID != "" {
-		acctID := cluster.Labels["hyperfleet.io/account-id"]
-		var list hyperfleetv1alpha1.ClusterList
-		if err := c.Client.List(ctx, &list, client.MatchingLabels{"hyperfleet.io/account-id": acctID}); err != nil {
-			return err
-		}
-		for i := range list.Items {
-			if list.Items[i].Spec.OidcConfigID == cluster.Spec.OidcConfigID {
-				return apierrors.NewAlreadyExists(schema.GroupResource{Resource: "clusters"}, cluster.Name)
-			}
-		}
-	}
-	return c.Client.Create(ctx, obj, opts...)
-}
-
+// Races two real Creates for the same oidcConfigId against a plain fake client (no DB backstop);
+// verifies the label CAS in resolveAndClaimOidcConfig alone enforces the 1:1 binding post-migration-004.
 func TestClusterHandler_Create_ConcurrentOidcConfigCollision(t *testing.T) {
 	scheme := newTestScheme()
 	oidcConfig := testReadyOidcConfig(testOidcConfigID, testAccountID, testOidcConfigIssuerURL)
-	innerFC := fake.NewClientBuilder().WithScheme(scheme).WithObjects(oidcConfig).
+	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(oidcConfig).
 		WithStatusSubresource(oidcConfig).Build()
-	fc := &oidcConfigIDUniqueClient{Client: innerFC}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	handler := NewClusterHandler(hyperfleetdb.NewClientFrom(fc, logger), "", 0, logger)

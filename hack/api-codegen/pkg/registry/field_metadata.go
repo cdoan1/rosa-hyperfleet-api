@@ -1176,6 +1176,13 @@ var FieldRegistry = TypedFieldRegistry{
 			OwnerType: "OidcConfig",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.OidcConfig",
 		},
+		"spec.indexRef": {
+			FieldPath: "spec.indexRef",
+			WriteMode: ServiceSet,
+			Hidden:    true,
+			OwnerType: "OidcConfig",
+			OwnerGVK:  "hyperfleet.io/v1alpha1.OidcConfig",
+		},
 		"spec.installerRoleArn": {
 			FieldPath: "spec.installerRoleArn",
 			WriteMode: Immutable,

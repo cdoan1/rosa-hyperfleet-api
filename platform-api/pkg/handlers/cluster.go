@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	hyperfleetv1alpha1 "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1"
 	public "github.com/openshift-online/rosa-hyperfleet-api/api/v1alpha1/public"
@@ -21,6 +22,12 @@ import (
 	"github.com/openshift-online/rosa-hyperfleet-api/platform-api/pkg/middleware"
 	"github.com/openshift-online/rosa-hyperfleet-api/platform-api/pkg/validation"
 )
+
+// clusterNamespaceLabel is set on an OidcConfig when a cluster claims it via resolveAndClaimOidcConfig, enforcing the 1:1 cluster-to-OidcConfig binding (mirrors hyperfleet-operator's cluster_controller.go constant).
+const clusterNamespaceLabel = "hyperfleet.io/cluster-namespace"
+
+// releaseClaimTimeout bounds releaseOidcConfigClaim's detached rollback so a canceled request can't skip it.
+const releaseClaimTimeout = 5 * time.Second
 
 // ClusterHandler handles cluster-related HTTP requests
 type ClusterHandler struct {
@@ -166,17 +173,16 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// If oidcConfigId is set, resolve it and derive issuerURL from it below.
-	// Otherwise fall back to the legacy auto-generated issuerURL.
-	oidcConfig, apiErr := h.resolveOidcConfig(ctx, accountID, req.Spec.OidcConfigID, existing)
+	clusterID := h.generateID()
+
+	h.logger.Info("creating cluster", "account_id", accountID, "cluster_name", req.Name, "cluster_id", clusterID)
+
+	// If oidcConfigId is set, resolve and atomically claim it for clusterID (see resolveAndClaimOidcConfig); otherwise fall back to the legacy auto-generated issuerURL.
+	oidcConfig, apiErr := h.resolveAndClaimOidcConfig(ctx, accountID, req.Spec.OidcConfigID, clusterID)
 	if apiErr != nil {
 		writeAPIError(w, *apiErr, h.logger)
 		return
 	}
-
-	clusterID := h.generateID()
-
-	h.logger.Info("creating cluster", "account_id", accountID, "cluster_name", req.Name, "cluster_id", clusterID)
 
 	if h.defaultClusterExpiration > 0 && req.Spec.ExpirationTimestamp == nil {
 		expiry := metav1.NewTime(time.Now().Add(h.defaultClusterExpiration))
@@ -197,17 +203,9 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.db.CreateCluster(ctx, accountID, cr); err != nil {
-		if hyperfleetdb.IsAlreadyExists(err) && req.Spec.OidcConfigID != "" {
-			// AlreadyExists can mean a concurrent request already claimed this
-			// oidcConfigId (idx_cluster_oidcconfig_id). Re-check so we can return
-			// the correct 409 instead of a generic 500.
-			if inUse, checkErr := h.isOidcConfigInUse(ctx, accountID, req.Spec.OidcConfigID); checkErr != nil {
-				h.logger.Error("failed to re-check oidc config usage after create conflict", "error", checkErr, "account_id", accountID, "oidc_config_id", req.Spec.OidcConfigID)
-			} else if inUse {
-				apiErr := ErrClusterCreateOidcConfigInUse.WithReason(req.Spec.OidcConfigID)
-				writeAPIError(w, apiErr, h.logger)
-				return
-			}
+		// Release the claim taken above if it isn't left permanently bound to a cluster that was never actually created.
+		if oidcConfig != nil {
+			h.releaseOidcConfigClaim(ctx, accountID, req.Spec.OidcConfigID)
 		}
 		h.logger.Error("failed to create cluster", "error", err, "account_id", accountID)
 		writeAPIError(w, ErrClusterCreateFailed, h.logger)
@@ -225,8 +223,8 @@ func (h *ClusterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// resolveOidcConfig validates the OidcConfig referenced by oidcConfigID.
-func (h *ClusterHandler) resolveOidcConfig(ctx context.Context, accountID, oidcConfigID string, existingClusters *hyperfleetv1alpha1.ClusterList) (*hyperfleetv1alpha1.OidcConfig, *APIError) {
+// resolveAndClaimOidcConfig validates the OidcConfig referenced by oidcConfigID and, if unclaimed, atomically claims it for clusterID via a resourceVersion-gated Update; callers must call releaseOidcConfigClaim to roll back the claim if a later step fails.
+func (h *ClusterHandler) resolveAndClaimOidcConfig(ctx context.Context, accountID, oidcConfigID, clusterID string) (*hyperfleetv1alpha1.OidcConfig, *APIError) {
 	if oidcConfigID == "" {
 		return nil, nil
 	}
@@ -246,33 +244,48 @@ func (h *ClusterHandler) resolveOidcConfig(ctx context.Context, accountID, oidcC
 		return nil, &ErrClusterCreateOidcConfigNotReady
 	}
 
-	if oidcConfigReferencedBy(existingClusters, oidcConfigID) {
+	if oidcConfig.Labels[clusterNamespaceLabel] != "" {
 		err := ErrClusterCreateOidcConfigInUse.WithReason(oidcConfigID)
 		return nil, &err
+	}
+
+	if oidcConfig.Labels == nil {
+		oidcConfig.Labels = map[string]string{}
+	}
+	oidcConfig.Labels[clusterNamespaceLabel] = hyperfleetdb.ClusterNSPrefix + clusterID
+	if err := h.db.UpdateOidcConfigObject(ctx, oidcConfig); err != nil {
+		if hyperfleetdb.IsConflict(err) {
+			// A concurrent request won the claim between our Get and Update.
+			err := ErrClusterCreateOidcConfigInUse.WithReason(oidcConfigID)
+			return nil, &err
+		}
+		h.logger.Error("failed to claim oidc config", "error", err, "account_id", accountID, "oidc_config_id", oidcConfigID)
+		return nil, &ErrClusterCreateOidcConfigLookupFailed
 	}
 
 	return oidcConfig, nil
 }
 
-// oidcConfigReferencedBy reports whether any cluster in clusters already
-// sets spec.oidcConfigId to oidcConfigID.
-func oidcConfigReferencedBy(clusters *hyperfleetv1alpha1.ClusterList, oidcConfigID string) bool {
-	for i := range clusters.Items {
-		if clusters.Items[i].Spec.OidcConfigID == oidcConfigID {
-			return true
-		}
-	}
-	return false
-}
+// releaseOidcConfigClaim removes the clusterNamespaceLabel claim from the given OidcConfig, best-effort
+// so a Cluster create that failed after winning the claim doesn't leave it permanently claimed
+func (h *ClusterHandler) releaseOidcConfigClaim(ctx context.Context, accountID, oidcConfigID string) {
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), releaseClaimTimeout)
+	defer cancel()
 
-// isOidcConfigInUse re-lists accountID's clusters and reports whether
-// oidcConfigID is now referenced by one of them.
-func (h *ClusterHandler) isOidcConfigInUse(ctx context.Context, accountID, oidcConfigID string) (bool, error) {
-	clusters, err := h.db.ListClusters(ctx, accountID)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		oc, err := h.db.GetOidcConfig(releaseCtx, accountID, oidcConfigID)
+		if err != nil {
+			return err
+		}
+		if oc.Labels == nil {
+			return nil
+		}
+		delete(oc.Labels, clusterNamespaceLabel)
+		return h.db.UpdateOidcConfigObject(releaseCtx, oc)
+	})
 	if err != nil {
-		return false, err
+		h.logger.Error("failed to release oidc config claim", "error", err, "account_id", accountID, "oidc_config_id", oidcConfigID)
 	}
-	return oidcConfigReferencedBy(clusters, oidcConfigID), nil
 }
 
 // Get handles GET /api/v0/clusters/{id}

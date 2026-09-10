@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,6 +120,7 @@ var _ = Describe("OidcConfig Controller", func() {
 	BeforeEach(func() {
 		ensureNamespace(ctx, testNS)
 		ensureNamespace(ctx, clusterNS)
+		ensureNamespace(ctx, hyperfleetv1alpha1.OidcIssuerReservationsNamespace)
 	})
 
 	AfterEach(func() {
@@ -134,6 +136,15 @@ var _ = Describe("OidcConfig Controller", func() {
 		Expect(k8sClient.List(ctx, clusters, client.InNamespace(clusterNS))).To(Succeed())
 		for i := range clusters.Items {
 			Expect(k8sClient.Delete(ctx, &clusters.Items[i])).To(Succeed())
+		}
+
+		// Clean up any Index resources reserveIssuerURLIndex created in the
+		// shared oidc-issuer-reservations namespace during the test.
+		var idxList hyperfleetv1alpha1.IndexList
+		if err := k8sClient.List(ctx, &idxList); err == nil {
+			for i := range idxList.Items {
+				_ = k8sClient.Delete(ctx, &idxList.Items[i])
+			}
 		}
 	})
 
@@ -800,6 +811,133 @@ var _ = Describe("OidcConfig Controller", func() {
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "unmanaged-del-sm-fail"}, &latest)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(&latest, oidcConfigFinalizer)).To(BeTrue())
+		})
+	})
+
+	Context("Issuer URL uniqueness (Index reservation)", func() {
+		newUnmanagedConfig := func(name, issuerURL string) *hyperfleetv1alpha1.OidcConfig {
+			return &hyperfleetv1alpha1.OidcConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNS},
+				Spec: hyperfleetv1alpha1.OidcConfigSpec{
+					Type:             hyperfleetv1alpha1.OidcConfigTypeUnmanaged,
+					IssuerUrl:        issuerURL,
+					SecretArn:        "arn:aws:secretsmanager:us-east-1:123456789012:secret:key",
+					InstallerRoleArn: "arn:aws:iam::123456789012:role/installer",
+					AccountID:        testAccountID,
+				},
+			}
+		}
+
+		It("should create an Index reserving the issuer URL and reach Ready", func() {
+			oc := newUnmanagedConfig("index-01", "https://customer-oidc.example.com/index-01")
+			Expect(k8sClient.Create(ctx, oc)).To(Succeed())
+
+			infra := &fakeOidcInfra{thumbprint: "thumb", crossAccountKey: generateTestRSAKeyPEM()}
+			r := newReconciler(infra)
+
+			_, err := reconcileN(r, testNS, "index-01", 2)
+			Expect(err).NotTo(HaveOccurred())
+
+			var updated hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "index-01"}, &updated)).To(Succeed())
+			Expect(updated.Status.Phase).To(Equal(hyperfleetv1alpha1.OidcConfigPhaseReady))
+
+			var idx hyperfleetv1alpha1.Index
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Namespace: hyperfleetv1alpha1.OidcIssuerReservationsNamespace,
+				Name:      hyperfleetv1alpha1.IssuerURLIndexName("https://customer-oidc.example.com/index-01"),
+			}, &idx)).To(Succeed())
+			Expect(idx.Labels[oidcconfigIDLabel]).To(Equal("index-01"))
+		})
+
+		It("should park a second config for the same issuer URL at Ready=False/IssuerURLConflict without copying its key, while the first stays Ready", func() {
+			const issuerURL = "https://customer-oidc.example.com/index-conflict"
+
+			winner := newUnmanagedConfig("index-conflict-winner", issuerURL)
+			Expect(k8sClient.Create(ctx, winner)).To(Succeed())
+
+			winnerInfra := &fakeOidcInfra{thumbprint: "thumb", crossAccountKey: generateTestRSAKeyPEM()}
+			winnerReconciler := newReconciler(winnerInfra)
+			_, err := reconcileN(winnerReconciler, testNS, "index-conflict-winner", 2)
+			Expect(err).NotTo(HaveOccurred())
+
+			var updatedWinner hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "index-conflict-winner"}, &updatedWinner)).To(Succeed())
+			Expect(updatedWinner.Status.Phase).To(Equal(hyperfleetv1alpha1.OidcConfigPhaseReady))
+
+			loser := newUnmanagedConfig("index-conflict-loser", issuerURL)
+			Expect(k8sClient.Create(ctx, loser)).To(Succeed())
+
+			// The loser's key must never be inspected — it should be rejected
+			// purely on the reservation conflict, before PrivateKeyExists runs.
+			loserInfra := &fakeOidcInfra{computeThumbprintErr: fmt.Errorf("should not be called")}
+			loserReconciler := newReconciler(loserInfra)
+			result, err := reconcileN(loserReconciler, testNS, "index-conflict-loser", 2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(issuerURLConflictRequeueInterval))
+			Expect(loserInfra.existsCalled).To(Equal(0))
+
+			var updatedLoser hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "index-conflict-loser"}, &updatedLoser)).To(Succeed())
+			Expect(updatedLoser.Status.Phase).To(Equal(hyperfleetv1alpha1.OidcConfigPhaseError))
+
+			readyCond := meta.FindStatusCondition(updatedLoser.Status.Conditions, "Ready")
+			Expect(readyCond).NotTo(BeNil())
+			Expect(readyCond.Status).To(Equal(metav1.ConditionFalse))
+			Expect(readyCond.Reason).To(Equal("IssuerURLConflict"))
+
+			// The winner's own Index reservation must be untouched.
+			var idx hyperfleetv1alpha1.Index
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Namespace: hyperfleetv1alpha1.OidcIssuerReservationsNamespace,
+				Name:      hyperfleetv1alpha1.IssuerURLIndexName(issuerURL),
+			}, &idx)).To(Succeed())
+			Expect(idx.Labels[oidcconfigIDLabel]).To(Equal("index-conflict-winner"))
+		})
+
+		It("should not delete the winner's Index when the losing config is deleted, but should free the URL when the winner is deleted", func() {
+			const issuerURL = "https://customer-oidc.example.com/index-release"
+			indexKey := types.NamespacedName{
+				Namespace: hyperfleetv1alpha1.OidcIssuerReservationsNamespace,
+				Name:      hyperfleetv1alpha1.IssuerURLIndexName(issuerURL),
+			}
+
+			winner := newUnmanagedConfig("index-release-winner", issuerURL)
+			Expect(k8sClient.Create(ctx, winner)).To(Succeed())
+			winnerReconciler := newReconciler(&fakeOidcInfra{thumbprint: "thumb", crossAccountKey: generateTestRSAKeyPEM()})
+			_, err := reconcileN(winnerReconciler, testNS, "index-release-winner", 2)
+			Expect(err).NotTo(HaveOccurred())
+
+			loser := newUnmanagedConfig("index-release-loser", issuerURL)
+			Expect(k8sClient.Create(ctx, loser)).To(Succeed())
+			loserReconciler := newReconciler(&fakeOidcInfra{})
+			_, err = reconcileN(loserReconciler, testNS, "index-release-loser", 2)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Deleting the loser (which never owned the Index) must not touch it.
+			var latestLoser hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "index-release-loser"}, &latestLoser)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &latestLoser)).To(Succeed())
+			_, err = loserReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "index-release-loser"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			var idx hyperfleetv1alpha1.Index
+			Expect(k8sClient.Get(ctx, indexKey, &idx)).To(Succeed())
+			Expect(idx.Labels[oidcconfigIDLabel]).To(Equal("index-release-winner"))
+
+			// Deleting the winner must free the Index.
+			var latestWinner hyperfleetv1alpha1.OidcConfig
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNS, Name: "index-release-winner"}, &latestWinner)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &latestWinner)).To(Succeed())
+			_, err = winnerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: testNS, Name: "index-release-winner"},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, indexKey, &idx)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "freed Index should be deleted")
 		})
 	})
 
