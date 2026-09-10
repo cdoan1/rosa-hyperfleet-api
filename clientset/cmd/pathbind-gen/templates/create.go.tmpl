@@ -76,15 +76,15 @@ func (Generated{{$res}}CreatePrompt) Prompt(ctx context.Context, r {{$rt}}, cmd 
 	return nil
 }
 
-// normalize{{$res}}CreateInput clears numeric pointer fields that were pre-allocated by
+// normalize{{$res}}CreateInput clears pointer flag fields that were pre-allocated by
 // cobra but not actually set by the user. This allows pathbind.Expand to distinguish
 // between "not set" (nil) and "explicitly set to zero".
 func normalize{{$res}}CreateInput(cmd *cobra.Command, input *{{$res}}CreateInput) {
-{{- if .NumericPtrFields}}
+{{- if .UnsetPtrFields}}
 	if cmd == nil {
 		return
 	}
-	{{range .NumericPtrFields}}
+	{{range .UnsetPtrFields}}
 	{{- if contains .Operations "create"}}
 	if cmd.Flags().Lookup({{printf "%q" .FlagName}}) != nil && !cmd.Flag({{printf "%q" .FlagName}}).Changed &&
 		input.{{.GoName}} != nil {
