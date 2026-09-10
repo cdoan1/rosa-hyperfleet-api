@@ -25,15 +25,17 @@ func oidcConfigSpec(config map[string]interface{}) map[string]interface{} {
 	return spec
 }
 
-// apiErrorCode extracts only the sanitized "code" field from an API error response body (e.g.
-// "OIDCCONFIGS-MGMT-CREATE-002"), so failure diagnostics never echo the full body, which can carry
-// customer-supplied issuerUrl or other OIDC config fields. Returns "" if body has no "code" field.
+// apiErrorCode extracts only the sanitized platform error code from an API error response body
+// (e.g. "OIDCCONFIGS-MGMT-CREATE-002"), so failure diagnostics never echo the full body, which can
+// carry customer-supplied issuerUrl or other OIDC config fields. The API serializes errors as a
+// metav1.Status whose "message" is "<code>: <reason>"; this returns the "<code>" prefix.
 func apiErrorCode(body []byte) string {
-	var e struct {
-		Code string `json:"code"`
+	var status struct {
+		Message string `json:"message"`
 	}
-	_ = json.Unmarshal(body, &e)
-	return e.Code
+	_ = json.Unmarshal(body, &status)
+	code, _, _ := strings.Cut(status.Message, ": ")
+	return code
 }
 
 var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
