@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +23,17 @@ func oidcConfigMetadata(config map[string]interface{}) map[string]interface{} {
 func oidcConfigSpec(config map[string]interface{}) map[string]interface{} {
 	spec, _ := config["spec"].(map[string]interface{})
 	return spec
+}
+
+// apiErrorCode extracts only the sanitized "code" field from an API error response body (e.g.
+// "OIDCCONFIGS-MGMT-CREATE-002"), so failure diagnostics never echo the full body, which can carry
+// customer-supplied issuerUrl or other OIDC config fields. Returns "" if body has no "code" field.
+func apiErrorCode(body []byte) string {
+	var e struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(body, &e)
+	return e.Code
 }
 
 var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
@@ -57,7 +69,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusCreated), "body: %s", string(response.Body))
+		Expect(response.StatusCode).To(Equal(http.StatusCreated), "code=%s", apiErrorCode(response.Body))
 		Expect(response.Headers).To(HaveKey("Content-Type"))
 
 		var created map[string]interface{}
@@ -80,7 +92,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Get("/api/v0/oidc_configs/"+createdConfigID, accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
+		Expect(response.StatusCode).To(Equal(http.StatusOK), "code=%s", apiErrorCode(response.Body))
 
 		var fetched map[string]interface{}
 		Expect(json.Unmarshal(response.Body, &fetched)).To(Succeed())
@@ -94,7 +106,7 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Get("/api/v0/oidc_configs", accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusOK), "body: %s", string(response.Body))
+		Expect(response.StatusCode).To(Equal(http.StatusOK), "code=%s", apiErrorCode(response.Body))
 
 		var list struct {
 			Items []map[string]interface{} `json:"items"`
@@ -119,8 +131,8 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
-		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-002"))
+		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "code=%s", apiErrorCode(response.Body))
+		Expect(apiErrorCode(response.Body)).To(Equal("OIDCCONFIGS-MGMT-CREATE-002"))
 	})
 
 	It("should reject creating an OIDC config with an invalid type", func() {
@@ -132,8 +144,8 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Post("/api/v0/oidc_configs", createReq, accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "body: %s", string(response.Body))
-		Expect(string(response.Body)).To(ContainSubstring("OIDCCONFIGS-MGMT-CREATE-004"))
+		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), "code=%s", apiErrorCode(response.Body))
+		Expect(apiErrorCode(response.Body)).To(Equal("OIDCCONFIGS-MGMT-CREATE-004"))
 	})
 
 	It("should return 404 for a nonexistent OIDC config", func() {
@@ -147,10 +159,35 @@ var _ = Describe("OIDC Config", Ordered, Label("oidcconfig"), func() {
 
 		response, err := apiClient.Delete("/api/v0/oidc_configs/"+createdConfigID, accountID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode).To(Equal(http.StatusAccepted), "body: %s", string(response.Body))
+		Expect(response.StatusCode).To(Equal(http.StatusAccepted), "code=%s", apiErrorCode(response.Body))
 
 		var deleted map[string]interface{}
 		Expect(json.Unmarshal(response.Body, &deleted)).To(Succeed())
 		Expect(fmt.Sprintf("%v", deleted["config_id"])).To(Equal(createdConfigID))
+
+		By("waiting for the config to actually disappear from Get")
+		Eventually(func(g Gomega) {
+			resp, err := apiClient.Get("/api/v0/oidc_configs/"+createdConfigID, accountID)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(resp.StatusCode).To(Equal(http.StatusNotFound),
+				"expected config %s to be gone after delete (status=%d)", createdConfigID, resp.StatusCode)
+		}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+		By("waiting for the config to disappear from List")
+		Eventually(func(g Gomega) {
+			resp, err := apiClient.Get("/api/v0/oidc_configs", accountID)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(resp.StatusCode).To(Equal(http.StatusOK), "code=%s", apiErrorCode(resp.Body))
+
+			var list struct {
+				Items []map[string]interface{} `json:"items"`
+			}
+			g.Expect(json.Unmarshal(resp.Body, &list)).To(Succeed())
+
+			for _, item := range list.Items {
+				g.Expect(oidcConfigMetadata(item)["uid"]).NotTo(Equal(createdConfigID),
+					"deleted config %s should no longer appear in list", createdConfigID)
+			}
+		}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 	})
 })

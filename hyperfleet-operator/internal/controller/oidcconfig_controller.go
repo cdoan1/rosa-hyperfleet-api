@@ -213,8 +213,11 @@ func (r *OidcConfigReconciler) reconcileDelete(ctx context.Context, oc *hyperfle
 	configID := oc.Name
 	log.Info("OidcConfig deleting", "config", configID, "type", oc.Spec.Type)
 
-	if err := r.OIDC.DeletePrivateKey(ctx, oc.Spec.AccountID, configID); err != nil {
-		return ctrl.Result{}, fmt.Errorf("delete private key: %w", err)
+	// Only unmanaged configs ever store a private key
+	if oc.Spec.Type == hyperfleetv1alpha1.OidcConfigTypeUnmanaged {
+		if err := r.OIDC.DeletePrivateKey(ctx, oc.Spec.AccountID, configID); err != nil {
+			return ctrl.Result{}, fmt.Errorf("delete private key: %w", err)
+		}
 	}
 
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
