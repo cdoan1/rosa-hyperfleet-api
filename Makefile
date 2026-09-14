@@ -266,6 +266,7 @@ test-e2e-rosa-cli:
 	export AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-$${AWS_REGION}}" && \
 	if [ -n "$(ROSA_GINKGO_FOCUS)$(ROSA_GINKGO_SKIP)$(ROSA_GINKGO_LABEL_FILTER)" ]; then \
 		echo "Running with custom ginkgo filters..." && \
+		echo "label-filter: $(ROSA_GINKGO_LABEL_FILTER)" && \
 		ginkgo run -v --timeout 3h \
 			$(if $(ROSA_GINKGO_FOCUS),--focus="$(ROSA_GINKGO_FOCUS)") \
 			$(if $(ROSA_GINKGO_SKIP),--skip="$(ROSA_GINKGO_SKIP)") \
