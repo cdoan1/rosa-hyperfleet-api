@@ -767,6 +767,7 @@ func (in *NodePoolSpec) DeepCopy() *NodePoolSpec {
 func (in *NodePoolSpecPassthrough) DeepCopyInto(out *NodePoolSpecPassthrough) {
 	*out = *in
 	out.Release = in.Release
+	in.Platform.DeepCopyInto(&out.Platform)
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
 		*out = new(int32)

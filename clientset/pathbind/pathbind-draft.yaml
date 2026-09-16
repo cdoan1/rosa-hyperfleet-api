@@ -224,6 +224,106 @@ resources:
               operations:
                 - create
                 - update
+            - path: spec.nodePool.platform.aws.ami
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.imageType
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.instanceProfile
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.instanceType
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.capacityReservation.id
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.capacityReservation.marketType
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.capacityReservation.preference
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.marketType
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.spot.maxPrice
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.placement.tenancy
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.resourceTags
+              goType: array
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.rootVolume.encrypted
+              goType: boolean
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.rootVolume.encryptionKey
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.rootVolume.iops
+              goType: integer(int64)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.rootVolume.size
+              goType: integer(int64)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.rootVolume.type
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.securityGroups
+              goType: array
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.subnet.filters
+              goType: array
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.aws.subnet.id
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.platform.type
+              goType: string
+              operations:
+                - create
+                - update
             - path: spec.nodePool.release.image
               goType: string
               operations:

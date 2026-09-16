@@ -122,8 +122,6 @@ type ServiceSetFields struct {
 	OsImageStream hypershiftv1beta1.OSImageStreamReference `json:"osImageStream,omitempty"`
 	// PausedUntil is service-set (platform-managed, hidden from API)
 	PausedUntil *string `json:"pausedUntil,omitempty"`
-	// Platform is service-set (platform-managed, hidden from API)
-	Platform v1alpha1.NodePoolPlatform `json:"platform,omitempty"`
 	// Proxy is service-set (platform-managed, hidden from API)
 	Proxy *v1alpha1.ProxyConfiguration `json:"proxy,omitempty"`
 	// PullSecret is service-set (platform-managed, hidden from API)

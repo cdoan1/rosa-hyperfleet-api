@@ -7,9 +7,10 @@ import (
 
 // DeriveFilename converts a type name to a conventional Go filename
 // Examples:
-//   ClusterNetworking -> networking_types.go
-//   PlatformSpec -> platformspec_types.go
-//   APIServerNetworking -> apiservernetworking_types.go
+//
+//	ClusterNetworking -> networking_types.go
+//	PlatformSpec -> platformspec_types.go
+//	APIServerNetworking -> apiservernetworking_types.go
 func DeriveFilename(typeName string) string {
 	// Strip common suffixes to get the core name
 	baseName := typeName
@@ -29,9 +30,10 @@ func DeriveFilename(typeName string) string {
 
 // toSnakeCase converts PascalCase to snake_case
 // Examples:
-//   ClusterNetworking -> cluster_networking
-//   APIServer -> api_server
-//   HTTPProxy -> http_proxy
+//
+//	ClusterNetworking -> cluster_networking
+//	APIServer -> api_server
+//	HTTPProxy -> http_proxy
 func toSnakeCase(s string) string {
 	var result strings.Builder
 	runes := []rune(s)
