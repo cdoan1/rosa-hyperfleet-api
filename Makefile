@@ -12,10 +12,10 @@
 	codegen-conversion verify-conversion \
 	generate-openapi verify-openapi swagger-ui \
 	image-api image-operator image-push-api image-push-operator \
-	accel-build-setup accel-build-ledger accel-build-clean \
+	accel-setup accel-build-setup accel-build-ledger accel-build-clean \
 	accel-validate-markers accel-marker-setup accel-marker-clean \
 	accel-test-mapper accel-test-mapper-setup accel-test-mapper-clean \
-	accel-review-helper accel-report
+	accel-review-helper accel-report accel-clean
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -162,12 +162,8 @@ help:
 	@echo "  accel-validate-markers   Stage 2: Validate marker assignments (optional QC)"
 	@echo "  accel-test-mapper        Stage 1+3: Build ledger + map fields to JIRA tickets"
 	@echo "  accel-review-helper      Generate JIRA suggestions for unmatched fields"
-	@echo "  accel-build-setup        Setup Python venv for ledger builder"
-	@echo "  accel-marker-setup       Setup Python venv for marker validator"
-	@echo "  accel-test-mapper-setup  Setup Python venv for test mapper"
-	@echo "  accel-build-clean        Clean ledger builder artifacts"
-	@echo "  accel-marker-clean       Clean marker validator artifacts"
-	@echo "  accel-test-mapper-clean  Clean test mapper artifacts"
+	@echo "  accel-setup              Setup all Python virtual environments"
+	@echo "  accel-clean              Clean all acceleration pipeline artifacts"
 
 # ── Build ────────────────────────────────────────────────────────────────
 
@@ -531,6 +527,9 @@ $(ACCEL_VENV): $(ACCEL_REQUIREMENTS)
 	$(ACCEL_PIP) install -r $(ACCEL_REQUIREMENTS)
 	@touch $(ACCEL_VENV)
 
+accel-setup: accel-build-setup accel-marker-setup accel-test-mapper-setup
+	@echo "✓ All acceleration pipeline virtual environments ready"
+
 accel-build-setup: $(ACCEL_VENV)
 	@echo "✓ Virtual environment ready at $(ACCEL_VENV)"
 
@@ -541,6 +540,9 @@ accel-build-ledger: $(ACCEL_VENV)
 		--output $(ACCEL_OUTPUT) \
 		--verbose
 	@echo "✓ Ledger built: $(ACCEL_OUTPUT)"
+
+accel-clean: accel-build-clean accel-marker-clean accel-test-mapper-clean
+	@echo "✓ All acceleration pipeline artifacts cleaned"
 
 accel-build-clean:
 	rm -rf $(ACCEL_VENV)
