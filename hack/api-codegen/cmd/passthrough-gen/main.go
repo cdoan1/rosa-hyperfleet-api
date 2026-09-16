@@ -89,6 +89,15 @@ func main() {
 
 	log.Printf("Loaded %d source files", len(gen.ParsedFiles()))
 
+	// Scan for local mirror types that should be used instead of upstream types
+	log.Printf("Scanning for local mirror types in: %s", outputDir)
+	if err := gen.ScanForMirrorTypes(outputDir); err != nil {
+		log.Fatalf("Failed to scan for mirror types: %v", err)
+	}
+	if len(gen.GetLocalMirrorTypes()) > 0 {
+		log.Printf("Found %d local mirror types", len(gen.GetLocalMirrorTypes()))
+	}
+
 	// Generate passthrough types
 	log.Printf("Generating passthrough types: %v", types)
 	if err := gen.Generate(outputDir); err != nil {

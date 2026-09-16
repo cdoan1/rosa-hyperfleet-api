@@ -303,24 +303,40 @@ func (s *MarkerScanner) processField(field *ast.Field, parentPath string, visite
 
 	// Extract markers for the field
 	meta := s.extractMarkers(field, fieldPath)
-	if meta != nil && !isUpstreamReduced {
-		// Only add non-upstream-reduced fields to registry
-		// Upstream-reduced fields will be synth added via synthetic paths
+	if meta != nil {
 		meta.OwnerType = ownerKind
 		meta.OwnerGVK = ownerGVK
-		s.logf("    field: %s  owner=%s  write-mode=%s  hidden=%v  gate=%s", fieldPath, ownerKind, meta.WriteMode, meta.Hidden, meta.FeatureGate)
 
-		// Add to typed registry
+		if isUpstreamReduced {
+			s.logf("    field: %s (container for upstream-reduced type %s) owner=%s write-mode=%s", fieldPath, localType, ownerKind, meta.WriteMode)
+		} else {
+			s.logf("    field: %s  owner=%s  write-mode=%s  hidden=%v  gate=%s", fieldPath, ownerKind, meta.WriteMode, meta.Hidden, meta.FeatureGate)
+		}
+
+		// IMPORTANT: Always add the container field to the registry, even for upstream-reduced types.
+		//
+		// Historical context: Prior versions skipped adding upstream-reduced container fields to
+		// the registry, assuming synthetic path generation would handle everything. However, this
+		// caused a critical issue: when passthrough-gen references a local mirror type instead of
+		// the upstream type (e.g., `Networking ClusterNetworking` instead of `Networking hypershiftv1beta1.ClusterNetworking`),
+		// the container field's markers (write-mode, openapi-gen) were lost.
+		//
+		// Why this matters:
+		// 1. The container field itself has important markers (e.g., +hyperfleet:write-mode=mutable)
+		// 2. Synthetic paths only create entries for *nested* fields (e.g., networking.machineNetwork)
+		// 3. passthrough-gen looks up the container field path to get its markers
+		// 4. Without this entry, passthrough-gen falls back to defaults (service-set, hidden=true)
+		//
+		// Example:
+		//   Before: spec.hostedCluster.networking → NOT in registry → defaults to service-set, hidden
+		//   After:  spec.hostedCluster.networking → IN registry with mutable, openapi-gen=true
+		//
+		// If you're considering removing this: passthrough-gen will generate incorrect markers for
+		// any container field whose type is a local mirror (ClusterNetworking, PlatformSpec, etc).
 		if s.TypedRegistry[ownerKind] == nil {
 			s.TypedRegistry[ownerKind] = make(map[string]FieldMeta)
 		}
 		s.TypedRegistry[ownerKind][fieldPath] = *meta
-	} else if meta != nil && isUpstreamReduced {
-		// For upstream-reduced container fields, just log the markers but don't add to registry
-		meta.OwnerType = ownerKind
-		meta.OwnerGVK = ownerGVK
-		s.logf("    field: %s (container for upstream-reduced type) owner=%s write-mode=%s", fieldPath, ownerKind, meta.WriteMode)
-		// Container field markers will be reflected in synthetic paths
 	}
 
 	// Recursively process nested structs (including upstream-reduced types for deeper embeddings)

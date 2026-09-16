@@ -177,7 +177,9 @@ func (g *Generator) typeToString(expr ast.Expr) string {
 	case *ast.Ident:
 		typeName := t.Name
 		if g.SourcePackageAlias != "" && g.isSourcePackageType(typeName) {
-			return g.SourcePackageAlias + "." + typeName
+			qualifiedName := g.SourcePackageAlias + "." + typeName
+			// Check if there's a local mirror for this type
+			return g.resolveTypeName(qualifiedName)
 		}
 		return typeName
 	case *ast.StarExpr:
@@ -187,7 +189,9 @@ func (g *Generator) typeToString(expr ast.Expr) string {
 	case *ast.MapType:
 		return "map[" + g.typeToString(t.Key) + "]" + g.typeToString(t.Value)
 	case *ast.SelectorExpr:
-		return g.typeToString(t.X) + "." + t.Sel.Name
+		fullType := g.typeToString(t.X) + "." + t.Sel.Name
+		// Check if there's a local mirror for this qualified type
+		return g.resolveTypeName(fullType)
 	case *ast.InterfaceType, *ast.FuncType, *ast.Ellipsis, *ast.IndexExpr, *ast.IndexListExpr:
 		var buf bytes.Buffer
 		if err := printer.Fprint(&buf, token.NewFileSet(), expr); err != nil {

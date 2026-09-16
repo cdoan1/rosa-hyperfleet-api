@@ -45,7 +45,7 @@ type HostedClusterSpecPassthrough struct {
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=mutable
 	// +required
-	Platform hypershiftv1beta1.PlatformSpec `json:"platform"`
+	Platform PlatformSpec `json:"platform"`
 	// kubeAPIServerDNSName specifies a desired DNS name to resolve to the KAS.
 	// +k8s:openapi-gen=false
 	// +hyperfleet:write-mode=service-set
@@ -70,7 +70,7 @@ type HostedClusterSpecPassthrough struct {
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=mutable
 	// +required
-	Networking hypershiftv1beta1.ClusterNetworking `json:"networking"`
+	Networking ClusterNetworking `json:"networking"`
 	// autoscaling specifies auto-scaling behavior that applies to all NodePools
 	// +k8s:openapi-gen=false
 	// +hyperfleet:write-mode=service-set
@@ -115,7 +115,7 @@ type HostedClusterSpecPassthrough struct {
 	// +k8s:openapi-gen=false
 	// +hyperfleet:write-mode=service-set
 	// +optional
-	Configuration *hypershiftv1beta1.ClusterConfiguration `json:"configuration,omitempty"`
+	Configuration *ClusterConfiguration `json:"configuration,omitempty"`
 	// operatorConfiguration specifies configuration for individual OCP operators in the cluster.
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=service-set
@@ -191,10 +191,10 @@ type NodePoolSpecPassthrough struct {
 	// +required
 	Release hypershiftv1beta1.Release `json:"release"`
 	// platform specifies the underlying infrastructure provider for the NodePool
-	// +k8s:openapi-gen=true
-	// +hyperfleet:write-mode=mutable
+	// +k8s:openapi-gen=false
+	// +hyperfleet:write-mode=service-set
 	// +required
-	Platform hypershiftv1beta1.NodePoolPlatform `json:"platform"`
+	Platform NodePoolPlatform `json:"platform"`
 	// replicas is the desired number of nodes the pool should maintain. If unset, the controller default value is 0.
 	// +k8s:openapi-gen=true
 	// +hyperfleet:write-mode=mutable

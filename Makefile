@@ -144,6 +144,7 @@ help:
 	@echo "  verify-conversion    Fail if conversion outputs are out of date"
 	@echo "  generate-openapi     Generate and merge typed schemas into OpenAPI spec"
 	@echo "  verify-openapi       Fail if OpenAPI spec is out of date with codegen"
+	@echo "  generate-mirror      Generate mirror type scaffold (requires MIRROR_TYPE, derives filename)"
 	@echo "  swagger-ui           Run Swagger UI locally (default port 8282)"
 	@echo "  setup-envtest        Install envtest binaries (etcd, kube-apiserver)"
 	@echo "  deps                 Download and tidy all modules"
@@ -175,6 +176,7 @@ build-api-codegen:
 	cd hack/api-codegen && go build -o ../../bin/crd-variants ./cmd/crd-variants
 	cd hack/api-codegen && go build -o ../../bin/featuregate-info ./cmd/featuregate-info
 	cd hack/api-codegen && go build -o ../../bin/verify-configuration ./cmd/verify-configuration
+	cd hack/api-codegen && go build -o ../../bin/mirror-gen ./cmd/mirror-gen
 
 # ── Test ─────────────────────────────────────────────────────────────────
 
@@ -350,6 +352,13 @@ deps:
 CRD_VARIANTS     := $(abspath bin/crd-variants)
 CRD_BASES_DIR    := hyperfleet-operator/config/crd/bases
 
+# Mirror type generation variables (for manual scaffolding)
+MIRROR_IMPORT_PATH ?= github.com/openshift/hypershift/api/hypershift/v1beta1
+MIRROR_TYPE        ?=
+MIRROR_OUTPUT      ?= api/v1alpha1
+MIRROR_WRITE_MODE  ?= service-set
+MIRROR_OPENAPI     ?= false
+
 manifests: codegen-conversion $(CONTROLLER_GEN) build-api-codegen
 	cd hyperfleet-operator && $(CONTROLLER_GEN) crd:allowDangerousTypes=true paths="../api/v1alpha1" output:crd:dir=config/crd/bases
 	$(CRD_VARIANTS) --strip-passthrough-cel --api-dir api/v1alpha1 --crd-dir $(CRD_BASES_DIR)
@@ -411,6 +420,30 @@ codegen: codegen-verify
 verify-codegen: codegen
 	git diff --exit-code api/v1alpha1/zz_generated.deepcopy.go
 	git diff --exit-code hack/api-codegen/pkg/registry/
+
+generate-mirror: build-api-codegen
+	@if [ -z "$(MIRROR_TYPE)" ]; then \
+		echo "Error: MIRROR_TYPE is required"; \
+		echo "Usage: make generate-mirror MIRROR_TYPE=ClusterNetworking"; \
+		echo ""; \
+		echo "Optional variables:"; \
+		echo "  MIRROR_OUTPUT      Output directory or file (default: api/v1alpha1)"; \
+		echo "                     File name auto-derived from type if directory given"; \
+		echo "  MIRROR_IMPORT_PATH Import path (default: github.com/openshift/hypershift/api/hypershift/v1beta1)"; \
+		echo "  MIRROR_WRITE_MODE  Default write-mode (default: service-set, options: mutable, immutable, service-set)"; \
+		echo "  MIRROR_OPENAPI     Default openapi visibility (default: false)"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make generate-mirror MIRROR_TYPE=ClusterNetworking"; \
+		echo "  make generate-mirror MIRROR_TYPE=PlatformSpec MIRROR_OUTPUT=api/v1alpha1/platform_types.go"; \
+		exit 1; \
+	fi
+	./bin/mirror-gen \
+		-import-path $(MIRROR_IMPORT_PATH) \
+		-type $(MIRROR_TYPE) \
+		-output $(MIRROR_OUTPUT) \
+		-default-write-mode $(MIRROR_WRITE_MODE) \
+		-default-openapi=$(MIRROR_OPENAPI)
 
 # generate runs all code generators in dependency order.
 # manifests depends on codegen-conversion, ensuring conversion REST types are

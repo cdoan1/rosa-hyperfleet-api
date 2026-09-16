@@ -19,7 +19,7 @@ type ServiceSetFields struct {
 	// AllowedUnsafeSysctls is service-set (platform-managed, hidden from API)
 	AllowedUnsafeSysctls []string `json:"allowedUnsafeSysctls,omitempty"`
 	// ApiServer is service-set (platform-managed, hidden from API)
-	ApiServer *v1alpha1.APIServerNetworkConfiguration `json:"apiServer,omitempty"`
+	ApiServer *hypershiftv1beta1.APIServerNetworking `json:"apiServer,omitempty"`
 	// Arch is service-set (platform-managed, hidden from API)
 	Arch string `json:"arch,omitempty"`
 	// AuditWebhook is service-set (platform-managed, hidden from API)
@@ -38,6 +38,8 @@ type ServiceSetFields struct {
 	ClusterID string `json:"clusterID,omitempty"`
 	// Config is service-set (platform-managed, hidden from API)
 	Config []corev1.LocalObjectReference `json:"config,omitempty"`
+	// Configuration is service-set (platform-managed, hidden from API)
+	Configuration *v1alpha1.ClusterConfiguration `json:"configuration,omitempty"`
 	// ControlPlaneRelease is service-set (platform-managed, hidden from API)
 	ControlPlaneRelease *hypershiftv1beta1.Release `json:"controlPlaneRelease,omitempty"`
 	// ControllerAvailabilityPolicy is service-set (platform-managed, hidden from API)
@@ -90,8 +92,12 @@ type ServiceSetFields struct {
 	KernelType *string `json:"kernelType,omitempty"`
 	// KubeAPIServerDNSName is service-set (platform-managed, hidden from API)
 	KubeAPIServerDNSName string `json:"kubeAPIServerDNSName,omitempty"`
+	// Kubelet is service-set (platform-managed, hidden from API)
+	Kubelet *v1alpha1.KubeletConfig `json:"kubelet,omitempty"`
 	// Labels is service-set (platform-managed, hidden from API)
 	Labels map[string]string `json:"labels,omitempty"`
+	// MachineConfig is service-set (platform-managed, hidden from API)
+	MachineConfig *v1alpha1.MachineConfigSpec `json:"machineConfig,omitempty"`
 	// Management is service-set (platform-managed, hidden from API)
 	Management hypershiftv1beta1.NodePoolManagement `json:"management,omitempty"`
 	// MemoryThrottlingFactor is service-set (platform-managed, hidden from API)
@@ -116,6 +122,8 @@ type ServiceSetFields struct {
 	OsImageStream hypershiftv1beta1.OSImageStreamReference `json:"osImageStream,omitempty"`
 	// PausedUntil is service-set (platform-managed, hidden from API)
 	PausedUntil *string `json:"pausedUntil,omitempty"`
+	// Platform is service-set (platform-managed, hidden from API)
+	Platform v1alpha1.NodePoolPlatform `json:"platform,omitempty"`
 	// Proxy is service-set (platform-managed, hidden from API)
 	Proxy *v1alpha1.ProxyConfiguration `json:"proxy,omitempty"`
 	// PullSecret is service-set (platform-managed, hidden from API)

@@ -31,11 +31,20 @@ type Generator struct {
 
 	// parsedFiles holds parsed AST of source files
 	parsedFiles map[string]*ast.File
+
+	// localMirrorTypes maps upstream type names to local mirror type names
+	// e.g., "ClusterNetworking" -> "ClusterNetworking" (use local instead of hypershiftv1beta1.ClusterNetworking)
+	localMirrorTypes map[string]string
 }
 
 // ParsedFiles returns the parsed files (for CLI tool)
 func (g *Generator) ParsedFiles() map[string]*ast.File {
 	return g.parsedFiles
+}
+
+// GetLocalMirrorTypes returns the map of upstream type names to local mirror type names
+func (g *Generator) GetLocalMirrorTypes() map[string]string {
+	return g.localMirrorTypes
 }
 
 // TypeDef represents a generated passthrough type definition

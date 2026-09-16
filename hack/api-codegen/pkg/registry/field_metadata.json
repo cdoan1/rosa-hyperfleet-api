@@ -79,6 +79,13 @@
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
+    "fieldPath": "spec.hostedCluster.configuration",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
     "fieldPath": "spec.hostedCluster.configuration.apiServer",
     "writeMode": "service-set",
     "hidden": true,
@@ -110,6 +117,12 @@
     "fieldPath": "spec.hostedCluster.configuration.ingress",
     "writeMode": "service-set",
     "hidden": true,
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.configuration.kubelet",
+    "writeMode": "service-set",
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -265,6 +278,12 @@
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
+    "fieldPath": "spec.hostedCluster.configuration.machineConfig",
+    "writeMode": "service-set",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
     "fieldPath": "spec.hostedCluster.configuration.machineConfig.allowedKernelArguments",
     "writeMode": "immutable",
     "featureGate": "HyperFleetMachineConfig",
@@ -415,6 +434,42 @@
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
   {
+    "fieldPath": "spec.hostedCluster.networking.allocateNodeCIDRs",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.apiServer",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.clusterNetwork",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.machineNetwork",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.networkType",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.networking.serviceNetwork",
+    "writeMode": "mutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
     "fieldPath": "spec.hostedCluster.nodeSelector",
     "writeMode": "service-set",
     "hidden": true,
@@ -437,6 +492,12 @@
   {
     "fieldPath": "spec.hostedCluster.pausedUntil",
     "writeMode": "service-set",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.platform",
+    "writeMode": "mutable",
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },
@@ -565,6 +626,12 @@
     "fieldPath": "ingress",
     "writeMode": "service-set",
     "hidden": true,
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "kubelet",
+    "writeMode": "service-set",
     "ownerType": "ClusterConfiguration",
     "ownerGVK": ""
   },
@@ -720,6 +787,12 @@
     "ownerGVK": ""
   },
   {
+    "fieldPath": "machineConfig",
+    "writeMode": "service-set",
+    "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
     "fieldPath": "machineConfig.allowedKernelArguments",
     "writeMode": "immutable",
     "featureGate": "HyperFleetMachineConfig",
@@ -787,6 +860,42 @@
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "ClusterConfiguration",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "allocateNodeCIDRs",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "apiServer",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "clusterNetwork",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "machineNetwork",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "networkType",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
+    "ownerGVK": ""
+  },
+  {
+    "fieldPath": "serviceNetwork",
+    "writeMode": "mutable",
+    "ownerType": "ClusterNetworking",
     "ownerGVK": ""
   },
   {
@@ -1078,6 +1187,13 @@
   },
   {
     "fieldPath": "spec.nodePool.pausedUntil",
+    "writeMode": "service-set",
+    "hidden": true,
+    "ownerType": "NodePool",
+    "ownerGVK": "hyperfleet.io/v1alpha1.NodePool"
+  },
+  {
+    "fieldPath": "spec.nodePool.platform",
     "writeMode": "service-set",
     "hidden": true,
     "ownerType": "NodePool",
