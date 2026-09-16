@@ -231,7 +231,7 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 				Release:    hypershiftv1beta1.Release{Image: "quay.io/ocp:4.17"},
 				IssuerURL:  "https://oidc.e2e.example.com/" + name,
 				PullSecret: corev1.LocalObjectReference{Name: "pull-secret"},
-				Networking: hypershiftv1beta1.ClusterNetworking{
+				Networking: hyperfleetv1alpha1.ClusterNetworking{
 					ClusterNetwork: []hypershiftv1beta1.ClusterNetworkEntry{{CIDR: mustParseCIDR("10.128.0.0/14")}},
 					ServiceNetwork: []hypershiftv1beta1.ServiceNetworkEntry{{CIDR: mustParseCIDR("172.30.0.0/16")}},
 					MachineNetwork: []hypershiftv1beta1.MachineNetworkEntry{{CIDR: mustParseCIDR("10.0.0.0/16")}},
@@ -262,7 +262,7 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 						ServicePublishingStrategy: hypershiftv1beta1.ServicePublishingStrategy{Type: hypershiftv1beta1.Route},
 					},
 				},
-				Platform: hypershiftv1beta1.PlatformSpec{
+				Platform: hyperfleetv1alpha1.PlatformSpec{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSPlatformSpec{
 						Region: "us-east-1",
@@ -327,7 +327,7 @@ func newTestNodePool() *hyperfleetv1alpha1.NodePool {
 					UpgradeType: hypershiftv1beta1.UpgradeTypeReplace,
 				},
 				Release: hypershiftv1beta1.Release{Image: "quay.io/ocp:4.17"},
-				Platform: hypershiftv1beta1.NodePoolPlatform{
+				Platform: hyperfleetv1alpha1.NodePoolPlatform{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSNodePoolPlatform{
 						InstanceType:    "m6a.xlarge",

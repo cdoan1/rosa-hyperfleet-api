@@ -372,7 +372,7 @@ func newTestNodePool() *hyperfleetv1alpha1.NodePool {
 				Release: hypershiftv1beta1.Release{
 					Image: "quay.io/openshift-release-dev/ocp-release:4.17.0-ec.2-x86_64",
 				},
-				Platform: hypershiftv1beta1.NodePoolPlatform{
+				Platform: hyperfleetv1alpha1.NodePoolPlatform{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSNodePoolPlatform{
 						InstanceType:    "m6a.xlarge",

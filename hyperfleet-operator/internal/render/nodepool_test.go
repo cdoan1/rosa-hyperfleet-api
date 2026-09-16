@@ -23,7 +23,7 @@ func testNodePool() *hyperfleetv1alpha1.NodePool {
 					UpgradeType: hypershiftv1beta1.UpgradeTypeReplace,
 				},
 				Release: hypershiftv1beta1.Release{Image: "quay.io/ocp:4.17"},
-				Platform: hypershiftv1beta1.NodePoolPlatform{
+				Platform: hyperfleetv1alpha1.NodePoolPlatform{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSNodePoolPlatform{
 						InstanceType:    "m6a.xlarge",
@@ -114,7 +114,7 @@ func TestNodePoolResourceDefaults(t *testing.T) {
 		},
 		Spec: hyperfleetv1alpha1.NodePoolSpec{
 			NodePool: hyperfleetv1alpha1.NodePoolSpecPassthrough{
-				Platform: hypershiftv1beta1.NodePoolPlatform{
+				Platform: hyperfleetv1alpha1.NodePoolPlatform{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSNodePoolPlatform{
 						InstanceProfile: "worker-profile",

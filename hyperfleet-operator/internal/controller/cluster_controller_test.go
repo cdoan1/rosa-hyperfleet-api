@@ -900,7 +900,7 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 				Release:    hypershiftv1beta1.Release{Image: "quay.io/openshift-release-dev/ocp-release:4.17.0-ec.2-x86_64"},
 				IssuerURL:  "https://oidc.example.com/cluster-01",
 				PullSecret: corev1.LocalObjectReference{Name: "pull-secret"},
-				Networking: hypershiftv1beta1.ClusterNetworking{
+				Networking: hyperfleetv1alpha1.ClusterNetworking{
 					ClusterNetwork: []hypershiftv1beta1.ClusterNetworkEntry{{CIDR: mustParseCIDR("10.128.0.0/14")}},
 					ServiceNetwork: []hypershiftv1beta1.ServiceNetworkEntry{{CIDR: mustParseCIDR("172.30.0.0/16")}},
 					MachineNetwork: []hypershiftv1beta1.MachineNetworkEntry{{CIDR: mustParseCIDR("10.0.0.0/16")}},
@@ -919,7 +919,7 @@ func newTestCluster(name string) *hyperfleetv1alpha1.Cluster {
 					{Service: hypershiftv1beta1.Konnectivity, ServicePublishingStrategy: hypershiftv1beta1.ServicePublishingStrategy{Type: hypershiftv1beta1.Route}},
 					{Service: hypershiftv1beta1.Ignition, ServicePublishingStrategy: hypershiftv1beta1.ServicePublishingStrategy{Type: hypershiftv1beta1.Route}},
 				},
-				Platform: hypershiftv1beta1.PlatformSpec{
+				Platform: hyperfleetv1alpha1.PlatformSpec{
 					Type: hypershiftv1beta1.AWSPlatform,
 					AWS: &hypershiftv1beta1.AWSPlatformSpec{
 						Region: "us-east-1",
