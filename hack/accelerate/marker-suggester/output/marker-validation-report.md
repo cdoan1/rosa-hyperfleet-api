@@ -1,8 +1,8 @@
 # Marker Validation Report - Stage 2
 
-**Date:** 2026-09-09 16:16:04
-**Total fields analyzed:** 177
-**Issues found:** 66
+**Date:** 2026-09-16 13:38:02
+**Total fields analyzed:** 178
+**Issues found:** 67
 **Suggestions:** 1
 
 ---
@@ -10,11 +10,11 @@
 ## Summary
 
 - ⚠️ **Warnings:** 14 (should review)
-- ℹ️ **Info:** 52 (informational)
+- ℹ️ **Info:** 53 (informational)
 
 ### Issues by Category
 
-- **write-mode:** 62
+- **write-mode:** 63
 - **immutability:** 3
 - **consistency:** 1
 
@@ -165,7 +165,7 @@
 ### ℹ️ `Group: *labels`
 
 **Category:** consistency  
-**Issue:** Similar fields have different write_modes: {'service-set', 'mutable'}  
+**Issue:** Similar fields have different write_modes: {'mutable', 'service-set'}  
 **Current:** Fields: spec.hostedCluster.labels, spec.labels...  
 **Suggestion:** Review marker consistency across similar fields  
 **Confidence:** 60%
@@ -673,6 +673,16 @@
 ---
 
 ### ℹ️ `spec.nodePool.tuningConfig`
+
+**Category:** write-mode  
+**Issue:** service-set field outside typical locations  
+**Current:** write_mode=service-set  
+**Suggestion:** Verify this field is actually service-managed  
+**Confidence:** 50%
+
+---
+
+### ℹ️ `spec.indexRef`
 
 **Category:** write-mode  
 **Issue:** service-set field outside typical locations  

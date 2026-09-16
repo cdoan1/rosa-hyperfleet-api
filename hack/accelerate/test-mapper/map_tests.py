@@ -58,6 +58,73 @@ def load_jira_mapping(matrix_dir: Path) -> pd.DataFrame:
         sys.exit(1)
 
 
+def load_test_file_mapping(matrix_dir: Path) -> Dict[str, str]:
+    """
+    Load test ID → file path mapping from jira-test-mapping-1.csv.
+
+    Returns: dict mapping test_id → e2e_file_path
+    """
+    mapping_file = matrix_dir / 'jira-test-mapping-1.csv'
+
+    try:
+        df = pd.read_csv(mapping_file)
+        # Build lookup: test_id → e2e file path
+        test_to_file = {}
+        for _, row in df.iterrows():
+            test_id = str(row.get('Test id', '')).strip()
+            e2e_file = str(row.get('e2e file', '')).strip()
+
+            # Skip empty or invalid entries
+            if test_id and e2e_file and test_id != 'nan' and e2e_file != 'nan':
+                test_to_file[test_id] = e2e_file
+
+        return test_to_file
+    except FileNotFoundError:
+        print(f"Warning: Test file mapping not found: {mapping_file}", file=sys.stderr)
+        print(f"  test_ref will show test counts instead of file paths", file=sys.stderr)
+        return {}
+    except Exception as e:
+        print(f"Warning: Error loading test file mapping: {e}", file=sys.stderr)
+        return {}
+
+
+def resolve_test_file_paths(test_ids_str: str, test_to_file: Dict[str, str]) -> str:
+    """
+    Resolve comma-separated test IDs to file paths with test IDs.
+
+    Args:
+        test_ids_str: Comma-separated test IDs (e.g., "43070, 75904, 53570")
+        test_to_file: Lookup dict from test_id → file_path
+
+    Returns: Multi-line formatted string with one file per line:
+        tests/e2e/file1.go (43070, 75904)
+        tests/e2e/file2.go (53570)
+    """
+    if pd.isna(test_ids_str) or not test_ids_str:
+        return ""
+
+    # Parse test IDs
+    test_ids = [tid.strip() for tid in str(test_ids_str).split(',')]
+
+    # Group test IDs by file path
+    file_to_ids = {}
+    for tid in test_ids:
+        if tid in test_to_file:
+            file_path = test_to_file[tid]
+            if file_path not in file_to_ids:
+                file_to_ids[file_path] = []
+            file_to_ids[file_path].append(tid)
+
+    # Format as multi-line: one file per line
+    formatted_parts = []
+    for file_path in sorted(file_to_ids.keys()):
+        ids = ", ".join(file_to_ids[file_path])
+        formatted_parts.append(f"{file_path} ({ids})")
+
+    # Join with newlines for multi-line CSV cell
+    return "\n".join(formatted_parts)
+
+
 def extract_keywords(field_path: str) -> List[str]:
     """
     Extract keywords from field path for matching.
@@ -111,11 +178,16 @@ def match_capability(field_keywords: List[str], capability: str) -> float:
     return min(score, 1.0)
 
 
-def find_best_jira_match(field_path: str, jira_mapping: pd.DataFrame, threshold: float = 0.3) -> Optional[Tuple[str, str, float, float]]:
+def find_best_jira_match(
+    field_path: str,
+    jira_mapping: pd.DataFrame,
+    test_to_file: Dict[str, str],
+    threshold: float = 0.3
+) -> Optional[Tuple[str, str, str, int, int, str, float]]:
     """
     Find best JIRA ticket match for a field.
 
-    Returns: (jira_ticket, capability_name, complexity, test_count, confidence) or None
+    Returns: (jira_ticket, capability_name, complexity, test_count, tbd_count, test_ref, confidence) or None
     """
     keywords = extract_keywords(field_path)
 
@@ -141,8 +213,16 @@ def find_best_jira_match(field_path: str, jira_mapping: pd.DataFrame, threshold:
     complexity = best_match.get('Complexity', 'unknown')
     test_count = best_match.get('Tests', 0)
     tbd_count = best_match.get('TBD', 0)
+    test_ids_str = best_match.get('Test ids', '')
 
-    return (jira_ticket, capability_name, complexity, test_count, tbd_count, best_score)
+    # Resolve test IDs to formatted file paths with IDs
+    test_ref = resolve_test_file_paths(test_ids_str, test_to_file)
+
+    # Fallback to test count if no file mapping available
+    if not test_ref and test_count > 0:
+        test_ref = f"{test_count} tests"
+
+    return (jira_ticket, capability_name, complexity, test_count, tbd_count, test_ref, best_score)
 
 
 def classify_status(complexity: str, test_count: int, tbd_count: int) -> str:
@@ -166,7 +246,12 @@ def classify_status(complexity: str, test_count: int, tbd_count: int) -> str:
         return 'unmatched'
 
 
-def map_fields_to_jiras(ledger: pd.DataFrame, jira_mapping: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def map_fields_to_jiras(
+    ledger: pd.DataFrame,
+    jira_mapping: pd.DataFrame,
+    test_to_file: Dict[str, str],
+    verbose: bool = False
+) -> pd.DataFrame:
     """
     Map each ledger field to JIRA ticket and classify status.
     """
@@ -177,12 +262,11 @@ def map_fields_to_jiras(ledger: pd.DataFrame, jira_mapping: pd.DataFrame, verbos
         owner_type = row['owner_type']
 
         # Find best JIRA match
-        match = find_best_jira_match(field_path, jira_mapping)
+        match = find_best_jira_match(field_path, jira_mapping, test_to_file)
 
         if match:
-            jira_ticket, capability, complexity, test_count, tbd_count, confidence = match
+            jira_ticket, capability, complexity, test_count, tbd_count, test_ref, confidence = match
             status = classify_status(complexity, test_count, tbd_count)
-            test_ref = f"{test_count} tests" if test_count > 0 else ""
             notes = f"Matched: {capability} (confidence: {confidence:.2f})"
 
             if verbose and confidence < 0.5:
@@ -304,9 +388,13 @@ Examples:
     jira_mapping = load_jira_mapping(matrix_dir)
     print(f"  {len(jira_mapping)} JIRA tickets loaded")
 
+    print(f"\n✓ Loading test file mapping...")
+    test_to_file = load_test_file_mapping(matrix_dir)
+    print(f"  {len(test_to_file)} test IDs mapped to files")
+
     # Map fields to JIRAs
     print(f"\n✓ Mapping fields to JIRA tickets...")
-    mapped_ledger = map_fields_to_jiras(ledger, jira_mapping, verbose=args.verbose)
+    mapped_ledger = map_fields_to_jiras(ledger, jira_mapping, test_to_file, verbose=args.verbose)
 
     # Print statistics
     print_statistics(mapped_ledger)
