@@ -313,8 +313,63 @@ resources:
               operations:
                 - create
                 - update
+            - path: spec.nodePool.autoScaling.max
+              goType: integer(int32)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.autoScaling.min
+              goType: integer(int32)
+              operations:
+                - create
+                - update
             - path: spec.nodePool.clusterName
               goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.config
+              goType: array(object)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.autoRepair
+              goType: boolean
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.inPlace.maxUnavailable
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.replace.rollingUpdate.maxSurge
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.replace.rollingUpdate.maxUnavailable
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.replace.strategy
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.management.upgradeType
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.nodeDrainTimeout
+              goType: string
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.nodeLabels
+              goType: map
               operations:
                 - create
                 - update
@@ -424,6 +479,16 @@ resources:
                 - update
             - path: spec.nodePool.replicas
               goType: integer(int32)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.taints
+              goType: array(object)
+              operations:
+                - create
+                - update
+            - path: spec.nodePool.tuningConfig
+              goType: array(object)
               operations:
                 - create
                 - update
