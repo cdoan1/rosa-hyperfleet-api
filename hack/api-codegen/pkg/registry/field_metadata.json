@@ -1134,7 +1134,7 @@
   },
   {
     "fieldPath": "spec.nodePool.management",
-    "writeMode": "mutable",
+    "writeMode": "service-set",
     "ownerType": "NodePool",
     "ownerGVK": "hyperfleet.io/v1alpha1.NodePool"
   },
@@ -1146,7 +1146,7 @@
   },
   {
     "fieldPath": "spec.nodePool.nodeLabels",
-    "writeMode": "mutable",
+    "writeMode": "service-set",
     "ownerType": "NodePool",
     "ownerGVK": "hyperfleet.io/v1alpha1.NodePool"
   },

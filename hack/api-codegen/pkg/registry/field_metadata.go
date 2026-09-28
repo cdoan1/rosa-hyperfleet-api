@@ -1170,7 +1170,7 @@ var FieldRegistry = TypedFieldRegistry{
 		},
 		"spec.nodePool.management": {
 			FieldPath: "spec.nodePool.management",
-			WriteMode: Mutable,
+			WriteMode: ServiceSet,
 			OwnerType: "NodePool",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.NodePool",
 		},
@@ -1182,7 +1182,7 @@ var FieldRegistry = TypedFieldRegistry{
 		},
 		"spec.nodePool.nodeLabels": {
 			FieldPath: "spec.nodePool.nodeLabels",
-			WriteMode: Mutable,
+			WriteMode: ServiceSet,
 			OwnerType: "NodePool",
 			OwnerGVK:  "hyperfleet.io/v1alpha1.NodePool",
 		},
