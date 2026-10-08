@@ -172,10 +172,11 @@ type HostedClusterSpecPassthrough struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 	// capabilities allows for disabling optional components at cluster install time.
-	// +k8s:openapi-gen=false
-	// +hyperfleet:write-mode=service-set
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	// +hyperfleet:passthrough-type=ClusterCapabilitiesSpec
 	// +optional
-	Capabilities *hypershiftv1beta1.Capabilities `json:"capabilities,omitempty"`
+	Capabilities *ClusterCapabilitiesSpec `json:"capabilities,omitempty"`
 }
 
 // NodePoolSpecPassthrough mirrors NodePoolSpec from upstream HyperShift

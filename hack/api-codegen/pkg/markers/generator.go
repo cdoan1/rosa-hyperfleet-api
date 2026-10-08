@@ -42,6 +42,9 @@ var FieldRegistry = TypedFieldRegistry{
 			{{- if $field.WriteMode }}
 			WriteMode: {{ $field.WriteMode }},
 			{{- end }}
+			{{- if $field.PassthroughType }}
+			PassthroughType: "{{ $field.PassthroughType }}",
+			{{- end }}
 			{{- if $field.FeatureGate }}
 			FeatureGate: "{{ $field.FeatureGate }}",
 			{{- end }}
@@ -72,6 +75,7 @@ type templateData struct {
 type templateField struct {
 	FieldPath       string
 	WriteMode       string
+	PassthroughType string
 	FeatureGate     string
 	Hidden          bool
 	GatedWriteModes []templateGatedWriteMode
@@ -119,11 +123,12 @@ func (s *MarkerScanner) Generate(outputFile string) error {
 		for _, path := range paths {
 			meta := fields[path]
 			field := templateField{
-				FieldPath:   meta.FieldPath,
-				FeatureGate: meta.FeatureGate,
-				Hidden:      meta.Hidden,
-				OwnerType:   meta.OwnerType,
-				OwnerGVK:    meta.OwnerGVK,
+				FieldPath:       meta.FieldPath,
+				PassthroughType: meta.PassthroughType,
+				FeatureGate:     meta.FeatureGate,
+				Hidden:          meta.Hidden,
+				OwnerType:       meta.OwnerType,
+				OwnerGVK:        meta.OwnerGVK,
 			}
 
 			// Convert WriteMode to const reference

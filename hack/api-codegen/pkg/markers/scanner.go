@@ -18,6 +18,7 @@ var (
 	// Marker patterns
 	openapiGenPattern                = regexp.MustCompile(`\+k8s:openapi-gen=false`)
 	writeModePattern                 = regexp.MustCompile(`\+hyperfleet:write-mode=(mutable|immutable|service-set)`)
+	passthroughTypePattern           = regexp.MustCompile(`\+hyperfleet:passthrough-type=([A-Za-z_][A-Za-z0-9_]*)`)
 	featureGatePattern               = regexp.MustCompile(`\+openshift:enable:FeatureGate=(\w+)`)
 	featureGateAwareWriteModePattern = regexp.MustCompile(`\+hyperfleet:validation:FeatureGateAwareWriteMode:featureGate="([^"]*)",writeMode="(mutable|immutable|service-set)"`)
 	upstreamReducedObjectPattern     = regexp.MustCompile(`\+hyperfleet:upstream-reduced-object=([^\s]+)`)
@@ -388,6 +389,9 @@ func (s *MarkerScanner) extractMarkers(field *ast.Field, fieldPath string) *Fiel
 	if matches := writeModePattern.FindStringSubmatch(comments); len(matches) > 1 {
 		meta.WriteMode = WriteMode(matches[1])
 	}
+	if matches := passthroughTypePattern.FindStringSubmatch(comments); len(matches) > 1 {
+		meta.PassthroughType = matches[1]
+	}
 
 	// Extract feature gate
 	if matches := featureGatePattern.FindStringSubmatch(comments); len(matches) > 1 {
@@ -410,7 +414,7 @@ func (s *MarkerScanner) extractMarkers(field *ast.Field, fieldPath string) *Fiel
 	}
 
 	// Only include in registry if at least one marker was found
-	if meta.Hidden || meta.WriteMode != "" || meta.FeatureGate != "" || len(meta.FeatureGateAwareWriteModes) > 0 {
+	if meta.Hidden || meta.WriteMode != "" || meta.PassthroughType != "" || meta.FeatureGate != "" || len(meta.FeatureGateAwareWriteModes) > 0 {
 		return meta
 	}
 
@@ -585,6 +589,7 @@ func (s *MarkerScanner) updateRegistryWithSyntheticPaths(byOwner map[string][]te
 				meta := FieldMeta{
 					FieldPath:                  tfield.FieldPath,
 					WriteMode:                  writeMode,
+					PassthroughType:            tfield.PassthroughType,
 					FeatureGate:                tfield.FeatureGate,
 					Hidden:                     tfield.Hidden,
 					FeatureGateAwareWriteModes: gatedModes,

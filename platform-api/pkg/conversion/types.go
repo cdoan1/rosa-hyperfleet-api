@@ -34,8 +34,6 @@ type ServiceSetFieldsHostedCluster struct {
 	Authentication string `json:"authentication,omitempty"`
 	// Autoscaling is service-set (platform-managed, hidden from API)
 	Autoscaling hypershiftv1beta1.ClusterAutoscaling `json:"autoscaling,omitempty"`
-	// Capabilities is service-set (platform-managed, hidden from API)
-	Capabilities *hypershiftv1beta1.Capabilities `json:"capabilities,omitempty"`
 	// ClusterID is service-set (platform-managed, hidden from API)
 	ClusterID string `json:"clusterID,omitempty"`
 	// ControlPlaneRelease is service-set (platform-managed, hidden from API)

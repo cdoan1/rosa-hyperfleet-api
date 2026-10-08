@@ -2601,6 +2601,57 @@ components:
                               required:
                                   - provisionerConfig
                               type: object
+                          capabilities:
+                              description: capabilities allows for disabling optional components at cluster install time.
+                              properties:
+                                  disabled:
+                                      description: |-
+                                          disabled explicitly disables the specified capabilities on the hosted cluster.
+                                          Once set, this field cannot be changed.
+                                      items:
+                                          enum:
+                                              - ImageRegistry
+                                              - openshift-samples
+                                              - Insights
+                                              - baremetal
+                                              - Console
+                                              - NodeTuning
+                                              - Ingress
+                                          type: string
+                                      maxItems: 25
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                      x-kubernetes-validations:
+                                          - message: Disabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                                            rule: self == oldSelf
+                                          - message: Ingress capability can only be disabled if Console capability is also disabled.
+                                            rule: '!self.exists(cap, cap == ''Ingress'') || self.exists(cap, cap == ''Console'')'
+                                  enabled:
+                                      description: |-
+                                          enabled explicitly enables the specified capabilities on the hosted cluster.
+                                          Once set, this field cannot be changed.
+                                      items:
+                                          enum:
+                                              - ImageRegistry
+                                              - openshift-samples
+                                              - Insights
+                                              - baremetal
+                                              - Console
+                                              - NodeTuning
+                                              - Ingress
+                                          type: string
+                                      maxItems: 25
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                      x-kubernetes-validations:
+                                          - message: Enabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                                            rule: self == oldSelf
+                              type: object
+                              x-kubernetes-validations:
+                                  - message: Capabilities is immutable. Changes might result in unpredictable and disruptive behavior.
+                                    rule: self == oldSelf
+                                  - message: Capabilities cannot be both enabled and disabled at once.
+                                    rule: 'has(self.enabled) && has(self.disabled) ? self.enabled.all(e, !(e in self.disabled)) : true'
                           channel:
                               description: channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.
                               type: string
@@ -5020,6 +5071,57 @@ components:
                                           required:
                                               - provisionerConfig
                                           type: object
+                                      capabilities:
+                                          description: capabilities allows for disabling optional components at cluster install time.
+                                          properties:
+                                              disabled:
+                                                  description: |-
+                                                      disabled explicitly disables the specified capabilities on the hosted cluster.
+                                                      Once set, this field cannot be changed.
+                                                  items:
+                                                      enum:
+                                                          - ImageRegistry
+                                                          - openshift-samples
+                                                          - Insights
+                                                          - baremetal
+                                                          - Console
+                                                          - NodeTuning
+                                                          - Ingress
+                                                      type: string
+                                                  maxItems: 25
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                  x-kubernetes-validations:
+                                                      - message: Disabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                                                        rule: self == oldSelf
+                                                      - message: Ingress capability can only be disabled if Console capability is also disabled.
+                                                        rule: '!self.exists(cap, cap == ''Ingress'') || self.exists(cap, cap == ''Console'')'
+                                              enabled:
+                                                  description: |-
+                                                      enabled explicitly enables the specified capabilities on the hosted cluster.
+                                                      Once set, this field cannot be changed.
+                                                  items:
+                                                      enum:
+                                                          - ImageRegistry
+                                                          - openshift-samples
+                                                          - Insights
+                                                          - baremetal
+                                                          - Console
+                                                          - NodeTuning
+                                                          - Ingress
+                                                      type: string
+                                                  maxItems: 25
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                  x-kubernetes-validations:
+                                                      - message: Enabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                                                        rule: self == oldSelf
+                                          type: object
+                                          x-kubernetes-validations:
+                                              - message: Capabilities is immutable. Changes might result in unpredictable and disruptive behavior.
+                                                rule: self == oldSelf
+                                              - message: Capabilities cannot be both enabled and disabled at once.
+                                                rule: 'has(self.enabled) && has(self.disabled) ? self.enabled.all(e, !(e in self.disabled)) : true'
                                       channel:
                                           description: channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.
                                           type: string
@@ -8563,6 +8665,8 @@ components:
           autoNode:
               description: autoNode specifies the configuration for automatic node provisioning and lifecycle management.
               type: object
+          capabilities:
+              $ref: '#/components/schemas/ClusterCapabilitiesSpec'
           channel:
               description: channel is an identifier for explicitly requesting that a non-default set of updates be applied to this cluster.
               type: string
@@ -10593,3 +10697,57 @@ components:
       required:
           - type
       type: object
+
+    ClusterCapabilitiesSpec:
+      description: |-
+          ClusterCapabilitiesSpec mirrors HyperShift v1beta1 Capabilities while
+          exposing its two immutable capability lists through the HyperFleet API.
+      properties:
+          disabled:
+              description: |-
+                  disabled explicitly disables the specified capabilities on the hosted cluster.
+                  Once set, this field cannot be changed.
+              items:
+                  enum:
+                      - ImageRegistry
+                      - openshift-samples
+                      - Insights
+                      - baremetal
+                      - Console
+                      - NodeTuning
+                      - Ingress
+                  type: string
+              maxItems: 25
+              type: array
+              x-kubernetes-list-type: atomic
+              x-kubernetes-validations:
+                  - message: Disabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                    rule: self == oldSelf
+                  - message: Ingress capability can only be disabled if Console capability is also disabled.
+                    rule: '!self.exists(cap, cap == ''Ingress'') || self.exists(cap, cap == ''Console'')'
+          enabled:
+              description: |-
+                  enabled explicitly enables the specified capabilities on the hosted cluster.
+                  Once set, this field cannot be changed.
+              items:
+                  enum:
+                      - ImageRegistry
+                      - openshift-samples
+                      - Insights
+                      - baremetal
+                      - Console
+                      - NodeTuning
+                      - Ingress
+                  type: string
+              maxItems: 25
+              type: array
+              x-kubernetes-list-type: atomic
+              x-kubernetes-validations:
+                  - message: Enabled is immutable. Changes might result in unpredictable and disruptive behavior.
+                    rule: self == oldSelf
+      type: object
+      x-kubernetes-validations:
+          - message: Capabilities is immutable. Changes might result in unpredictable and disruptive behavior.
+            rule: self == oldSelf
+          - message: Capabilities cannot be both enabled and disabled at once.
+            rule: 'has(self.enabled) && has(self.disabled) ? self.enabled.all(e, !(e in self.disabled)) : true'

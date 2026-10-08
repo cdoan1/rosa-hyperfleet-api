@@ -91,10 +91,10 @@ func (v *FieldValidator) validate(fields, existingFields map[string]any, op Oper
 			continue
 		}
 
-		// Skip hidden fields and service-set structural containers. The latter
-		// can contain mutable descendants, such as proxy.httpProxy, and must not
-		// reject the whole object before its children are validated.
-		if meta.Hidden || isStructuralContainer(fieldPath, fieldMetaMap) {
+		// Skip hidden fields and structural containers with supplied descendants.
+		// An empty or null container has no flattened children, so evaluate its
+		// own policy (for example, to prevent clearing an immutable object).
+		if meta.Hidden || (isStructuralContainer(fieldPath, fieldMetaMap) && hasFlattenedDescendant(fieldPath, fields)) {
 			continue
 		}
 
@@ -126,6 +126,16 @@ func isStructuralContainer(fieldPath string, fieldMetaMap map[string]registry.Fi
 			continue
 		}
 		if childMeta.WriteMode == registry.Mutable || childMeta.WriteMode == registry.Immutable {
+			return true
+		}
+	}
+	return false
+}
+
+func hasFlattenedDescendant(fieldPath string, fields map[string]any) bool {
+	prefix := fieldPath + "."
+	for candidate := range fields {
+		if strings.HasPrefix(candidate, prefix) {
 			return true
 		}
 	}

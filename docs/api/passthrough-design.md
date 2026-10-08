@@ -90,6 +90,7 @@ The registry captures the following marker categories from the passthrough file:
 | `+hyperfleet:write-mode=mutable\|immutable\|service-set` | `writeMode`                  | Controls customer mutability                      |
 | `+openshift:enable:FeatureGate=X`                        | `featureGate`                | Field gated behind a feature flag                 |
 | `+hyperfleet:validation:FeatureGateAwareWriteMode:...`   | `featureGateAwareWriteModes` | Write-mode varies by active feature gates         |
+| `+hyperfleet:passthrough-type=LocalType`                 | `passthroughType`            | Replaces an upstream field type with a local mirror so nested fields can carry curated markers |
 
 Upstream markers like `+optional` and `+required` are propagated directly from HyperShift source by `passthrough-gen` via `isForwardedMarker()` — they do not go through the registry.
 

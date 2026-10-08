@@ -156,8 +156,27 @@ func (g *Generator) createFieldDef(fieldName string, field *ast.Field) FieldDef 
 		lookupName = fieldName
 	}
 	fieldDef.Markers = append(g.getMarkersForField(lookupName), upstreamMarkers...)
+	for _, marker := range fieldDef.Markers {
+		if strings.HasPrefix(marker, "+hyperfleet:passthrough-type=") {
+			override := strings.TrimPrefix(marker, "+hyperfleet:passthrough-type=")
+			fieldDef.Type = replaceNamedType(field.Type, override)
+		}
+	}
 
 	return fieldDef
+}
+
+// replaceNamedType preserves pointer and slice wrappers from the upstream field
+// while replacing its named type with a local mirror type.
+func replaceNamedType(expr ast.Expr, replacement string) string {
+	switch t := expr.(type) {
+	case *ast.StarExpr:
+		return "*" + replaceNamedType(t.X, replacement)
+	case *ast.ArrayType:
+		return "[]" + replaceNamedType(t.Elt, replacement)
+	default:
+		return replacement
+	}
 }
 
 // isForwardedMarker reports whether an upstream marker should be propagated
@@ -256,6 +275,9 @@ func (g *Generator) getMarkersForField(jsonTagName string) []string {
 
 			if meta.WriteMode != "" {
 				markers = append(markers, fmt.Sprintf("+hyperfleet:write-mode=%s", meta.WriteMode))
+			}
+			if meta.PassthroughType != "" {
+				markers = append(markers, fmt.Sprintf("+hyperfleet:passthrough-type=%s", meta.PassthroughType))
 			}
 
 			if meta.FeatureGate != "" {

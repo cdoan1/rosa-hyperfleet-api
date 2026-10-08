@@ -60,8 +60,20 @@
   },
   {
     "fieldPath": "spec.hostedCluster.capabilities",
-    "writeMode": "service-set",
-    "hidden": true,
+    "writeMode": "immutable",
+    "passthroughType": "ClusterCapabilitiesSpec",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.capabilities.disabled",
+    "writeMode": "immutable",
+    "ownerType": "Cluster",
+    "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
+  },
+  {
+    "fieldPath": "spec.hostedCluster.capabilities.enabled",
+    "writeMode": "immutable",
     "ownerType": "Cluster",
     "ownerGVK": "hyperfleet.io/v1alpha1.Cluster"
   },

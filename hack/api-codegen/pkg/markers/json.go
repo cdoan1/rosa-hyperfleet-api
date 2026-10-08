@@ -20,6 +20,7 @@ func (s *MarkerScanner) GenerateJSON(outputFile string) error {
 	type jsonField struct {
 		FieldPath                  string                 `json:"fieldPath"`
 		WriteMode                  string                 `json:"writeMode,omitempty"`
+		PassthroughType            string                 `json:"passthroughType,omitempty"`
 		FeatureGate                string                 `json:"featureGate,omitempty"`
 		Hidden                     bool                   `json:"hidden,omitempty"`
 		FeatureGateAwareWriteModes []FeatureGateWriteMode `json:"featureGateAwareWriteModes,omitempty"`
@@ -54,6 +55,7 @@ func (s *MarkerScanner) GenerateJSON(outputFile string) error {
 			field := jsonField{
 				FieldPath:                  meta.FieldPath,
 				WriteMode:                  string(meta.WriteMode),
+				PassthroughType:            meta.PassthroughType,
 				FeatureGate:                meta.FeatureGate,
 				Hidden:                     meta.Hidden,
 				FeatureGateAwareWriteModes: meta.FeatureGateAwareWriteModes,
@@ -92,6 +94,7 @@ func LoadTypedRegistryFromJSONBytes(data []byte) (TypedFieldRegistry, error) {
 	type jsonField struct {
 		FieldPath                  string                 `json:"fieldPath"`
 		WriteMode                  string                 `json:"writeMode,omitempty"`
+		PassthroughType            string                 `json:"passthroughType,omitempty"`
 		FeatureGate                string                 `json:"featureGate,omitempty"`
 		Hidden                     bool                   `json:"hidden,omitempty"`
 		FeatureGateAwareWriteModes []FeatureGateWriteMode `json:"featureGateAwareWriteModes,omitempty"`
@@ -114,6 +117,7 @@ func LoadTypedRegistryFromJSONBytes(data []byte) (TypedFieldRegistry, error) {
 		registry[field.OwnerType][field.FieldPath] = FieldMeta{
 			FieldPath:                  field.FieldPath,
 			WriteMode:                  WriteMode(field.WriteMode),
+			PassthroughType:            field.PassthroughType,
 			FeatureGate:                field.FeatureGate,
 			Hidden:                     field.Hidden,
 			FeatureGateAwareWriteModes: field.FeatureGateAwareWriteModes,

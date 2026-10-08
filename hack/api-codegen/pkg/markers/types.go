@@ -33,6 +33,10 @@ type FieldMeta struct {
 	// WriteMode controls customer mutability
 	WriteMode WriteMode
 
+	// PassthroughType overrides the upstream field type in generated passthrough
+	// structs when a local mirror adds field-level API markers.
+	PassthroughType string `json:"passthroughType,omitempty"`
+
 	// FeatureGate is the gate required to use this field (empty if no gate required)
 	FeatureGate string
 

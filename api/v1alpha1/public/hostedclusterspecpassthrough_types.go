@@ -68,4 +68,10 @@ type HostedClusterSpecPassthrough struct {
 	// +hyperfleet:write-mode=service-set
 	// +optional
 	PausedUntil *string `json:"pausedUntil,omitempty"`
+	// capabilities allows for disabling optional components at cluster install time.
+	// +k8s:openapi-gen=true
+	// +hyperfleet:write-mode=immutable
+	// +hyperfleet:passthrough-type=ClusterCapabilitiesSpec
+	// +optional
+	Capabilities *ClusterCapabilitiesSpec `json:"capabilities,omitempty"`
 }
