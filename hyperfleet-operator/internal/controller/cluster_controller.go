@@ -211,7 +211,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		go func(idx int, m render.Resource) {
 			defer upsertWg.Done()
 			docID := dynamo.NewDocumentID(taskKey, m.Group, m.Version, m.Resource, m.Namespace, m.Name)
-			content, marshalErr := json.Marshal(m.Object)
+			content, marshalErr := render.MarshalApplyObject(m.Object)
 			if marshalErr != nil {
 				upsertResults[idx] = upsertResult{err: fmt.Errorf("marshal resource %s: %w", m.Name, marshalErr)}
 				return
